@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import Link from 'next/link'
 import {
   ArrowLeft,
+  ArrowUpRight,
   CalendarDays,
   CheckCircle2,
   ChevronDown,
@@ -162,7 +163,7 @@ export function PublicZvzRecordHeader({
             <Swords size={14} />
             {eyebrow}
           </p>
-          <h1 className="mt-3 break-words text-3xl font-black text-white sm:text-5xl">
+          <h1 className="mt-3 break-words text-balance text-3xl font-black text-white sm:text-5xl">
             {title}
           </h1>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-gray-300 sm:text-base">
@@ -348,6 +349,7 @@ interface PublicZvzBattleMatchupLabels {
   kd: string
   killFame: string
   noOpponents: string
+  viewDetails: string
 }
 
 interface PublicZvzProminentTeamSize {
@@ -792,6 +794,17 @@ export function PublicZvzBattleMatchupCard({
           )}
         </section>
       </div>
+      {battleHref ? (
+        <div className="mt-4 flex justify-end border-t border-white/[0.06] pt-4">
+          <Link
+            href={battleHref}
+            className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-amber-300 px-4 text-sm font-black text-slate-950 shadow-[0_8px_22px_rgba(251,191,36,0.14)] transition-[background-color,box-shadow,scale] duration-150 ease-out hover:bg-amber-200 hover:shadow-[0_10px_28px_rgba(251,191,36,0.2)] active:scale-[0.96]"
+          >
+            {labels.viewDetails}
+            <ArrowUpRight size={15} aria-hidden="true" />
+          </Link>
+        </div>
+      ) : null}
     </article>
   )
 }

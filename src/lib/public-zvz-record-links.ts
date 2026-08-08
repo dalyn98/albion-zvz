@@ -158,8 +158,41 @@ export function buildPublicZvzBattleReportHref(input: {
   basePath: string
   server: AlbionServer
   battleId: number
+  engagementId?: string | null
+  focusKind?: 'guild' | 'alliance' | null
+  focusAlbionId?: string | null
+  weekStart?: string | null
+  seasonId?: string | null
+  asOfDate?: string | null
 }): string {
-  return `${normalizedBasePath(input.basePath)}/battle/${input.server}/${input.battleId}`
+  const pathname = `${normalizedBasePath(input.basePath)}/battle/${input.server}/${input.battleId}`
+  const query = new URLSearchParams()
+  const engagementId = normalizePublicZvzEngagementId(input.engagementId)
+  const focusAlbionId = normalizePublicZvzAlbionId(input.focusAlbionId)
+  if (engagementId) query.set('engagement', engagementId)
+  if (input.focusKind && focusAlbionId) {
+    query.set('focus', input.focusKind)
+    query.set('focusId', focusAlbionId)
+  }
+  const seasonId = normalizePublicZvzSeasonId(input.seasonId)
+  const asOfDate = normalizePublicZvzDate(input.asOfDate)
+  const weekStart = normalizePublicZvzWeekStart(input.weekStart)
+  if (seasonId) {
+    query.set('season', seasonId)
+    if (asOfDate) query.set('asOf', asOfDate)
+  } else if (weekStart) {
+    query.set('week', weekStart)
+  }
+  const suffix = query.toString()
+  return suffix ? `${pathname}?${suffix}` : pathname
+}
+
+export function normalizePublicZvzEngagementId(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const normalized = value.trim().toLowerCase()
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(normalized)
+    ? normalized
+    : null
 }
 
 export function normalizePublicZvzBattleIds(value: unknown): number[] {

@@ -34,6 +34,7 @@ interface EngagementRow {
   opponent_kill_fame: number | string
   result_event_count: number
   intervention_event_count: number
+  event_ids: string[] | null
   qualification_version: string
 }
 
@@ -126,6 +127,7 @@ export interface PublicZvzBattleEngagement {
   opponentKillFame: number
   resultEventCount: number
   interventionEventCount: number
+  eventIds: string[]
   qualificationVersion: string
   matchups: PublicZvzBattleMatchup[]
   evidence: PublicZvzBattleEntityEvidence[]
@@ -174,7 +176,7 @@ async function loadPublicZvzBattleReportUncached(
   const { data: engagementData, error: engagementError } = await db
     .from('public_zvz_engagements')
     .select(
-      'id, sequence, started_at, ended_at, status, coverage, result, home_force_kind, home_force_albion_id, home_force_name, home_alliance_id, home_alliance_name, home_side_team_size, opponent_side_team_size, scale, home_kills, home_deaths, home_kill_fame, opponent_kill_fame, result_event_count, intervention_event_count, qualification_version',
+      'id, sequence, started_at, ended_at, status, coverage, result, home_force_kind, home_force_albion_id, home_force_name, home_alliance_id, home_alliance_name, home_side_team_size, opponent_side_team_size, scale, home_kills, home_deaths, home_kill_fame, opponent_kill_fame, result_event_count, intervention_event_count, event_ids, qualification_version',
     )
     .eq('battle_record_id', battle.id)
     .order('sequence', { ascending: true })
@@ -226,6 +228,7 @@ async function loadPublicZvzBattleReportUncached(
       opponentKillFame: numeric(row.opponent_kill_fame),
       resultEventCount: row.result_event_count,
       interventionEventCount: row.intervention_event_count,
+      eventIds: Array.from(new Set((row.event_ids ?? []).map(String).filter(Boolean))),
       qualificationVersion: row.qualification_version,
       matchups: matchups
         .filter((matchup) => matchup.engagement_id === row.id)
@@ -272,7 +275,7 @@ async function loadPublicZvzBattleReportUncached(
 
 const loadCached = unstable_cache(
   loadPublicZvzBattleReportUncached,
-  ['public-zvz-battle-report-v2'],
+  ['public-zvz-battle-report-v3'],
   { revalidate: 300 },
 )
 

@@ -47,6 +47,11 @@ type PlayerSort = 'kills' | 'fame' | 'damage' | 'healing' | 'name'
 type BattleScope = number | 'all'
 type ReportTab = 'matchup' | 'forces' | 'players' | 'kills' | 'composition' | 'timeline' | 'sources'
 
+export interface PublicBattleReportInitialGroup {
+  level: GroupLevel
+  key: string
+}
+
 interface SelectedGroup {
   level: GroupLevel
   key: string
@@ -736,10 +741,12 @@ export default function PublicBattleReportExplorer({
   report,
   analysis,
   timezone,
+  initialGroup,
 }: {
   report: PublicBattleGroupReport
   analysis: PublicBattleGroupAnalysis
   timezone: string
+  initialGroup?: PublicBattleReportInitialGroup | null
 }) {
   const t = useTranslations('publicBattleGroup')
   const localeValue = useLocale()
@@ -747,10 +754,11 @@ export default function PublicBattleReportExplorer({
   const { getLocalizedItemNameWithEnchant } = useItemNameResolver(locale)
   const [battleScope, setBattleScope] = useState<BattleScope>('all')
   const [activeTab, setActiveTab] = useState<ReportTab>('matchup')
-  const [selectedGroup, setSelectedGroup] = useState<SelectedGroup>({
-    level: 'forces',
-    key: report.primaryForce.forceKey,
-  })
+  const initialRows = groupRows(report, initialGroup?.level ?? 'forces')
+  const resolvedInitialGroup: SelectedGroup = initialGroup && initialRows.some((row) => row.forceKey === initialGroup.key)
+    ? initialGroup
+    : { level: 'forces', key: report.primaryForce.forceKey }
+  const [selectedGroup, setSelectedGroup] = useState<SelectedGroup>(() => resolvedInitialGroup)
   const [forceSearch, setForceSearch] = useState('')
   const [showAllForces, setShowAllForces] = useState(false)
   const [playerSearch, setPlayerSearch] = useState('')

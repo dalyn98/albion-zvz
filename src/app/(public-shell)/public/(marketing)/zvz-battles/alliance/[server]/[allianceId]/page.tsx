@@ -709,11 +709,18 @@ export default async function PublicAllianceZvzRecordPage({
                   kd: t('kdMetric'),
                   killFame: t('killFameMetric'),
                   noOpponents: t('noOpponentSummary'),
+                  viewDetails: t('viewEngagementDetail'),
                 }}
                 battleHref={buildPublicZvzBattleReportHref({
                   basePath: paths.zvzBattles,
                   server: record.server,
                   battleId: battle.albionBattleId,
+                  engagementId: battle.engagementId,
+                  focusKind: 'alliance',
+                  focusAlbionId: battle.battleAllianceAlbionId ?? record.allianceAlbionId,
+                  weekStart: record.weekStart,
+                  seasonId: season?.season.id,
+                  asOfDate: season?.snapshot.snapshotDate,
                 })}
               />
             )

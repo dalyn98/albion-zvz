@@ -124,6 +124,23 @@ describe('public ZvZ battle card source contracts', () => {
     expect(explorer.match(/hidden=\{activeTab !==/g)).toHaveLength(6)
   })
 
+  it('opens score evidence as one exact engagement instead of the whole Albion battle', () => {
+    const guild = source(guildRecordPath)
+    const alliance = source(allianceRecordPath)
+    const report = source(battleReportPath)
+
+    for (const record of [guild, alliance]) {
+      expect(record).toContain('engagementId: battle.engagementId')
+      expect(record).toContain("viewDetails: t('viewEngagementDetail')")
+    }
+    expect(guild).toContain("focusKind: 'guild'")
+    expect(alliance).toContain("focusKind: 'alliance'")
+    expect(report).toContain('engagement.eventIds')
+    expect(report).toContain('buildPublicBattleEngagementReport')
+    expect(report).toContain('<PublicBattleReportExplorer')
+    expect(report).toContain('<Suspense')
+  })
+
   it('keeps unavailable region data out of the detailed session analyzer', () => {
     const detailSource = `${source(battleSessionPath)}\n${source(battleExplorerPath)}`
 

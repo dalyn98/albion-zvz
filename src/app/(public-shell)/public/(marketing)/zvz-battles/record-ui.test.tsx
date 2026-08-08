@@ -68,6 +68,7 @@ describe('PublicZvzBattleMatchupCard', () => {
           kd: 'K / D',
           killFame: 'Kill fame',
           noOpponents: 'No opposing force details are available.',
+          viewDetails: 'View details',
         }}
       />,
     )
@@ -138,6 +139,7 @@ describe('PublicZvzBattleMatchupCard', () => {
           kd: 'K / D',
           killFame: 'Kill fame',
           noOpponents: 'No opponent data',
+          viewDetails: 'View details',
         }}
       />,
     )

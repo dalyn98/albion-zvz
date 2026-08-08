@@ -370,6 +370,37 @@ function actorToMutable(actor: PublicBattleAnalysisActor): MutablePlayer {
   }
 }
 
+function addEventCombatStat(
+  player: MutablePlayer,
+  actor: PublicBattleAnalysisActor,
+  battleId: number,
+  values: { kills?: number; deaths?: number; killFame?: number },
+): void {
+  const kills = values.kills ?? 0
+  const deaths = values.deaths ?? 0
+  const killFame = values.killFame ?? 0
+  player.kills += kills
+  player.deaths += deaths
+  player.killFame += killFame
+  if (!player.battleIds.includes(battleId)) player.battleIds.push(battleId)
+  const existing = player.battleStats.find((stat) => stat.battleId === battleId)
+  if (existing) {
+    existing.kills += kills
+    existing.deaths += deaths
+    existing.killFame += killFame
+    return
+  }
+  player.battleStats.push({
+    battleId,
+    forceKey: actor.forceKey,
+    allianceKey: actor.allianceKey,
+    guildKey: actor.guildKey,
+    kills,
+    deaths,
+    killFame,
+  })
+}
+
 function playerLookupKeys(actor: PublicBattleAnalysisActor): string[] {
   return [actor.playerId, `name:${stableKey(actor.playerName)}`]
 }
@@ -389,6 +420,7 @@ function coverageStatus(input: {
 export function buildPublicBattleGroupAnalysis(input: {
   report: PublicBattleGroupReport
   batches: ReadonlyArray<PublicBattleRawEventBatch>
+  eventIdsByBattle?: ReadonlyMap<number, ReadonlySet<string>>
 }): PublicBattleGroupAnalysis {
   const batchByBattleId = new Map(input.batches.map((batch) => [batch.battleId, batch]))
   const normalizedEvents: PublicBattleProjectionEvent[] = []
@@ -397,11 +429,15 @@ export function buildPublicBattleGroupAnalysis(input: {
 
   for (const battle of input.report.battles) {
     const batch = batchByBattleId.get(battle.albionBattleId)
+    const requestedEventIds = input.eventIdsByBattle
+      ? input.eventIdsByBattle.get(battle.albionBattleId) ?? new Set<string>()
+      : null
     let observed = 0
     for (const event of normalizePublicBattleProjectionEvents(
       battle.albionBattleId,
       batch?.events ?? [],
     )) {
+      if (requestedEventIds && !requestedEventIds.has(event.eventId)) continue
       const eventKey = `${event.battleId}:${event.eventId}`
       if (!seenEvents.has(eventKey)) {
         seenEvents.add(eventKey)
@@ -411,18 +447,20 @@ export function buildPublicBattleGroupAnalysis(input: {
     }
     const failedPages = batch?.failedPageOffsets?.length ?? 0
     const truncated = batch?.truncated ?? false
+    const expected = requestedEventIds?.size ?? battle.totalKills
+    const scopedCoverageComplete = requestedEventIds !== null && observed === expected
     battleCoverage.push({
       battleId: battle.albionBattleId,
-      expected: battle.totalKills,
+      expected,
       observed,
       status: coverageStatus({
-        expected: battle.totalKills,
+        expected,
         observed,
-        failedPages,
-        truncated,
+        failedPages: scopedCoverageComplete ? 0 : failedPages,
+        truncated: scopedCoverageComplete ? false : truncated,
       }),
-      failedPages,
-      truncated,
+      failedPages: scopedCoverageComplete ? 0 : failedPages,
+      truncated: scopedCoverageComplete ? false : truncated,
     })
   }
 
@@ -434,10 +472,13 @@ export function buildPublicBattleGroupAnalysis(input: {
 
   const players = new Map<string, MutablePlayer>()
   const names = new Map<string, string>()
-  for (const player of input.report.players) {
-    const mutable = basePlayerToMutable(player)
-    players.set(player.playerId, mutable)
-    names.set(`name:${stableKey(player.playerName)}`, player.playerId)
+  const eventScoped = input.eventIdsByBattle !== undefined
+  if (!eventScoped) {
+    for (const player of input.report.players) {
+      const mutable = basePlayerToMutable(player)
+      players.set(player.playerId, mutable)
+      names.set(`name:${stableKey(player.playerName)}`, player.playerId)
+    }
   }
 
   const resolvePlayer = (actor: PublicBattleAnalysisActor): MutablePlayer => {
@@ -469,6 +510,16 @@ export function buildPublicBattleGroupAnalysis(input: {
       }
     }
 
+    if (eventScoped) {
+      addEventCombatStat(resolvePlayer(event.killer), event.killer, event.battleId, {
+        kills: 1,
+        killFame: event.fame,
+      })
+      addEventCombatStat(resolvePlayer(event.victim), event.victim, event.battleId, {
+        deaths: 1,
+      })
+    }
+
     for (const contribution of event.participants) {
       const player = resolvePlayer(contribution.actor)
       const current = player.eventStatsByBattle.get(event.battleId) ?? {
@@ -490,6 +541,7 @@ export function buildPublicBattleGroupAnalysis(input: {
       return {
         ...output,
         battleIds: [...output.battleIds].sort((a, b) => a - b),
+        battleStats: [...output.battleStats].sort((a, b) => a.battleId - b.battleId),
         eventStats: Array.from(eventStatsByBattle.values()).sort((a, b) => a.battleId - b.battleId),
         observations: Array.from(observationsByBattle.values()).sort((a, b) => a.battleId - b.battleId),
       }

@@ -115,6 +115,12 @@ async function mapWithConcurrency<T, R>(
 
 export async function loadPublicBattleGroupAnalysis(
   report: PublicBattleGroupReport,
+  options?: {
+    engagement?: {
+      battleId: number
+      eventIds: ReadonlyArray<string>
+    }
+  },
 ): Promise<PublicBattleGroupAnalysis> {
   const plan = plannedEventPages(report)
   const pageResults = await mapWithConcurrency(
@@ -146,7 +152,13 @@ export async function loadPublicBattleGroupAnalysis(
     }
   })
 
-  return buildPublicBattleGroupAnalysis({ report, batches })
+  const engagement = options?.engagement
+  const eventIdsByBattle = engagement
+    ? new Map<number, ReadonlySet<string>>([
+        [engagement.battleId, new Set(engagement.eventIds.map(String).filter(Boolean))],
+      ])
+    : undefined
+  return buildPublicBattleGroupAnalysis({ report, batches, eventIdsByBattle })
 }
 
 export async function loadPublicBattleRawEventBatch(input: {
