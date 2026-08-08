@@ -12,7 +12,7 @@ import {
 } from '@/lib/marketing-static-intl'
 import { loadPublicBattleGroupAnalysis } from '@/lib/public-battle-analysis'
 import type { PublicBattleGroupReport } from '@/lib/public-battle-report-model'
-import { groupPublicZvzBattleSessions } from '@/lib/public-zvz-battle-sessions'
+import { buildPublicZvzBattleSession } from '@/lib/public-zvz-battle-sessions'
 import { loadPublicZvzBattleSessionReport } from '@/lib/public-zvz-battle-session-report'
 import { loadPublicBattlesByAlbionIds } from '@/lib/public-zvz-battles'
 import { normalizePublicZvzBattleIds } from '@/lib/public-zvz-record-links'
@@ -64,11 +64,13 @@ async function loadSession(route: { server: string; battleIds: string }) {
   const battleIds = normalizePublicZvzBattleIds(route.battleIds)
   if (battleIds.length === 0) return null
   const battles = await loadPublicBattlesByAlbionIds({ server: route.server, battleIds })
-  const sessions = groupPublicZvzBattleSessions(battles)
-  return sessions.find((session) => (
-    session.battleIds.length === battleIds.length &&
-    battleIds.every((battleId) => session.battleIds.includes(battleId))
-  )) ?? null
+  if (
+    battles.length !== battleIds.length ||
+    battleIds.some((battleId) => !battles.some((battle) => battle.albionBattleId === battleId))
+  ) {
+    return null
+  }
+  return buildPublicZvzBattleSession(battles)
 }
 
 export async function generateMetadata({ params }: SessionPageProps): Promise<Metadata> {

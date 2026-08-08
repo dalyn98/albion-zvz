@@ -154,6 +154,12 @@ function toSession(battles: ReadonlyArray<PublicRecentBattle>): PublicZvzBattleS
   }
 }
 
+export function buildPublicZvzBattleSession(
+  battles: ReadonlyArray<PublicRecentBattle>,
+): PublicZvzBattleSession | null {
+  return battles.length > 0 ? toSession(battles) : null
+}
+
 export function groupPublicZvzBattleSessions(
   battles: ReadonlyArray<PublicRecentBattle>,
   gapMs = PUBLIC_ZVZ_BATTLE_SESSION_GAP_MS,

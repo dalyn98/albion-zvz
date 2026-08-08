@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { PublicBattleForce, PublicRecentBattle } from './public-zvz-battles'
 import {
+  buildPublicZvzBattleSession,
   groupPublicZvzBattleSessions,
   PUBLIC_ZVZ_BATTLE_SESSION_GAP_MS,
 } from './public-zvz-battle-sessions'
@@ -49,6 +50,27 @@ function battle(overrides: Partial<PublicRecentBattle> = {}): PublicRecentBattle
 }
 
 describe('groupPublicZvzBattleSessions', () => {
+  it('rebuilds an existing session URL from every available source log', () => {
+    const session = buildPublicZvzBattleSession([
+      battle(),
+      battle({
+        id: 'record-2',
+        albionBattleId: 1002,
+        startedAt: '2026-08-06T13:00:00.000Z',
+        endedAt: '2026-08-06T13:10:00.000Z',
+        activityKind: 'low_engagement',
+        isOfficialZvz: false,
+        topForces: [force('CCC', 30, 4, 3), force('DDD', 30, 3, 4)],
+      }),
+    ])
+
+    expect(session).toMatchObject({
+      battleCount: 2,
+      battleIds: [1001, 1002],
+      totalKills: 30,
+    })
+  })
+
   it('groups nearby logs only when both sides continue the same fight', () => {
     const sessions = groupPublicZvzBattleSessions([
       battle(),
