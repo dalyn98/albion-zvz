@@ -64,6 +64,7 @@ vi.mock('next-intl/server', () => ({
 
 import {
   updateAppSetting,
+  updateEventParticipationAutoCloseoutSettings,
   updateGuildProfileSettings,
   updateRegearSupportConfiguration,
   updateTenantAdminRoles,
@@ -184,6 +185,40 @@ describe('updateAppSetting', () => {
       key: 'event_participation_auto_closeout_hours',
       value: '12',
     })
+  })
+
+  it('saves the participant closeout mode and delay atomically', async () => {
+    const { db, calls } = createDb()
+    mocks.requireAnyCapability.mockResolvedValue(db)
+
+    await expect(
+      updateEventParticipationAutoCloseoutSettings({ enabled: false, hours: 12 }),
+    ).resolves.toEqual({})
+
+    expect(mocks.requireAnyCapability).toHaveBeenCalledWith([CAP.SETTINGS_GENERAL])
+    expect(calls).toHaveLength(1)
+    expect(calls[0].row).toEqual([
+      expect.objectContaining({
+        guild_id: 'guild-1',
+        key: 'event_participation_auto_closeout_enabled',
+        value: 'false',
+      }),
+      expect.objectContaining({
+        guild_id: 'guild-1',
+        key: 'event_participation_auto_closeout_hours',
+        value: '12',
+      }),
+    ])
+    expect(calls[0].options).toEqual({ onConflict: 'guild_id,key' })
+  })
+
+  it('rejects invalid participant closeout settings before authorization', async () => {
+    await expect(
+      updateEventParticipationAutoCloseoutSettings({ enabled: true, hours: 73 }),
+    ).resolves.toEqual({
+      error: 'invalidIntegerRange:{"min":1,"max":72}',
+    })
+    expect(mocks.requireAnyCapability).not.toHaveBeenCalled()
   })
 
   it('rejects participant auto-finalization delays outside 1 to 72 hours', async () => {

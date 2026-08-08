@@ -83,6 +83,58 @@ describeIntegration('event participation closeout (migrations 301-302, 347, 363)
     return { eventId, partyId, slotIds }
   }
 
+  it('snapshots the tenant automatic or manual closeout mode on new events', async () => {
+    const client = getTestServiceClient()
+    const settingRow = (value: 'true' | 'false') => ({
+      guild_id: tenant.guildId,
+      key: 'event_participation_auto_closeout_enabled',
+      value,
+      updated_at: new Date().toISOString(),
+    })
+
+    const { error: manualSettingError } = await client.from('app_settings').upsert(
+      settingRow('false'),
+      { onConflict: 'guild_id,key' },
+    )
+    expect(manualSettingError).toBeNull()
+    const manual = await createEventFixture({
+      startedAt: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(),
+    })
+    const { data: manualEvent, error: manualReadError } = await client
+      .from('events')
+      .select(
+        'participation_auto_closeout_enabled, participation_auto_closeout_review_started_at',
+      )
+      .eq('guild_id', tenant.guildId)
+      .eq('id', manual.eventId)
+      .single()
+    expect(manualReadError).toBeNull()
+    expect(manualEvent).toMatchObject({
+      participation_auto_closeout_enabled: false,
+      participation_auto_closeout_review_started_at: null,
+    })
+
+    const { error: automaticSettingError } = await client.from('app_settings').upsert(
+      settingRow('true'),
+      { onConflict: 'guild_id,key' },
+    )
+    expect(automaticSettingError).toBeNull()
+    const automatic = await createEventFixture({
+      startedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+    })
+    const { data: automaticEvent, error: automaticReadError } = await client
+      .from('events')
+      .select(
+        'participation_auto_closeout_enabled, participation_auto_closeout_review_started_at',
+      )
+      .eq('guild_id', tenant.guildId)
+      .eq('id', automatic.eventId)
+      .single()
+    expect(automaticReadError).toBeNull()
+    expect(automaticEvent?.participation_auto_closeout_enabled).toBe(true)
+    expect(automaticEvent?.participation_auto_closeout_review_started_at).not.toBeNull()
+  })
+
   it('snapshots the guild auto-finalization delay when review starts', async () => {
     const client = getTestServiceClient()
     const { error: settingError } = await client.from('app_settings').upsert(

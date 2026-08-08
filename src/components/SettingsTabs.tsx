@@ -126,6 +126,7 @@ interface Props {
   logStartSiphonAt: string
   eventDmLeadMinutes: number
   eventParticipationAutoCloseoutHours: number
+  eventParticipationAutoCloseoutEnabled: boolean
   quickStarterPanelChannelId: string
   quickStarterPanelTitle: string
   quickStarterPanelDescription: string
@@ -207,6 +208,7 @@ export default function SettingsTabs({
   logStartSiphonAt,
   eventDmLeadMinutes,
   eventParticipationAutoCloseoutHours,
+  eventParticipationAutoCloseoutEnabled,
   quickStarterPanelChannelId,
   quickStarterPanelTitle,
   quickStarterPanelDescription,
@@ -425,6 +427,7 @@ export default function SettingsTabs({
                 {access.general && (
                   <EventParticipationAutoCloseoutSettingsForm
                     embedded
+                    initialEnabled={eventParticipationAutoCloseoutEnabled}
                     initialHours={eventParticipationAutoCloseoutHours}
                   />
                 )}

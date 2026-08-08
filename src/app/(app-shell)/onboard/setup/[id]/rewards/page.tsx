@@ -29,6 +29,7 @@ export default async function TenantRewardsSetupPage({ params }: Props) {
     craftRegearRaw,
     requireVerificationRaw,
     payoutRateRaw,
+    participationAutoCloseoutRaw,
   ] = await Promise.all([
     db
       .from('role_rewards')
@@ -40,6 +41,7 @@ export default async function TenantRewardsSetupPage({ params }: Props) {
     getAppSetting('craft_regear_enabled', '', id),
     getAppSetting('regear_require_verification', 'true', id),
     getAppSetting('regear_payout_rate_percent', '100', id),
+    getAppSetting('event_participation_auto_closeout_enabled', '', id),
   ])
 
   const parsedPayout = Number(payoutRateRaw)
@@ -94,6 +96,12 @@ export default async function TenantRewardsSetupPage({ params }: Props) {
                 : null,
           regearRequireVerification: requireVerificationRaw !== 'false',
           regearPayoutRatePercent: initialPayoutRate,
+          participationAutoCloseoutEnabled:
+            participationAutoCloseoutRaw === 'true'
+              ? true
+              : participationAutoCloseoutRaw === 'false'
+                ? false
+                : null,
         }}
         labels={{
           quickStartTitle: t('quickStartTitle'),
@@ -105,6 +113,15 @@ export default async function TenantRewardsSetupPage({ params }: Props) {
           supportUnsupportedHint: t('supportUnsupportedHint'),
           supportSupportedLabel: t('supportSupportedLabel'),
           supportSupportedHint: t('supportSupportedHint'),
+          participationCloseoutSectionTitle: t('participationCloseoutSectionTitle'),
+          participationCloseoutSectionDescription: t(
+            'participationCloseoutSectionDescription',
+          ),
+          participationCloseoutRequiredError: t('participationCloseoutRequiredError'),
+          participationCloseoutAutomaticLabel: t('participationCloseoutAutomaticLabel'),
+          participationCloseoutAutomaticHint: t('participationCloseoutAutomaticHint'),
+          participationCloseoutManualLabel: t('participationCloseoutManualLabel'),
+          participationCloseoutManualHint: t('participationCloseoutManualHint'),
           fulfillmentSectionTitle: t('fulfillmentSectionTitle'),
           fulfillmentRequiredError: t('fulfillmentRequiredError'),
           fulfillmentSilverLabel: t('fulfillmentSilverLabel'),

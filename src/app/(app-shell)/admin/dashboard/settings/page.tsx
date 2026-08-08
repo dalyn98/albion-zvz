@@ -144,6 +144,7 @@ export default async function SettingsPage() {
     logStartSiphonAt,
     eventDmLeadMinutesRaw,
     eventParticipationAutoCloseoutHoursRaw,
+    eventParticipationAutoCloseoutEnabledRaw,
     { rewards, error: rewardsError },
     {
       policies: regearDiscordRolePolicies,
@@ -319,6 +320,9 @@ export default async function SettingsPage() {
     settingsAccess.general
       ? getAppSetting('event_participation_auto_closeout_hours', '6', tenantId)
       : Promise.resolve('6'),
+    settingsAccess.general
+      ? getAppSetting('event_participation_auto_closeout_enabled', 'true', tenantId)
+      : Promise.resolve('true'),
     settingsAccess.roleRewards
       ? listRoleRewards()
       : Promise.resolve({ rewards: [], error: undefined }),
@@ -436,6 +440,8 @@ export default async function SettingsPage() {
     normalizeEventParticipationAutoCloseoutHours(
       eventParticipationAutoCloseoutHoursRaw,
     )
+  const eventParticipationAutoCloseoutEnabled =
+    eventParticipationAutoCloseoutEnabledRaw !== 'false'
   const quickStarterPanelResolvedDescription =
     quickStarterPanelDescription ||
     quickStarterPanelLegacyMessage ||
@@ -546,6 +552,7 @@ export default async function SettingsPage() {
         logStartSiphonAt={logStartSiphonAt}
         eventDmLeadMinutes={eventDmLeadMinutes}
         eventParticipationAutoCloseoutHours={eventParticipationAutoCloseoutHours}
+        eventParticipationAutoCloseoutEnabled={eventParticipationAutoCloseoutEnabled}
         quickStarterPanelChannelId={quickStarterPanelChannelId}
         quickStarterPanelTitle={quickStarterPanelTitle}
         quickStarterPanelDescription={quickStarterPanelResolvedDescription}

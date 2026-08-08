@@ -18,6 +18,13 @@ interface Labels {
   supportUnsupportedHint: string
   supportSupportedLabel: string
   supportSupportedHint: string
+  participationCloseoutSectionTitle: string
+  participationCloseoutSectionDescription: string
+  participationCloseoutRequiredError: string
+  participationCloseoutAutomaticLabel: string
+  participationCloseoutAutomaticHint: string
+  participationCloseoutManualLabel: string
+  participationCloseoutManualHint: string
   fulfillmentSectionTitle: string
   fulfillmentRequiredError: string
   fulfillmentSilverLabel: string
@@ -68,6 +75,7 @@ interface InitialPolicy {
   craftRegearEnabled: boolean | null
   regearRequireVerification: boolean
   regearPayoutRatePercent: number
+  participationAutoCloseoutEnabled: boolean | null
 }
 
 interface Props {
@@ -111,6 +119,8 @@ export default function TenantRewardsSetupForm({
     initialPolicy.regearRequireVerification,
   )
   const [payoutRateRaw, setPayoutRateRaw] = useState(String(initialPolicy.regearPayoutRatePercent))
+  const [participationAutoCloseoutEnabled, setParticipationAutoCloseoutEnabled] =
+    useState<boolean | null>(initialPolicy.participationAutoCloseoutEnabled)
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
@@ -142,6 +152,10 @@ export default function TenantRewardsSetupForm({
     }
     if (regearSupportEnabled && craftRegearEnabled === null) {
       setError(labels.fulfillmentRequiredError)
+      return
+    }
+    if (participationAutoCloseoutEnabled === null) {
+      setError(labels.participationCloseoutRequiredError)
       return
     }
 
@@ -182,6 +196,7 @@ export default function TenantRewardsSetupForm({
           craftRegearEnabled,
           regearRequireVerification,
           regearPayoutRatePercent: payoutRate,
+          participationAutoCloseoutEnabled,
         },
       })
       if (res.error) {
@@ -256,6 +271,31 @@ export default function TenantRewardsSetupForm({
             </div>
           </fieldset>
         )}
+      </section>
+
+      <section className="space-y-3 rounded-lg border border-white/10 bg-white/[0.02] p-4">
+        <header>
+          <h2 className="text-base font-semibold text-white">
+            {labels.participationCloseoutSectionTitle}
+          </h2>
+          <p className="mt-1 text-xs text-gray-500">
+            {labels.participationCloseoutSectionDescription}
+          </p>
+        </header>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <ChoiceCard
+            checked={participationAutoCloseoutEnabled === true}
+            onChange={() => setParticipationAutoCloseoutEnabled(true)}
+            label={labels.participationCloseoutAutomaticLabel}
+            hint={labels.participationCloseoutAutomaticHint}
+          />
+          <ChoiceCard
+            checked={participationAutoCloseoutEnabled === false}
+            onChange={() => setParticipationAutoCloseoutEnabled(false)}
+            label={labels.participationCloseoutManualLabel}
+            hint={labels.participationCloseoutManualHint}
+          />
+        </div>
       </section>
 
       <details

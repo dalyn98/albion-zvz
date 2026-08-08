@@ -4,7 +4,7 @@ import { useId, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { AlertTriangle, Save } from 'lucide-react'
-import { updateAppSetting } from '@/app/actions/settings'
+import { updateEventParticipationAutoCloseoutSettings } from '@/app/actions/settings'
 import {
   EVENT_PARTICIPATION_AUTO_CLOSEOUT_MAX_HOURS,
   EVENT_PARTICIPATION_AUTO_CLOSEOUT_MIN_HOURS,
@@ -12,17 +12,21 @@ import {
 import { useReportDirty } from './UnsavedChangesProvider'
 
 interface Props {
+  initialEnabled: boolean
   initialHours: number
   embedded?: boolean
 }
 
 export default function EventParticipationAutoCloseoutSettingsForm({
+  initialEnabled,
   initialHours,
   embedded = false,
 }: Props) {
   const t = useTranslations('adminEventParticipationAutoCloseout')
   const router = useRouter()
   const inputId = useId()
+  const [enabled, setEnabled] = useState(initialEnabled)
+  const [savedEnabled, setSavedEnabled] = useState(initialEnabled)
   const [hours, setHours] = useState(String(initialHours))
   const [savedHours, setSavedHours] = useState(String(initialHours))
   const [error, setError] = useState('')
@@ -30,12 +34,13 @@ export default function EventParticipationAutoCloseoutSettingsForm({
   const [isPending, startTransition] = useTransition()
 
   const parsedHours = Number(hours)
-  const invalid =
+  const hoursInvalid =
     !Number.isInteger(parsedHours) ||
     parsedHours < EVENT_PARTICIPATION_AUTO_CLOSEOUT_MIN_HOURS ||
     parsedHours > EVENT_PARTICIPATION_AUTO_CLOSEOUT_MAX_HOURS
-  const dirty = hours !== savedHours
-  const risk = !invalid
+  const invalid = enabled && hoursInvalid
+  const dirty = hours !== savedHours || enabled !== savedEnabled
+  const risk = !hoursInvalid
     ? parsedHours <= 2
       ? 'short'
       : parsedHours >= 24
@@ -56,16 +61,19 @@ export default function EventParticipationAutoCloseoutSettingsForm({
     }
     setError('')
     setSaved(false)
+    const submittedHours = hoursInvalid ? Number(savedHours) : parsedHours
     startTransition(async () => {
-      const result = await updateAppSetting(
-        'event_participation_auto_closeout_hours',
-        String(parsedHours),
-      )
+      const result = await updateEventParticipationAutoCloseoutSettings({
+        enabled,
+        hours: submittedHours,
+      })
       if (result.error) {
         setError(result.error)
         return
       }
-      setSavedHours(String(parsedHours))
+      setHours(String(submittedHours))
+      setSavedHours(String(submittedHours))
+      setSavedEnabled(enabled)
       setSaved(true)
       router.refresh()
     })
@@ -87,6 +95,50 @@ export default function EventParticipationAutoCloseoutSettingsForm({
       </div>
 
       <div>
+        <span className="text-gray-400 text-xs mb-1 block">{t('modeLabel')}</span>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <label className={`cursor-pointer rounded-lg border p-3 ${
+            enabled
+              ? 'border-[#5865F2]/70 bg-[#5865F2]/10'
+              : 'border-gray-700 bg-gray-800/60 hover:border-gray-600'
+          }`}>
+            <input
+              type="radio"
+              checked={enabled}
+              onChange={() => {
+                setEnabled(true)
+                setSaved(false)
+              }}
+              className="mr-2 accent-[#5865F2]"
+            />
+            <span className="text-sm font-semibold text-white">{t('automaticLabel')}</span>
+            <span className="mt-1 block text-[11px] text-gray-500">
+              {t('automaticHint')}
+            </span>
+          </label>
+          <label className={`cursor-pointer rounded-lg border p-3 ${
+            !enabled
+              ? 'border-[#5865F2]/70 bg-[#5865F2]/10'
+              : 'border-gray-700 bg-gray-800/60 hover:border-gray-600'
+          }`}>
+            <input
+              type="radio"
+              checked={!enabled}
+              onChange={() => {
+                setEnabled(false)
+                setSaved(false)
+              }}
+              className="mr-2 accent-[#5865F2]"
+            />
+            <span className="text-sm font-semibold text-white">{t('manualLabel')}</span>
+            <span className="mt-1 block text-[11px] text-gray-500">
+              {t('manualHint')}
+            </span>
+          </label>
+        </div>
+      </div>
+
+      <div className={!enabled ? 'opacity-50' : undefined}>
         <label htmlFor={inputId} className="text-gray-400 text-xs mb-1 block">
           {t('label', {
             min: EVENT_PARTICIPATION_AUTO_CLOSEOUT_MIN_HOURS,
@@ -101,6 +153,7 @@ export default function EventParticipationAutoCloseoutSettingsForm({
             min={EVENT_PARTICIPATION_AUTO_CLOSEOUT_MIN_HOURS}
             max={EVENT_PARTICIPATION_AUTO_CLOSEOUT_MAX_HOURS}
             value={hours}
+            disabled={!enabled}
             onChange={(event) => {
               setHours(event.target.value)
               setSaved(false)
@@ -111,12 +164,12 @@ export default function EventParticipationAutoCloseoutSettingsForm({
         </div>
       </div>
 
-      <div className="flex gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+      {enabled && <div className="flex gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
         <AlertTriangle size={15} className="mt-0.5 shrink-0" />
         <p>{t('operationalWarning')}</p>
-      </div>
+      </div>}
 
-      {risk && (
+      {enabled && risk && (
         <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-200">
           {t(risk === 'short' ? 'shortRisk' : 'longRisk')}
         </div>

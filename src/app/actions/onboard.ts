@@ -563,6 +563,7 @@ interface SaveTenantRewardsInput {
     craftRegearEnabled: boolean | null
     regearRequireVerification: boolean
     regearPayoutRatePercent: number
+    participationAutoCloseoutEnabled: boolean
   }
 }
 
@@ -615,6 +616,9 @@ export async function saveTenantRewards(
 
   if (typeof input.policy?.regearSupportEnabled !== 'boolean') {
     return { error: t('supportRequiredError') }
+  }
+  if (typeof input.policy.participationAutoCloseoutEnabled !== 'boolean') {
+    return { error: t('participationCloseoutRequiredError') }
   }
   if (
     input.policy.regearSupportEnabled &&
@@ -705,6 +709,12 @@ export async function saveTenantRewards(
       value: 'true',
       updated_at: now,
     },
+    {
+      guild_id: input.tenantId,
+      key: 'event_participation_auto_closeout_enabled',
+      value: input.policy.participationAutoCloseoutEnabled ? 'true' : 'false',
+      updated_at: now,
+    },
   ]
   const { error: policyError } = await db
     .from('app_settings')
@@ -778,6 +788,8 @@ export async function saveTenantRewards(
       regearSupportEnabled: input.policy.regearSupportEnabled,
       autoRegearEnabled: input.policy.autoRegearEnabled,
       craftRegearEnabled: input.policy.craftRegearEnabled,
+      participationAutoCloseoutEnabled:
+        input.policy.participationAutoCloseoutEnabled,
       regearRequireVerification: input.policy.regearRequireVerification,
       regearPayoutRatePercent: payoutPercent,
       eventsAutoStartEnabled: true,

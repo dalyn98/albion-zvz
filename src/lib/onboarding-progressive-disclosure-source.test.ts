@@ -62,4 +62,24 @@ describe('tenant onboarding progressive disclosure', () => {
     expect(action).toContain("typeof input.policy.craftRegearEnabled !== 'boolean'")
     expect(action).toContain('if (input.policy.regearSupportEnabled)')
   })
+
+  it('requires an explicit participant-roster closeout mode and persists it for the tenant', () => {
+    const form = source('src/components/TenantRewardsSetupForm.tsx')
+    const page = source('src/app/(app-shell)/onboard/setup/[id]/rewards/page.tsx')
+    const action = source('src/app/actions/onboard.ts')
+
+    expect(form).toContain('participationAutoCloseoutEnabled === null')
+    expect(form).toContain('labels.participationCloseoutRequiredError')
+    expect(form).toContain('labels.participationCloseoutAutomaticLabel')
+    expect(form).toContain('labels.participationCloseoutManualLabel')
+    expect(page).toContain(
+      "getAppSetting('event_participation_auto_closeout_enabled', '', id)",
+    )
+    expect(action).toContain(
+      "typeof input.policy.participationAutoCloseoutEnabled !== 'boolean'",
+    )
+    expect(action).toMatch(
+      /key: 'event_participation_auto_closeout_enabled',[\s\S]*participationAutoCloseoutEnabled \? 'true' : 'false'/,
+    )
+  })
 })

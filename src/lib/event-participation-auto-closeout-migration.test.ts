@@ -22,6 +22,13 @@ const configurableDelaySql = readFileSync(
   ),
   'utf8',
 )
+const tenantModeSql = readFileSync(
+  new URL(
+    '../../supabase/migrations/409_tenant_event_participation_closeout_mode.sql',
+    import.meta.url,
+  ),
+  'utf8',
+)
 
 describe('event participation automatic closeout migration contract', () => {
   it('waits six hours, locks due events, and uses the existing atomic closeout', () => {
@@ -71,6 +78,18 @@ describe('event participation automatic closeout migration contract', () => {
     )
     expect(configurableDelaySql).toMatch(
       /'delayHours', v_event\.participation_auto_closeout_delay_hours[\s\S]*'dueAt', v_due_at/i,
+    )
+  })
+
+  it('snapshots the tenant automatic or manual mode only when an event is inserted', () => {
+    expect(tenantModeSql).toMatch(
+      /tg_op = 'INSERT'[\s\S]*setting\.guild_id = new\.guild_id[\s\S]*event_participation_auto_closeout_enabled/i,
+    )
+    expect(tenantModeSql).toMatch(
+      /v_auto_closeout_enabled = 'true'[\s\S]*new\.participation_auto_closeout_enabled := true[\s\S]*v_auto_closeout_enabled = 'false'[\s\S]*new\.participation_auto_closeout_enabled := false/i,
+    )
+    expect(tenantModeSql).toMatch(
+      /if not new\.participation_auto_closeout_enabled[\s\S]*review_started_at := null[\s\S]*return new/i,
     )
   })
 })

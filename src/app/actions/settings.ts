@@ -87,6 +87,7 @@ const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'regear_overcharge_video_required',
   'regear_discord_role_policy_enabled',
   'event_dm_lead_minutes',
+  'event_participation_auto_closeout_enabled',
   'event_participation_auto_closeout_hours',
   'guild_profile_enabled',
   'member_dashboard_enabled',
@@ -287,6 +288,7 @@ const DECIMAL_RANGES: Partial<Record<AppSettingKey, { min: number; max: number }
 // Boolean-string keys. Must be exactly 'true' or 'false'.
 const BOOLEAN_KEYS: readonly AppSettingKey[] = [
   'events_auto_start_enabled',
+  'event_participation_auto_closeout_enabled',
   'auto_regear_enabled',
   'exchange_recent_gameplay_video_required',
   'auto_regear_skip_low_confidence',
@@ -686,6 +688,62 @@ export async function updateAppSetting(
       action: 'settings.update',
       targetKind: 'setting',
       details: { kind: 'app_setting', key, value: normalizedValue },
+    })
+    return {}
+  } catch (e) {
+    return { error: await publicActionError(e, 'actions/settings') }
+  }
+}
+
+export async function updateEventParticipationAutoCloseoutSettings(input: {
+  enabled: boolean
+  hours: number
+}): Promise<{ error?: string }> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    if (typeof input.enabled !== 'boolean') {
+      return { error: tErr('invalidBoolean') }
+    }
+    if (!Number.isInteger(input.hours) || input.hours < 1 || input.hours > 72) {
+      return { error: tErr('invalidIntegerRange', { min: 1, max: 72 }) }
+    }
+
+    const db = await requireAnyCapability([CAP.SETTINGS_GENERAL])
+    const session = await getSession()
+    if (!session) return { error: tErr('serverError') }
+    const guildId = await getSessionGuildId(session)
+    const updatedAt = new Date().toISOString()
+    const { error } = await db.from('app_settings').upsert(
+      [
+        {
+          guild_id: guildId,
+          key: 'event_participation_auto_closeout_enabled',
+          value: input.enabled ? 'true' : 'false',
+          updated_at: updatedAt,
+        },
+        {
+          guild_id: guildId,
+          key: 'event_participation_auto_closeout_hours',
+          value: String(input.hours),
+          updated_at: updatedAt,
+        },
+      ],
+      { onConflict: 'guild_id,key' },
+    )
+    if (error) return { error: await publicActionError(error, 'actions/settings') }
+
+    invalidateAppSettingsCache(guildId)
+    revalidatePath('/admin/dashboard/settings')
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'settings.update',
+      targetKind: 'setting',
+      details: {
+        kind: 'event_participation_auto_closeout',
+        enabled: input.enabled,
+        hours: input.hours,
+      },
     })
     return {}
   } catch (e) {
