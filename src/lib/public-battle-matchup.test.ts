@@ -182,15 +182,20 @@ describe('buildPublicBattleMatchupSummary', () => {
   })
 
   it('can rebuild the matchup around a selected guild instead of the primary force', () => {
+    const report = reportFixture()
+    report.players.push({
+      ...player('alpha-no-event', 'Alpha No Event', 'a:alpha', 'ALPHA', [101]),
+      battleStats: [],
+    })
     const summary = buildPublicBattleMatchupSummary({
-      report: reportFixture(),
+      report,
       events,
       battleId: 101,
       homeGroup: { level: 'guilds', key: 'g:a:alpha:guild' },
     })
 
     expect(summary).toMatchObject({
-      home: { forceKey: 'g:a:alpha:guild', forceName: 'ALPHA Guild', players: 1 },
+      home: { forceKey: 'g:a:alpha:guild', forceName: 'ALPHA Guild', players: 2 },
       homeKills: 0,
       homeDeaths: 4,
       directEventCount: 4,

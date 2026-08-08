@@ -47,6 +47,10 @@ function compareGameNames(a: string, b: string): number {
   return normalizedA < normalizedB ? -1 : 1
 }
 
+function stableKey(value: string): string {
+  return value.trim().toLocaleLowerCase('en-US')
+}
+
 function addToSetMap(map: Map<string, Set<string>>, key: string, value: string): void {
   const normalizedValue = value.trim()
   if (!key || !normalizedValue) return
@@ -83,6 +87,27 @@ function playerStatGroupKey(
   if (level === 'alliances') return stat.allianceKey
   if (level === 'guilds') return stat.guildKey
   return stat.forceKey
+}
+
+function playerCurrentGroupKey(
+  player: PublicBattleGroupReport['players'][number],
+  level: PublicBattleMatchupGroupLevel,
+): string {
+  if (level === 'forces') return player.forceKey
+  const guildKey = player.guildId
+    ? `g:${player.guildId}`
+    : `u:${stableKey(player.guildName || player.playerName || 'unknown')}`
+  if (level === 'guilds') return guildKey
+  return player.allianceId ? `a:${player.allianceId}` : guildKey
+}
+
+function playerCurrentGroupName(
+  player: PublicBattleGroupReport['players'][number],
+  level: PublicBattleMatchupGroupLevel,
+): string {
+  if (level === 'guilds') return player.guildName
+  if (level === 'alliances') return player.allianceName || player.guildName
+  return player.forceName
 }
 
 function actorInScope(
@@ -124,15 +149,17 @@ export function buildPublicBattleMatchupSummary(input: {
   const forceNames = new Map(rows.map((force) => [force.forceKey, force.forceName]))
 
   for (const player of input.report.players) {
-    const scopedForceKeys = new Set(
-      player.battleStats
-        .filter((stat) => battleId === null || stat.battleId === battleId)
-        .map((stat) => playerStatGroupKey(stat, level)),
-    )
+    const scopedStats = player.battleStats.filter((stat) => battleId === null || stat.battleId === battleId)
+    const scopedForceKeys = new Set(scopedStats.map((stat) => playerStatGroupKey(stat, level)))
+    const belongsToScope = battleId === null ? player.battleIds.length > 0 : player.battleIds.includes(battleId)
+    if (scopedForceKeys.size === 0 && belongsToScope) {
+      scopedForceKeys.add(playerCurrentGroupKey(player, level))
+    }
     for (const forceKey of scopedForceKeys) {
       addToSetMap(playerIdsByForce, forceKey, player.playerId)
       addToSetMap(guildNamesByForce, forceKey, player.guildName)
-      if (player.forceName.trim()) forceNames.set(forceKey, player.forceName.trim())
+      const groupName = playerCurrentGroupName(player, level).trim()
+      if (groupName) forceNames.set(forceKey, groupName)
     }
   }
 
