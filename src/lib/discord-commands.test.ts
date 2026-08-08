@@ -1045,13 +1045,9 @@ describe('agm slash command navigation', () => {
     expect(mocks.sendDiscordChannelMessage).toHaveBeenCalledWith(
       'channel-1',
       expect.objectContaining({
-        content: '',
-        embeds: [
-          expect.objectContaining({
-            title: expect.stringContaining('Member Guide'),
-            description: expect.stringContaining('/agm help'),
-          }),
-        ],
+        content: null,
+        embeds: [],
+        flags: 1 << 15,
         allowed_mentions: { parse: [] },
         components: expect.any(Array),
       }),
@@ -1059,29 +1055,21 @@ describe('agm slash command navigation', () => {
     const sentCall = mocks.sendDiscordChannelMessage.mock.calls[0] as unknown as [
       string,
       {
-        embeds?: Array<{ title?: string; description?: string }>
-        components?: Array<{
-          components: Array<{ custom_id?: string; style?: number; url?: string }>
-        }>
+        components?: unknown[]
       },
     ] | undefined
     const payload = sentCall?.[1] as {
-      embeds?: Array<{ title?: string; description?: string }>
-      components?: Array<{
-        components: Array<{ custom_id?: string; style?: number; url?: string }>
-      }>
+      components?: unknown[]
     } | undefined
     expect(payload).toBeDefined()
-    expect(payload!.embeds?.[0]?.title).toBe('Menhera Member Guide')
-    expect(payload!.embeds?.[0]?.description).toContain('open directly')
-    expect(payload!.components?.[0]?.components[0]).toMatchObject({
-      style: 5,
-      url: expect.stringContaining('/discord/open?guild=discord-guild-1&dest=verify'),
-    })
-    expect(payload!.components?.[2]?.components[0]).toMatchObject({
-      style: 3,
-      custom_id: 'agm_login:v1:me',
-    })
+    const serialized = JSON.stringify(payload)
+    expect(serialized).toContain('## Menhera Member Center')
+    expect(serialized).toContain('Join events')
+    expect(serialized).toContain('agm_member:v1:event')
+    expect(serialized).toContain('agm_member:v1:exchange')
+    expect(serialized).toContain('agm_member:v1:regear')
+    expect(serialized).toContain('agm_login:v1:me')
+    expect(serialized).not.toContain('/discord/open?')
     expect(mocks.appSettingsEq).toHaveBeenCalledWith('guild_id', 'tenant-1')
     expect(mocks.appSettingsUpsert).toHaveBeenCalledWith(
       expect.arrayContaining([
@@ -1121,12 +1109,12 @@ describe('agm slash command navigation', () => {
       }),
     )
 
-    const sentCall = mocks.sendDiscordChannelMessage.mock.calls[0] as unknown as [
-      string,
-      { components?: Array<{ components: Array<{ label?: string }> }> },
-    ]
-    const sent = sentCall[1]
-    expect(sent?.components?.[2]?.components[0]?.label).toBe('Discord 로그인/세션 갱신')
+    const sentCall = mocks.sendDiscordChannelMessage.mock.calls[0] as unknown as [string, object]
+    const serialized = JSON.stringify(sentCall[1])
+    expect(serialized).toContain('Discord 로그인/세션 갱신')
+    expect(serialized).toContain('이벤트 참가')
+    expect(serialized).toContain('환전 신청')
+    expect(serialized).toContain('리기어 신청')
     expect(response.data?.content).toContain('メンバーガイドパネル')
   })
 
@@ -1156,13 +1144,17 @@ describe('agm slash command navigation', () => {
       'channel-1',
       'message-9',
       expect.objectContaining({
-        embeds: [
-          expect.objectContaining({
-            title: 'Menhera Member Guide',
-            description: 'Pinned guide for Menhera.',
-          }),
-        ],
+        content: null,
+        embeds: [],
+        flags: 1 << 15,
         allowed_mentions: { parse: [] },
+        components: [expect.objectContaining({
+          type: 17,
+          components: expect.arrayContaining([
+            { type: 10, content: '## Menhera Member Guide' },
+            { type: 10, content: 'Pinned guide for Menhera.' },
+          ]),
+        })],
       }),
     )
     expect(mocks.sendDiscordChannelMessage).not.toHaveBeenCalled()
@@ -1243,14 +1235,17 @@ describe('agm slash command navigation', () => {
     expect(mocks.sendDiscordChannelMessage).toHaveBeenCalledWith(
       'channel-1',
       expect.objectContaining({
-        content: '',
-        embeds: [
-          expect.objectContaining({
-            title: 'Menhera Member Guide',
-            description: 'Welcome to Menhera.\nPick your next step below.',
-          }),
-        ],
+        content: null,
+        embeds: [],
+        flags: 1 << 15,
         allowed_mentions: { parse: [] },
+        components: [expect.objectContaining({
+          type: 17,
+          components: expect.arrayContaining([
+            { type: 10, content: '## Menhera Member Center' },
+            { type: 10, content: 'Welcome to Menhera.\nPick your next step below.' },
+          ]),
+        })],
       }),
     )
     expect(mocks.appSettingsUpsert).toHaveBeenCalledWith(

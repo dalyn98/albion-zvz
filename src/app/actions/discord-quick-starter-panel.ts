@@ -25,6 +25,7 @@ import {
   QUICK_STARTER_PANEL_FOOTER_MAX_LENGTH,
   QUICK_STARTER_PANEL_TITLE_MAX_LENGTH,
   buildDiscordQuickStarterMessagePayload,
+  type DiscordQuickStarterButtonLabels,
 } from '@/lib/discord-quick-starter'
 import { loadDiscordQuickStarterDestinations } from '@/lib/discord-quick-starter-availability-server'
 import { log } from '@/lib/log'
@@ -72,6 +73,25 @@ export interface QuickStarterPanelPublishResult {
 }
 
 const QUICK_STARTER_PANEL_KEY_LIST = Object.values(QUICK_STARTER_PANEL_KEYS)
+
+function localizedQuickStarterLabels(
+  t: Awaited<ReturnType<typeof getTranslations>>,
+): DiscordQuickStarterButtonLabels {
+  return {
+    login: t('quickButtonLogin'),
+    verify: t('quickButtonVerify'),
+    events: t('quickButtonEvents'),
+    me: t('quickButtonMe'),
+    regear: t('quickButtonRegear'),
+    shop: t('quickButtonShop'),
+    wallet: t('quickButtonWallet'),
+    craft: t('quickButtonCraft'),
+    guide: t('quickButtonGuide'),
+    eventsDescription: t('quickPanelEventsDescription'),
+    exchangeDescription: t('quickPanelExchangeDescription'),
+    regearDescription: t('quickPanelRegearDescription'),
+  }
+}
 
 function normalizeRequiredPanelText(value: string | undefined, fallback: string): string {
   const trimmed = typeof value === 'string' ? value.trim() : ''
@@ -264,6 +284,7 @@ export async function publishQuickStarterPanel(
       loadQuickStarterPanelState(db, guildId),
       loadDiscordQuickStarterDestinations(guildId),
     ])
+    const tPanel = await getTranslations('discordBot')
     const payload = buildDiscordQuickStarterMessagePayload({
       discordGuildId: tenant.discordGuildId,
       tenantName: tenant.name,
@@ -271,6 +292,7 @@ export async function publishQuickStarterPanel(
       descriptionTemplate: validated.description,
       color: validated.color,
       footerTemplate: validated.footer,
+      labels: localizedQuickStarterLabels(tPanel),
       destinations,
     })
 

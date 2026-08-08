@@ -179,17 +179,21 @@ describe('discord quick starter dashboard actions', () => {
     expect(mocks.sendDiscordChannelMessage).toHaveBeenCalledWith(
       '234567890123456789',
       expect.objectContaining({
-        content: '',
-        embeds: [
+        content: null,
+        embeds: [],
+        flags: 1 << 15,
+        allowed_mentions: { parse: [] },
+        components: [
           expect.objectContaining({
-            title: 'Menhera Quick Starter',
-            description: 'Welcome to Menhera.\nPick a button below.',
-            color: 0x2f80ed,
-            footer: { text: 'Albion Guild Manager' },
+            type: 17,
+            accent_color: 0x2f80ed,
+            components: expect.arrayContaining([
+              { type: 10, content: '## Menhera Quick Starter' },
+              { type: 10, content: 'Welcome to Menhera.\nPick a button below.' },
+              { type: 10, content: '-# Albion Guild Manager' },
+            ]),
           }),
         ],
-        allowed_mentions: { parse: [] },
-        components: expect.any(Array),
       }),
     )
     expect(mocks.updateDiscordChannelMessage).not.toHaveBeenCalled()
@@ -229,15 +233,18 @@ describe('discord quick starter dashboard actions', () => {
       '234567890123456789',
       'message-9',
       expect.objectContaining({
-        content: '',
-        embeds: [
-          expect.objectContaining({
-            title: 'Updated Menhera',
-            description: 'Pick again.',
-            color: 0xf59e0b,
-          }),
-        ],
+        content: null,
+        embeds: [],
+        flags: 1 << 15,
         allowed_mentions: { parse: [] },
+        components: [expect.objectContaining({
+          type: 17,
+          accent_color: 0xf59e0b,
+          components: expect.arrayContaining([
+            { type: 10, content: '## Updated Menhera' },
+            { type: 10, content: 'Pick again.' },
+          ]),
+        })],
       }),
     )
     expect(mocks.sendDiscordChannelMessage).not.toHaveBeenCalled()

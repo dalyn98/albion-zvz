@@ -6,7 +6,10 @@
 
 import { tenantUrl } from '@/lib/tenant-resolver'
 import type { Locale } from '@/i18n/locales'
-import type { DiscordMessageComponent } from '@/lib/discord-interactions'
+import type {
+  DiscordChannelMessageComponent,
+  DiscordMessageComponent,
+} from '@/lib/discord-interactions'
 import {
   buildDiscordEventSignupComponents,
   type DiscordEventSignupPanelLabels,
@@ -581,8 +584,9 @@ export interface DiscordMessageEmbed {
 }
 
 export interface DiscordChannelPayload {
-  content?: string
+  content?: string | null
   embeds?: DiscordMessageEmbed[]
+  flags?: number
   components?: DiscordMessageComponent[]
   allowed_mentions?: {
     parse?: ('everyone' | 'roles' | 'users')[]
@@ -591,9 +595,19 @@ export interface DiscordChannelPayload {
   }
 }
 
+export interface DiscordComponentsV2ChannelPayload
+  extends Omit<DiscordChannelPayload, 'components'> {
+  flags: number
+  components: DiscordChannelMessageComponent[]
+}
+
+export type DiscordAnyChannelPayload =
+  | DiscordChannelPayload
+  | DiscordComponentsV2ChannelPayload
+
 export async function sendDiscordChannelMessage(
   channelId: string,
-  payload: DiscordChannelPayload,
+  payload: DiscordAnyChannelPayload,
 ): Promise<string> {
   const botToken = process.env.DISCORD_BOT_TOKEN
   if (!botToken) throw new Error('DISCORD_BOT_TOKEN not configured')
@@ -623,7 +637,7 @@ export async function sendDiscordChannelMessage(
 export async function updateDiscordChannelMessage(
   channelId: string,
   messageId: string,
-  payload: DiscordChannelPayload,
+  payload: DiscordAnyChannelPayload,
 ): Promise<void> {
   const botToken = process.env.DISCORD_BOT_TOKEN
   if (!botToken) throw new Error('DISCORD_BOT_TOKEN not configured')

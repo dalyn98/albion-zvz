@@ -1,13 +1,18 @@
 import { tenantUrl } from '@/lib/tenant-resolver'
-import type { DiscordMessageComponent } from '@/lib/discord-interactions'
+import {
+  MESSAGE_FLAG_IS_COMPONENTS_V2,
+  type DiscordChannelMessageComponent,
+  type DiscordContainerComponent,
+} from '@/lib/discord-interactions'
 import { buildDiscordAppLoginCustomId } from '@/lib/discord-app-login'
+import { DISCORD_MEMBER_PANEL_CUSTOM_IDS } from '@/lib/discord-member-panel-contract'
 import {
   DEFAULT_DISCORD_QUICK_STARTER_BUTTON_LABELS,
   DEFAULT_DISCORD_QUICK_STARTER_PANEL_COLOR,
   DISCORD_QUICK_STARTER_DESTINATIONS,
   type DiscordQuickStarterButtonLabels,
 } from '@/lib/discord-quick-starter-config'
-import type { DiscordChannelPayload, DiscordMessageEmbed } from '@/lib/discord'
+import type { DiscordComponentsV2ChannelPayload } from '@/lib/discord'
 import type { DiscordQuickStarterDestination } from '@/lib/discord-quick-starter-types'
 
 export {
@@ -65,32 +70,76 @@ export function buildDiscordQuickStarterComponents(input: {
   discordGuildId: string
   labels: DiscordQuickStarterButtonLabels
   destinations?: readonly DiscordQuickStarterDestination[]
-}): DiscordMessageComponent[] {
-  const destinations = input.destinations ?? DISCORD_QUICK_STARTER_DESTINATIONS
-  const buttons = destinations.map((destination) => ({
-    type: 2 as const,
-    style: 5 as const,
-    label: input.labels[destination],
-    emoji: { name: QUICK_STARTER_BUTTON_EMOJI[destination] },
-    url: buildDiscordOpenUrl({
-      discordGuildId: input.discordGuildId,
-      destination,
-    }),
-  }))
-  const loginButton = {
-    type: 2 as const,
-    style: 3 as const,
-    label: input.labels.login,
-    emoji: { name: '🔐' },
-    custom_id: buildDiscordAppLoginCustomId('me'),
+}): DiscordChannelMessageComponent[] {
+  const destinations = new Set(
+    input.destinations ?? DISCORD_QUICK_STARTER_DESTINATIONS,
+  )
+  const sections: DiscordContainerComponent['components'] = []
+
+  if (destinations.has('events')) {
+    sections.push({
+      type: 9,
+      components: [{
+        type: 10,
+        content: `### ${QUICK_STARTER_BUTTON_EMOJI.events} ${input.labels.events}\n${input.labels.eventsDescription}`,
+      }],
+      accessory: {
+        type: 2,
+        style: 1,
+        label: input.labels.events,
+        custom_id: DISCORD_MEMBER_PANEL_CUSTOM_IDS.event,
+      },
+    })
+  }
+  if (destinations.has('wallet')) {
+    sections.push({
+      type: 9,
+      components: [{
+        type: 10,
+        content: `### 💱 ${input.labels.wallet}\n${input.labels.exchangeDescription}`,
+      }],
+      accessory: {
+        type: 2,
+        style: 3,
+        label: input.labels.wallet,
+        custom_id: DISCORD_MEMBER_PANEL_CUSTOM_IDS.exchange,
+      },
+    })
+  }
+  if (destinations.has('regear')) {
+    sections.push({
+      type: 9,
+      components: [{
+        type: 10,
+        content: `### ${QUICK_STARTER_BUTTON_EMOJI.regear} ${input.labels.regear}\n${input.labels.regearDescription}`,
+      }],
+      accessory: {
+        type: 2,
+        style: 2,
+        label: input.labels.regear,
+        custom_id: DISCORD_MEMBER_PANEL_CUSTOM_IDS.regear,
+      },
+    })
   }
 
-  const rows: DiscordMessageComponent[] = []
-  for (let index = 0; index < buttons.length; index += 4) {
-    rows.push({ type: 1, components: buttons.slice(index, index + 4) })
-  }
-  rows.push({ type: 1, components: [loginButton] })
-  return rows
+  sections.push(
+    { type: 14, divider: true, spacing: 1 },
+    {
+      type: 1,
+      components: [{
+        type: 2,
+        style: 2,
+        label: input.labels.login,
+        emoji: { name: '🔐' },
+        custom_id: buildDiscordAppLoginCustomId('me'),
+      }],
+    },
+  )
+
+  return [{
+    type: 17,
+    components: sections,
+  }]
 }
 
 export function formatDiscordQuickStarterPanelMessage(input: {
@@ -105,32 +154,6 @@ function discordColorFromHex(value: string): number {
   return Number.parseInt(normalized, 16)
 }
 
-export function buildDiscordQuickStarterEmbed(input: {
-  tenantName: string
-  titleTemplate: string
-  descriptionTemplate: string
-  color: string
-  footerTemplate: string
-}): DiscordMessageEmbed {
-  const footerText = formatDiscordQuickStarterPanelMessage({
-    template: input.footerTemplate,
-    tenantName: input.tenantName,
-  }).trim()
-
-  return {
-    title: formatDiscordQuickStarterPanelMessage({
-      template: input.titleTemplate,
-      tenantName: input.tenantName,
-    }),
-    description: formatDiscordQuickStarterPanelMessage({
-      template: input.descriptionTemplate,
-      tenantName: input.tenantName,
-    }),
-    color: discordColorFromHex(input.color),
-    ...(footerText ? { footer: { text: footerText } } : {}),
-  }
-}
-
 export function buildDiscordQuickStarterMessagePayload(input: {
   discordGuildId: string
   tenantName: string
@@ -140,24 +163,44 @@ export function buildDiscordQuickStarterMessagePayload(input: {
   footerTemplate?: string
   labels?: DiscordQuickStarterButtonLabels
   destinations?: readonly DiscordQuickStarterDestination[]
-}): DiscordChannelPayload {
+}): DiscordComponentsV2ChannelPayload {
+  const title = formatDiscordQuickStarterPanelMessage({
+    template: input.titleTemplate,
+    tenantName: input.tenantName,
+  })
+  const description = formatDiscordQuickStarterPanelMessage({
+    template: input.descriptionTemplate,
+    tenantName: input.tenantName,
+  })
+  const footer = formatDiscordQuickStarterPanelMessage({
+    template: input.footerTemplate ?? '',
+    tenantName: input.tenantName,
+  }).trim()
+  const components = buildDiscordQuickStarterComponents({
+    discordGuildId: input.discordGuildId,
+    labels: input.labels ?? DEFAULT_DISCORD_QUICK_STARTER_BUTTON_LABELS,
+    destinations: input.destinations,
+  })
+  const container = components[0]
+  if (container?.type !== 17) throw new Error('Discord member panel container missing')
+  container.accent_color = discordColorFromHex(
+    input.color ?? DEFAULT_DISCORD_QUICK_STARTER_PANEL_COLOR,
+  )
+  container.components.unshift(
+    { type: 10, content: `## ${title}` },
+    { type: 10, content: description },
+    { type: 14, divider: true, spacing: 1 },
+  )
+  if (footer) {
+    container.components.push({ type: 10, content: `-# ${footer}` })
+  }
+
   return {
-    content: '',
-    embeds: [
-      buildDiscordQuickStarterEmbed({
-        tenantName: input.tenantName,
-        titleTemplate: input.titleTemplate,
-        descriptionTemplate: input.descriptionTemplate,
-        color: input.color ?? DEFAULT_DISCORD_QUICK_STARTER_PANEL_COLOR,
-        footerTemplate: input.footerTemplate ?? '',
-      }),
-    ],
+    content: null,
+    embeds: [],
+    flags: MESSAGE_FLAG_IS_COMPONENTS_V2,
     allowed_mentions: { parse: [] },
-    components: buildDiscordQuickStarterComponents({
-      discordGuildId: input.discordGuildId,
-      labels: input.labels ?? DEFAULT_DISCORD_QUICK_STARTER_BUTTON_LABELS,
-      destinations: input.destinations,
-    }),
+    components,
   }
 }
 

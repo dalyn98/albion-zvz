@@ -141,6 +141,16 @@ export interface DiscordBotMessages {
   quickButtonWallet: string
   quickButtonCraft: string
   quickButtonGuide: string
+  quickPanelEventsDescription: string
+  quickPanelExchangeDescription: string
+  quickPanelRegearDescription: string
+  memberPanelExchangeModalTitle: string
+  memberPanelExchangeAmountLabel: string
+  memberPanelExchangeAmountPlaceholder: string
+  memberPanelExchangeReview: string
+  memberPanelExchangeConfirm: string
+  memberPanelCancel: string
+  memberPanelExchangeCancelled: string
   appLoginReady: string
   appLoginOpenHint: string
   appLoginOpenButton: string
@@ -213,6 +223,16 @@ export async function loadDiscordBotMessages(
     quickButtonWallet: ns.quickButtonWallet ?? '',
     quickButtonCraft: ns.quickButtonCraft ?? '',
     quickButtonGuide: ns.quickButtonGuide ?? '',
+    quickPanelEventsDescription: ns.quickPanelEventsDescription ?? '',
+    quickPanelExchangeDescription: ns.quickPanelExchangeDescription ?? '',
+    quickPanelRegearDescription: ns.quickPanelRegearDescription ?? '',
+    memberPanelExchangeModalTitle: ns.memberPanelExchangeModalTitle ?? '',
+    memberPanelExchangeAmountLabel: ns.memberPanelExchangeAmountLabel ?? '',
+    memberPanelExchangeAmountPlaceholder: ns.memberPanelExchangeAmountPlaceholder ?? '',
+    memberPanelExchangeReview: ns.memberPanelExchangeReview ?? '',
+    memberPanelExchangeConfirm: ns.memberPanelExchangeConfirm ?? '',
+    memberPanelCancel: ns.memberPanelCancel ?? '',
+    memberPanelExchangeCancelled: ns.memberPanelExchangeCancelled ?? '',
     appLoginReady: ns.appLoginReady ?? '',
     appLoginOpenHint: ns.appLoginOpenHint ?? '',
     appLoginOpenButton: ns.appLoginOpenButton ?? '',
@@ -584,6 +604,9 @@ function quickStarterButtonLabels(messages: DiscordBotMessages): DiscordQuickSta
     wallet: messages.quickButtonWallet,
     craft: messages.quickButtonCraft,
     guide: messages.quickButtonGuide,
+    eventsDescription: messages.quickPanelEventsDescription,
+    exchangeDescription: messages.quickPanelExchangeDescription,
+    regearDescription: messages.quickPanelRegearDescription,
   }
 }
 

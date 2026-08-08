@@ -40,14 +40,9 @@ interface Props {
 }
 
 const PREVIEW_BUTTONS = [
-  ['verify', '✅', 'Verify'],
-  ['events', '📅', 'Events'],
-  ['me', '👤', 'My Page'],
-  ['guide', '📘', 'Guide'],
-  ['regear', '🛡️', 'Regear'],
-  ['shop', '🛒', 'Shop'],
-  ['wallet', '💰', 'Wallet'],
-  ['craft', '🔨', 'Craft'],
+  ['events', '📅', 'previewEventsTitle', 'previewEventsDescription', 'bg-indigo-500'],
+  ['wallet', '💱', 'previewExchangeTitle', 'previewExchangeDescription', 'bg-emerald-600'],
+  ['regear', '🛡️', 'previewRegearTitle', 'previewRegearDescription', 'bg-gray-600'],
 ] as const
 
 function replaceGuildName(template: string, tenantName: string): string {
@@ -431,33 +426,44 @@ export default function QuickStarterPanelSettingsForm({
               <span className="text-xs font-semibold text-gray-300">{t('previewTitle')}</span>
               <span className="text-[11px] text-gray-500">{t('discordPreview')}</span>
             </div>
-            <div className="overflow-hidden rounded-md border border-gray-800 bg-[#2b2d31]">
+            <div className="overflow-hidden rounded-xl bg-[#2b2d31] shadow-[0_0_0_1px_rgba(255,255,255,0.08)]">
               <div className="flex">
                 <div className="w-1 shrink-0" style={{ backgroundColor: previewColor }} />
-                <div className="min-w-0 flex-1 px-3 py-2.5">
-                  <p className="text-sm font-semibold text-white break-words">{previewTitle}</p>
-                  <p className="text-sm text-gray-200 whitespace-pre-wrap break-words leading-relaxed mt-1">
+                <div className="min-w-0 flex-1 px-4 py-3.5">
+                  <p className="text-balance text-sm font-semibold text-white break-words">{previewTitle}</p>
+                  <p className="text-pretty text-sm text-gray-200 whitespace-pre-wrap break-words leading-relaxed mt-1">
                     {previewDescription}
                   </p>
+                  <div className="mt-3 divide-y divide-white/10 border-y border-white/10">
+                    {previewButtons.map(([destination, emoji, titleKey, descriptionKey, buttonColor]) => (
+                      <div
+                        key={destination}
+                        className="flex min-h-16 items-center gap-3 py-2.5"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-white">
+                            {emoji} {t(titleKey)}
+                          </p>
+                          <p className="mt-0.5 text-pretty text-xs leading-relaxed text-gray-400">
+                            {t(descriptionKey)}
+                          </p>
+                        </div>
+                        <div
+                          className={`flex min-h-10 shrink-0 items-center rounded-md px-3 text-xs font-semibold text-white shadow-[0_0_0_1px_rgba(255,255,255,0.08)] transition-transform active:scale-[0.96] ${buttonColor}`}
+                        >
+                          {t(titleKey)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-3 flex min-h-10 items-center justify-center gap-1.5 rounded-md bg-gray-700 px-3 text-xs font-semibold text-gray-100 shadow-[0_0_0_1px_rgba(255,255,255,0.08)] transition-transform active:scale-[0.96]">
+                    <span>🔐</span>
+                    <span className="truncate">{t('previewLogin')}</span>
+                  </div>
                   {previewFooter && (
-                    <p className="text-[11px] text-gray-400 mt-3 break-words">{previewFooter}</p>
+                    <p className="mt-3 text-pretty text-[11px] text-gray-400 break-words">{previewFooter}</p>
                   )}
                 </div>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-2 mt-3">
-              {previewButtons.map(([destination, emoji, label]) => (
-                <div
-                  key={destination}
-                  className="h-9 rounded-md border border-gray-700 bg-gray-800 px-2 flex items-center justify-center gap-1.5 text-xs text-gray-100"
-                >
-                  <span>{emoji}</span>
-                  <span className="truncate">{label}</span>
-                </div>
-              ))}
-              <div className="col-span-2 h-9 rounded-md border border-emerald-700/70 bg-emerald-800/40 px-2 flex items-center justify-center gap-1.5 text-xs text-emerald-50">
-                <span>🔐</span>
-                <span className="truncate">Discord Login / Refresh</span>
               </div>
             </div>
             <p className="mt-2 text-[11px] leading-relaxed text-gray-500">

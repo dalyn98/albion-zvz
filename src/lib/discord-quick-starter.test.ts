@@ -1,79 +1,115 @@
 import { describe, expect, it } from 'vitest'
-import { buildDiscordQuickStarterComponents } from './discord-quick-starter'
+import {
+  buildDiscordQuickStarterComponents,
+  buildDiscordQuickStarterMessagePayload,
+} from './discord-quick-starter'
+import type { DiscordQuickStarterButtonLabels } from './discord-quick-starter-config'
 
-describe('buildDiscordQuickStarterComponents', () => {
-  it('opens features directly and reserves app login for session refresh', () => {
+const labels: DiscordQuickStarterButtonLabels = {
+  login: 'Discord Login',
+  verify: 'Verify',
+  events: 'Join Event',
+  me: 'My Page',
+  regear: 'Request Regear',
+  shop: 'Shop',
+  wallet: 'Exchange Points',
+  craft: 'Craft',
+  guide: 'Guide',
+  eventsDescription: 'Choose an event and role.',
+  exchangeDescription: 'Request a silver payout.',
+  regearDescription: 'Open the protected request flow.',
+}
+
+describe('Discord Components V2 member panel', () => {
+  it('renders three focused member workflows and a private login action', () => {
     const components = buildDiscordQuickStarterComponents({
       discordGuildId: 'discord-guild-1',
-      labels: {
-        login: 'Discord Login',
-        verify: 'Verify',
-        events: 'Events',
-        me: 'My Page',
-        regear: 'Regear',
-        shop: 'Shop',
-        wallet: 'Wallet',
-        craft: 'Craft',
-        guide: 'Guide',
-      },
+      labels,
     })
 
-    const buttons = components.flatMap((row) => row.components as unknown as Array<{
-      type: number
-      style?: number
-      label?: string
-      custom_id?: string
-      url?: string
-    }>)
-    expect(components).toHaveLength(3)
-    expect(buttons).toHaveLength(9)
-    expect(buttons[0]).toMatchObject({
-      type: 2,
-      style: 5,
-      label: 'Verify',
-      url: 'https://albion-guildmanager.com/discord/open?guild=discord-guild-1&dest=verify',
+    expect(components).toHaveLength(1)
+    expect(components[0]).toMatchObject({
+      type: 17,
+      components: [
+        expect.objectContaining({
+          type: 9,
+          accessory: expect.objectContaining({
+            type: 2,
+            style: 1,
+            label: 'Join Event',
+            custom_id: 'agm_member:v1:event',
+          }),
+        }),
+        expect.objectContaining({
+          type: 9,
+          accessory: expect.objectContaining({
+            style: 3,
+            label: 'Exchange Points',
+            custom_id: 'agm_member:v1:exchange',
+          }),
+        }),
+        expect.objectContaining({
+          type: 9,
+          accessory: expect.objectContaining({
+            style: 2,
+            label: 'Request Regear',
+            custom_id: 'agm_member:v1:regear',
+          }),
+        }),
+        expect.objectContaining({ type: 14 }),
+        expect.objectContaining({
+          type: 1,
+          components: [expect.objectContaining({
+            label: 'Discord Login',
+            custom_id: 'agm_login:v1:me',
+          })],
+        }),
+      ],
     })
-    expect(buttons[6]).toMatchObject({
-      type: 2,
-      style: 5,
-      label: 'Wallet',
-      url: 'https://albion-guildmanager.com/discord/open?guild=discord-guild-1&dest=wallet',
-    })
-    expect(buttons.slice(0, 8).every((button) => (
-      button.style === 5 && !!button.url && !button.custom_id
-    ))).toBe(true)
-    expect(buttons[8]).toMatchObject({
-      type: 2,
-      style: 3,
-      label: 'Discord Login',
-      custom_id: 'agm_login:v1:me',
-    })
-    expect(buttons[8]?.url).toBeUndefined()
   })
 
-  it('omits disabled feature destinations while preserving core actions and login', () => {
+  it('omits unavailable economy and regear workflows', () => {
     const components = buildDiscordQuickStarterComponents({
       discordGuildId: 'discord-guild-1',
-      labels: {
-        login: 'Discord Login',
-        verify: 'Verify',
-        events: 'Events',
-        me: 'My Page',
-        regear: 'Regear',
-        shop: 'Shop',
-        wallet: 'Wallet',
-        craft: 'Craft',
-        guide: 'Guide',
-      },
+      labels,
       destinations: ['verify', 'events', 'me', 'guide'],
     })
-    const labels = components.flatMap((row) => row.components as unknown as Array<{
-      label?: string
-    }>).map((button) => button.label)
+    const container = components[0]
+    expect(container?.type).toBe(17)
+    const serialized = JSON.stringify(container)
 
-    expect(components).toHaveLength(2)
-    expect(labels).toEqual(['Verify', 'Events', 'My Page', 'Guide', 'Discord Login'])
-    expect(labels).not.toContain('Shop')
-    expect(labels).not.toContain('Regear')
+    expect(serialized).toContain('agm_member:v1:event')
+    expect(serialized).not.toContain('agm_member:v1:exchange')
+    expect(serialized).not.toContain('agm_member:v1:regear')
+    expect(serialized).toContain('agm_login:v1:me')
+  })
+
+  it('publishes a Components V2 payload without legacy content or embeds', () => {
+    const payload = buildDiscordQuickStarterMessagePayload({
+      discordGuildId: 'discord-guild-1',
+      tenantName: 'Menhera',
+      titleTemplate: '{name} Member Center',
+      descriptionTemplate: 'Choose a workflow below.',
+      color: '#2f80ed',
+      footerTemplate: 'Albion Guild Manager',
+      labels,
+    })
+
+    expect(payload).toMatchObject({
+      content: null,
+      embeds: [],
+      flags: 1 << 15,
+      allowed_mentions: { parse: [] },
+    })
+    expect(payload.components?.[0]).toMatchObject({
+      type: 17,
+      accent_color: 0x2f80ed,
+      components: expect.arrayContaining([
+        { type: 10, content: '## Menhera Member Center' },
+        { type: 10, content: 'Choose a workflow below.' },
+        expect.objectContaining({ type: 14 }),
+      ]),
+    })
+    expect(JSON.stringify(payload)).not.toContain('discord-guild-1')
   })
 })

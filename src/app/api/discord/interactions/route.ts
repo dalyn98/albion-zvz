@@ -37,6 +37,11 @@ import {
 } from '@/lib/discord-commands'
 import { isDiscordAppLoginCustomId } from '@/lib/discord-app-login'
 import {
+  handleDiscordMemberPanelInteraction,
+  isDiscordMemberPanelInteraction,
+  shouldDeferDiscordMemberPanelInteraction,
+} from '@/lib/discord-member-panel'
+import {
   handleDiscordEventInteraction,
   shouldDeferDiscordEventInteraction,
   shouldUpdateDiscordEventInteractionMessage,
@@ -235,6 +240,38 @@ export async function POST(request: Request) {
                 followupError,
                 { guild_id: payload.guild_id },
               )
+            }
+          }
+        })
+        return NextResponse.json(deferredResponse)
+      }
+
+      if (isDiscordMemberPanelInteraction(payload)) {
+        if (!shouldDeferDiscordMemberPanelInteraction(payload)) {
+          return NextResponse.json(await handleDiscordMemberPanelInteraction(payload))
+        }
+        const deferredResponse = deferredEphemeralReply()
+        after(async () => {
+          try {
+            const response = await handleDiscordMemberPanelInteraction(payload)
+            await editOriginalInteractionResponse(payload, response)
+          } catch (error) {
+            log.error('[discord/interactions] deferred member panel handler failed', error, {
+              interaction_type: payload.type,
+              guild_id: payload.guild_id,
+              channel_id: payload.channel_id,
+            })
+            try {
+              const messages = await loadDiscordBotMessages(DEFAULT_DISCORD_COMMAND_LOCALE)
+              await editOriginalInteractionResponse(payload, {
+                type: INTERACTION_RESPONSE_TYPE_CHANNEL_MESSAGE,
+                data: { content: messages.handlerFailed, flags: 1 << 6 },
+              })
+            } catch (followupError) {
+              log.error('[discord/interactions] member panel failure response failed', followupError, {
+                interaction_type: payload.type,
+                guild_id: payload.guild_id,
+              })
             }
           }
         })

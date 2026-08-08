@@ -32,6 +32,9 @@ export const MESSAGE_FLAG_EPHEMERAL = 1 << 6
 // `flags: 4` (1 << 2) = SUPPRESS_EMBEDS — bearer URL 을 Discord 본문에
 // 실수로 포함했을 때 link unfurl 이 선제 GET 하지 않도록 막는다.
 export const MESSAGE_FLAG_SUPPRESS_EMBEDS = 1 << 2
+// `flags: 32768` (1 << 15) = IS_COMPONENTS_V2. 공개 길드원 패널처럼
+// Container/Section/Text Display 를 쓰는 메시지는 이 flag 가 필수다.
+export const MESSAGE_FLAG_IS_COMPONENTS_V2 = 1 << 15
 export const DISCORD_SIGNATURE_MAX_AGE_MS = 5 * 60 * 1000
 export const DISCORD_INTERACTION_CONTENT_MAX_LENGTH = 2_000
 
@@ -171,6 +174,35 @@ export interface DiscordActionRowComponent {
   components: Array<DiscordButtonComponent | DiscordStringSelectComponent>
 }
 
+export interface DiscordTextDisplayComponent {
+  type: 10
+  content: string
+}
+
+export interface DiscordSectionComponent {
+  type: 9
+  components: DiscordTextDisplayComponent[]
+  accessory: DiscordButtonComponent
+}
+
+export interface DiscordSeparatorComponent {
+  type: 14
+  divider?: boolean
+  spacing?: 1 | 2
+}
+
+export interface DiscordContainerComponent {
+  type: 17
+  accent_color?: number
+  spoiler?: boolean
+  components: Array<
+    | DiscordActionRowComponent
+    | DiscordSectionComponent
+    | DiscordTextDisplayComponent
+    | DiscordSeparatorComponent
+  >
+}
+
 export interface DiscordModalActionRowComponent {
   type: 1
   components: DiscordTextInputComponent[]
@@ -196,6 +228,13 @@ export interface DiscordModalSubmitComponent {
 }
 
 export type DiscordMessageComponent = DiscordActionRowComponent
+
+export type DiscordChannelMessageComponent =
+  | DiscordActionRowComponent
+  | DiscordSectionComponent
+  | DiscordTextDisplayComponent
+  | DiscordSeparatorComponent
+  | DiscordContainerComponent
 
 export function findDiscordModalValue(
   components: readonly DiscordModalSubmitComponent[] | undefined,

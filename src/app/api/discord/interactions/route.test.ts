@@ -10,6 +10,7 @@ const routeMocks = vi.hoisted(() => {
     }),
     editOriginalInteractionResponse: vi.fn(),
     handleDiscordAppLoginInteraction: vi.fn(),
+    handleDiscordMemberPanelInteraction: vi.fn(),
   }
 })
 
@@ -31,6 +32,14 @@ vi.mock('@/lib/discord-commands', async (importOriginal) => {
   return {
     ...actual,
     handleDiscordAppLoginInteraction: routeMocks.handleDiscordAppLoginInteraction,
+  }
+})
+
+vi.mock('@/lib/discord-member-panel', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/discord-member-panel')>()
+  return {
+    ...actual,
+    handleDiscordMemberPanelInteraction: routeMocks.handleDiscordMemberPanelInteraction,
   }
 })
 
@@ -66,6 +75,7 @@ describe('POST /api/discord/interactions', () => {
     routeMocks.after.mockClear()
     routeMocks.editOriginalInteractionResponse.mockReset()
     routeMocks.handleDiscordAppLoginInteraction.mockReset()
+    routeMocks.handleDiscordMemberPanelInteraction.mockReset()
   })
 
   afterEach(() => {
@@ -125,5 +135,67 @@ describe('POST /api/discord/interactions', () => {
       payload,
       completedResponse,
     )
+  })
+
+  it('acknowledges database-backed member panel actions before running them', async () => {
+    const payload = {
+      id: 'interaction-panel-1',
+      application_id: 'application-1',
+      token: 'interaction-token',
+      type: 3,
+      guild_id: 'guild-1',
+      channel_id: 'channel-1',
+      data: { custom_id: 'agm_member:v1:event', component_type: 2 },
+      member: { user: { id: 'user-1', username: 'member' } },
+    }
+    const completedResponse = {
+      type: 4,
+      data: { content: 'event ready', flags: 1 << 6 },
+    }
+    routeMocks.handleDiscordMemberPanelInteraction.mockResolvedValueOnce(completedResponse)
+
+    const response = await POST(signedInteractionRequest(payload))
+
+    await expect(response.json()).resolves.toEqual({
+      type: 5,
+      data: { flags: 1 << 6 },
+    })
+    expect(routeMocks.handleDiscordMemberPanelInteraction).not.toHaveBeenCalled()
+    expect(routeMocks.backgroundTasks).toHaveLength(1)
+
+    await routeMocks.backgroundTasks[0]?.()
+    expect(routeMocks.handleDiscordMemberPanelInteraction).toHaveBeenCalledWith(payload)
+    expect(routeMocks.editOriginalInteractionResponse).toHaveBeenCalledWith(
+      payload,
+      completedResponse,
+    )
+  })
+
+  it('returns member panel exchange modals immediately so Discord can open them', async () => {
+    const payload = {
+      id: 'interaction-panel-2',
+      application_id: 'application-1',
+      token: 'interaction-token',
+      type: 3,
+      guild_id: 'guild-1',
+      channel_id: 'channel-1',
+      data: { custom_id: 'agm_member:v1:exchange', component_type: 2 },
+      member: { user: { id: 'user-1', username: 'member' } },
+    }
+    const modalResponse = {
+      type: 9,
+      data: {
+        custom_id: 'agm_member:v1:exchange_submit',
+        title: 'Exchange',
+        components: [],
+      },
+    }
+    routeMocks.handleDiscordMemberPanelInteraction.mockResolvedValueOnce(modalResponse)
+
+    const response = await POST(signedInteractionRequest(payload))
+
+    await expect(response.json()).resolves.toEqual(modalResponse)
+    expect(routeMocks.handleDiscordMemberPanelInteraction).toHaveBeenCalledWith(payload)
+    expect(routeMocks.backgroundTasks).toHaveLength(0)
   })
 })
