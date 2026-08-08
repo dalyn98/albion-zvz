@@ -116,6 +116,7 @@ describe('public ZvZ battle card source contracts', () => {
     expect(session).toContain('loadPublicZvzBattleSessionReport')
     expect(session).toContain('loadPublicBattleGroupAnalysis')
     expect(session).toContain('buildPublicZvzBattleSession(battles)')
+    expect(session).toContain('const loadSession = cache(async')
     expect(session).toContain('<Suspense')
     expect(session).toContain('<PublicBattleReportExplorer')
     expect(explorer).toContain("useState<ReportTab>('matchup')")

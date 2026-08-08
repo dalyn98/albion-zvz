@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Suspense } from 'react'
+import { cache, Suspense } from 'react'
 import { AlertTriangle, Layers3 } from 'lucide-react'
 import { notFound } from 'next/navigation'
 import PublicBattleReportExplorer from '@/components/PublicBattleReportExplorer'
@@ -59,11 +59,11 @@ async function SessionDetailAnalysis({
   )
 }
 
-async function loadSession(route: { server: string; battleIds: string }) {
-  if (!isAlbionServer(route.server)) return null
-  const battleIds = normalizePublicZvzBattleIds(route.battleIds)
+const loadSession = cache(async (server: string, battleIdsParam: string) => {
+  if (!isAlbionServer(server)) return null
+  const battleIds = normalizePublicZvzBattleIds(battleIdsParam)
   if (battleIds.length === 0) return null
-  const battles = await loadPublicBattlesByAlbionIds({ server: route.server, battleIds })
+  const battles = await loadPublicBattlesByAlbionIds({ server, battleIds })
   if (
     battles.length !== battleIds.length ||
     battleIds.some((battleId) => !battles.some((battle) => battle.albionBattleId === battleId))
@@ -71,14 +71,14 @@ async function loadSession(route: { server: string; battleIds: string }) {
     return null
   }
   return buildPublicZvzBattleSession(battles)
-}
+})
 
 export async function generateMetadata({ params }: SessionPageProps): Promise<Metadata> {
   const [route, t] = await Promise.all([
     params,
     getMarketingTranslator('publicZvzSession'),
   ])
-  const session = await loadSession(route).catch(() => null)
+  const session = await loadSession(route.server, route.battleIds).catch(() => null)
   if (!session) return { title: t('metaFallbackTitle'), robots: { index: false, follow: false } }
   const primary = session.topForces[0]
   const secondary = session.topForces[1]
@@ -107,7 +107,7 @@ export default async function PublicZvzBattleSessionPage({ params }: SessionPage
     getMarketingTranslator('publicZvzBattles'),
     getMarketingTranslator('publicBattleGroup'),
   ])
-  const session = await loadSession(route)
+  const session = await loadSession(route.server, route.battleIds)
   if (!session) notFound()
   const paths = getMarketingPathsForEnvironment(locale)
   const weekStart = getUtcWeekStartDateString(new Date(session.startedAt))
