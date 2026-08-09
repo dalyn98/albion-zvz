@@ -211,6 +211,16 @@ async function ensureTwoRows(workspace) {
   return rows
 }
 
+async function ensureTwentyRows(workspace) {
+  const rows = workspace.locator('[data-slot-workspace-row]')
+  while (await rows.count() < 20) {
+    const add = workspace.locator('[data-slot-add]').first()
+    assert.equal(await add.count(), 1, 'workspace cannot create all twenty draft slots')
+    await clickAttached(add)
+  }
+  return rows
+}
+
 async function ensureOneRow(workspace) {
   const rows = workspace.locator('[data-slot-workspace-row]')
   if (await rows.count() === 0) {
@@ -477,6 +487,36 @@ async function verifyDesktop(page, eventPath, config) {
     await workspace.locator('[data-slot-workspace-undo]').count(),
     0,
     'a later field edit must expire the structural undo receipt',
+  )
+
+  const twentyRows = await ensureTwentyRows(workspace)
+  const rowCount = await twentyRows.count()
+  assert.equal(rowCount, 20, 'desktop smoke fixture must reach the final slot')
+  const finalRow = twentyRows.nth(rowCount - 1)
+  await finalRow.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+  await clickAttached(finalRow.locator('[data-slot-activate]'))
+  await page.waitForTimeout(100)
+  assert.equal(
+    await finalRow.locator('[data-slot-activate]').getAttribute('aria-current'),
+    'true',
+    'the twentieth slot must become active',
+  )
+  const floatingLayout = await inlineEditor.evaluate((element) => {
+    const box = element.getBoundingClientRect()
+    return {
+      position: getComputedStyle(element).position,
+      top: Math.round(box.top),
+      viewportHeight: window.innerHeight,
+    }
+  })
+  assert.equal(
+    floatingLayout.position,
+    'fixed',
+    `the editor must float with the viewport at slot twenty (${JSON.stringify(floatingLayout)})`,
+  )
+  assert.ok(
+    floatingLayout.top >= 78 && floatingLayout.top <= 82,
+    `the floating editor must keep its desktop top inset (${JSON.stringify(floatingLayout)})`,
   )
 
   const editorBox = await workspace.locator('[data-slot-workspace-editor]').boundingBox()

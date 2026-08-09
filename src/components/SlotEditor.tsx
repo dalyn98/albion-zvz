@@ -97,6 +97,12 @@ interface Props {
   }
 }
 
+interface FloatingWorkspaceEditorFrame {
+  height: number
+  left: number
+  width: number
+}
+
 export default function SlotEditor({
   slot,
   partyNumber,
@@ -126,10 +132,16 @@ export default function SlotEditor({
   const [open, setOpen] = useState(standaloneMode ? true : false)
   const [saving, setSaving] = useState(false)
   const [activeGearKey, setActiveGearKey] = useState<SlotKey>('weapon')
+  const [floatingWorkspaceEditor, setFloatingWorkspaceEditor] =
+    useState<FloatingWorkspaceEditorFrame | null>(null)
+  const workspaceEditorAnchorRef = useRef<HTMLDivElement>(null)
   const workspaceEditorRef = useRef<HTMLDivElement>(null)
   const mobileOverlayOpen = hasWorkspaceOverlay
     ? !workspaceInline && workspaceMobileOpen
     : open
+  const activeFloatingWorkspaceEditor = hasWorkspaceOverlay && workspaceInline
+    ? floatingWorkspaceEditor
+    : null
   useBodyScrollLock(mobileOverlayOpen)
 
   useEffect(() => {
@@ -246,7 +258,60 @@ export default function SlotEditor({
       window.removeEventListener('resize', updateMaxHeight)
       window.removeEventListener('scroll', updateMaxHeight)
     }
-  }, [isWorkspace])
+  }, [activeFloatingWorkspaceEditor, isWorkspace])
+
+  // A sticky child is constrained by the bottom of its grid area, so the tall
+  // editor gets pushed above the viewport near slot 20. Once its anchor reaches
+  // the desktop inset, float the editor using the anchor column's exact frame;
+  // the reserved anchor height keeps the surrounding party layout stable.
+  useEffect(() => {
+    if (!hasWorkspaceOverlay || !workspaceInline) return
+    const anchor = workspaceEditorAnchorRef.current
+    const editor = workspaceEditorRef.current
+    const workspace = anchor?.closest<HTMLElement>('[data-slot-workspace]')
+    if (!anchor || !editor || !workspace) return
+    let animationFrame = 0
+
+    const updateFloatingFrame = () => {
+      cancelAnimationFrame(animationFrame)
+      animationFrame = requestAnimationFrame(() => {
+        const anchorBox = anchor.getBoundingClientRect()
+        const editorBox = editor.getBoundingClientRect()
+        const workspaceBox = workspace.getBoundingClientRect()
+        const shouldFloat = anchorBox.top < 80 && workspaceBox.bottom > 80
+        const next = shouldFloat
+          ? {
+              height: Math.round(editorBox.height),
+              left: Math.round(anchorBox.left),
+              width: Math.round(anchorBox.width),
+            }
+          : null
+        setFloatingWorkspaceEditor((current) => (
+          current?.height === next?.height &&
+          current?.left === next?.left &&
+          current?.width === next?.width
+            ? current
+            : next
+        ))
+      })
+    }
+
+    updateFloatingFrame()
+    const observer = typeof ResizeObserver === 'undefined'
+      ? null
+      : new ResizeObserver(updateFloatingFrame)
+    observer?.observe(anchor)
+    observer?.observe(editor)
+    observer?.observe(workspace)
+    window.addEventListener('resize', updateFloatingFrame)
+    window.addEventListener('scroll', updateFloatingFrame, { passive: true })
+    return () => {
+      cancelAnimationFrame(animationFrame)
+      observer?.disconnect()
+      window.removeEventListener('resize', updateFloatingFrame)
+      window.removeEventListener('scroll', updateFloatingFrame)
+    }
+  }, [hasWorkspaceOverlay, workspaceInline])
 
   const updateItem = (key: SlotKey, name: string, id: string) => {
     const idChanged = slot.items[key]?.id !== id
@@ -446,9 +511,14 @@ export default function SlotEditor({
 
       {(open || isWorkspace) && (
         <div
+          ref={workspaceEditorAnchorRef}
+          data-slot-workspace-editor-anchor={isWorkspace ? '' : undefined}
+          style={activeFloatingWorkspaceEditor
+            ? { minHeight: activeFloatingWorkspaceEditor.height }
+            : undefined}
           className={hasWorkspaceOverlay
             ? workspaceInline
-              ? 'block'
+              ? 'block min-w-0'
               : `${workspaceMobileOpen ? 'fixed flex' : 'hidden'} inset-0 z-50 items-end justify-center bg-black/70`
             : isWorkspace
               ? 'block'
@@ -465,11 +535,17 @@ export default function SlotEditor({
             style={isWorkspace
               ? {
                 '--slot-workspace-max-height': 'calc(100dvh - 7rem - var(--event-save-bar-height, 0px))',
+                ...(activeFloatingWorkspaceEditor
+                  ? {
+                      left: activeFloatingWorkspaceEditor.left,
+                      width: activeFloatingWorkspaceEditor.width,
+                    }
+                  : {}),
               } as CSSProperties
               : undefined}
             className={hasWorkspaceOverlay
               ? workspaceInline
-                ? 'sticky top-20 flex w-full flex-col overflow-hidden rounded-2xl bg-gray-900 shadow-[0_0_0_1px_rgba(255,255,255,0.1),0_18px_50px_rgba(0,0,0,0.26)] max-h-[var(--slot-workspace-max-height)]'
+                ? `${activeFloatingWorkspaceEditor ? 'fixed top-20 z-10' : 'relative'} flex w-full flex-col overflow-hidden rounded-2xl bg-gray-900 shadow-[0_0_0_1px_rgba(255,255,255,0.1),0_18px_50px_rgba(0,0,0,0.26)] max-h-[var(--slot-workspace-max-height)]`
                 : 'flex h-full max-h-[100dvh] w-full flex-col bg-gray-900 shadow-2xl shadow-black/40'
               : isWorkspace
                 ? 'flex h-full max-h-[100dvh] w-full flex-col bg-gray-900 shadow-2xl shadow-black/40 lg:sticky lg:top-20 lg:h-auto lg:max-h-[var(--slot-workspace-max-height)] lg:rounded-2xl lg:shadow-[0_0_0_1px_rgba(255,255,255,0.1)]'
