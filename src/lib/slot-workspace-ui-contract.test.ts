@@ -15,6 +15,7 @@ describe('slot workspace UI contract', () => {
   it('offers a persistent standard-desktop editor and a full-screen editor in narrow app shells', () => {
     const editor = source('src/components/SlotEditor.tsx')
     const workspace = source('src/components/PartySlotWorkspace.tsx')
+    const partyEditor = source('src/components/PartyEditorPanel.tsx')
     expect(editor).toContain("presentation?: 'modal' | 'workspace'")
     expect(editor).toContain('workspaceInline?: boolean')
     expect(editor).toContain('!workspaceInline && workspaceMobileOpen')
@@ -28,6 +29,8 @@ describe('slot workspace UI contract', () => {
     expect(editor).toContain("appFrame.style.zIndex = '60'")
     expect(editor).toContain('if (editorBox.width === 0) return')
     expect(editor).not.toContain('editorBox.width === 0 || editorBox.height === 0')
+    expect(partyEditor).toContain('overflow-clip')
+    expect(partyEditor).not.toContain('rounded-xl overflow-hidden')
   })
 
   it('keeps the standalone build-template workspace on its existing desktop layout', () => {

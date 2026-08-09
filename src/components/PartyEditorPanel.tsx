@@ -176,7 +176,7 @@ export default function PartyEditorPanel({
       id={`event-save-party-${partyNumber}`}
       open={isOpen}
       onToggle={(e) => setIsOpen(e.currentTarget.open)}
-      className="group border border-gray-700 rounded-xl overflow-hidden"
+      className="group overflow-clip rounded-xl border border-gray-700"
     >
       <summary className="flex items-center justify-between px-4 py-3 bg-gray-900 cursor-pointer hover:bg-gray-800 list-none [&::-webkit-details-marker]:hidden">
         <div className="flex items-center gap-3 min-w-0 flex-wrap">
