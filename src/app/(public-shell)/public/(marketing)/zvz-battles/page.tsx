@@ -20,6 +20,7 @@ import MarketingAttributionTracker from '@/components/MarketingAttributionTracke
 import MarketingNav from '@/components/MarketingNav'
 import BattlelogPausedPanel from '@/components/BattlelogPausedPanel'
 import PublicZvzBattleSessionCard from '@/components/PublicZvzBattleSessionCard'
+import PublicZvzTopFront from '@/components/PublicZvzTopFront'
 import {
   PublicZvzFavoriteButton,
   PublicZvzFavoritesBar,
@@ -74,7 +75,11 @@ import {
   PUBLIC_ZVZ_ENTITY_SEARCH_MIN_LENGTH,
 } from '@/lib/public-zvz-search-query'
 import { extractPublicZvzSeasonNumber } from '@/lib/public-zvz-season-label'
-import { loadPublicZvzV2Rankings, type PublicZvzV2Ranking } from '@/lib/public-zvz-ranking-v2-data'
+import {
+  loadPublicZvzV2Rankings,
+  loadPublicZvzV2TopFront,
+  type PublicZvzV2Ranking,
+} from '@/lib/public-zvz-ranking-v2-data'
 import {
   normalizePublicZvzRankingEntityKind,
   PUBLIC_ZVZ_RANKING_ENTITY_KINDS,
@@ -1311,8 +1316,14 @@ export default async function PublicZvzBattlesPage({
       asOfDate,
       limit: PUBLIC_ZVZ_RANKING_MAX_RESULTS,
     })
-      .then((result) => ({ result, error: false }))
-      .catch(() => ({ result: null, error: true })),
+      .then(async (result) => ({
+        result,
+        topFront: rankingScope === 'overall'
+          ? await loadPublicZvzV2TopFront({ rankingResult: result }).catch(() => [])
+          : [],
+        error: false,
+      }))
+      .catch(() => ({ result: null, topFront: [], error: true })),
   ])
   const { recentBattles, recentError } = boardData
   const visibleRecentBattles = showAllActivity
@@ -1331,6 +1342,7 @@ export default async function PublicZvzBattlesPage({
       : null
 
   const rankings = v2RankingState.result?.rankings ?? []
+  const topFront = v2RankingState.topFront
   const comparisonBase = requestedComparisonBaseId
     ? rankings.find((row) => row.entityAlbionId === requestedComparisonBaseId) ?? null
     : null
@@ -1735,6 +1747,27 @@ export default async function PublicZvzBattlesPage({
                   })}
                 </nav>
               </div>
+              <PublicZvzTopFront
+                items={topFront}
+                basePath={paths.zvzBattles}
+                seasonId={primarySeasonSelection?.season.id ?? null}
+                asOfDate={selectedSnapshotDate}
+                locale={locale}
+                labels={{
+                  eyebrow: t('topFrontEyebrow'),
+                  title: t('topFrontTitle'),
+                  window: t('topFrontWindow'),
+                  large: t('division_large'),
+                  zerg: t('division_zerg'),
+                  rankedClash: t('topFrontRankedClash'),
+                  battleSize: t('topFrontBattleSize'),
+                  kd: t('kdColumn'),
+                  versus: t('versusLabel'),
+                  additionalOpponents: t('additionalForces', { count: '{count}' }),
+                  logs: t('rawBattleLogs', { count: '{count}' }),
+                  open: t('topFrontOpen'),
+                }}
+              />
               {seasonResult && server && primarySeasonSelection ? (
                 <details className="group mb-5 border-b border-white/[0.1] pb-4">
                   <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm font-bold text-gray-400 transition-[color] duration-150 ease-out hover:text-white [&::-webkit-details-marker]:hidden">

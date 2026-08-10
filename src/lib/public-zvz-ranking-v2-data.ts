@@ -21,6 +21,13 @@ import {
   type PublicZvzRankingEntityKind,
   type PublicZvzRankingScope,
 } from '@/lib/public-zvz-ranking-v2'
+import {
+  PUBLIC_ZVZ_TOP_FRONT_RANK_LIMIT,
+  PUBLIC_ZVZ_TOP_FRONT_RESULT_LIMIT,
+  selectPublicZvzTopFront,
+  type PublicZvzTopFrontItem,
+  type PublicZvzTopFrontRanking,
+} from '@/lib/public-zvz-top-front'
 import { getAdminClient } from '@/lib/supabase-admin'
 
 const PUBLIC_ZVZ_V2_CACHE_SECONDS = 60
@@ -607,6 +614,136 @@ export async function loadPublicZvzV2Rankings(options: {
 }): Promise<PublicZvzV2RankingResult> {
   if (options.now) return loadRankingsUncached(options)
   return loadRankingsCached(options)
+}
+
+interface BattleIdentityRow {
+  id: string
+  albion_battle_id: number | string
+}
+
+async function loadTopFrontUncached(
+  server: AlbionServer,
+  entityKind: PublicZvzRankingEntityKind,
+  seasonId: string,
+  snapshotDate: string,
+  dataThroughAt: string,
+  rankingsKey: string,
+  limit: number,
+): Promise<PublicZvzTopFrontItem[]> {
+  const rankings = JSON.parse(rankingsKey) as PublicZvzTopFrontRanking[]
+  if (rankings.length === 0) return []
+
+  const db = getAdminClient()
+  const evidenceResults = await Promise.allSettled(
+    rankings.map((ranking) => db.rpc('get_public_zvz_v2_entity_evidence', {
+      p_season_id: seasonId,
+      p_snapshot_date: snapshotDate,
+      p_entity_kind: entityKind,
+      p_entity_albion_id: ranking.entityAlbionId,
+      p_limit: 500,
+    })),
+  )
+  const evidenceRows = evidenceResults.flatMap((result): EvidenceRow[] => {
+    if (result.status === 'rejected' || result.value.error) return []
+    return (result.value.data ?? []) as EvidenceRow[]
+  })
+  const successfulQueryCount = evidenceResults.filter(
+    (result) => result.status === 'fulfilled' && !result.value.error,
+  ).length
+  if (successfulQueryCount === 0) {
+    const failure = evidenceResults.find(
+      (result) => result.status === 'rejected' || result.value.error,
+    )
+    const message = failure?.status === 'rejected'
+      ? String(failure.reason)
+      : failure?.value.error?.message
+    throw new Error(`public ZvZ top-front evidence query failed: ${message ?? 'unknown error'}`)
+  }
+  if (evidenceRows.length === 0) return []
+
+  const selected = selectPublicZvzTopFront({
+    server,
+    rankings,
+    evidence: evidenceRows.map(toEvidence),
+    windowEndsAt: dataThroughAt,
+    limit,
+  })
+  if (selected.length === 0) return []
+
+  const battleRecordIds = [...new Set(selected.flatMap((item) => item.battleRecordIds))]
+  const { data: battleData, error: battleError } = await db
+    .from('battle_records')
+    .select('id, albion_battle_id')
+    .in('id', battleRecordIds)
+  if (battleError) {
+    throw new Error(`public ZvZ top-front battle query failed: ${battleError.message}`)
+  }
+  const battleIdsByRecord = new Map(
+    ((battleData ?? []) as BattleIdentityRow[]).flatMap((row) => {
+      const battleId = Number(row.albion_battle_id)
+      return Number.isSafeInteger(battleId) && battleId > 0
+        ? [[row.id, battleId] as const]
+        : []
+    }),
+  )
+
+  return selected.flatMap((item): PublicZvzTopFrontItem[] => {
+    const battleIds = item.battleRecordIds.flatMap((recordId) => {
+      const battleId = battleIdsByRecord.get(recordId)
+      return battleId ? [battleId] : []
+    })
+    if (battleIds.length === 0) return []
+    return [{
+      ...item,
+      id: `${server}:${battleIds.join('-')}`,
+      battleIds,
+    }]
+  })
+}
+
+const loadTopFrontCached = unstable_cache(
+  loadTopFrontUncached,
+  ['public-zvz-v2-top-front'],
+  {
+    revalidate: PUBLIC_ZVZ_V2_CACHE_SECONDS,
+    tags: [PUBLIC_ZVZ_SEASONS_TAG],
+  },
+)
+
+export async function loadPublicZvzV2TopFront(options: {
+  rankingResult: PublicZvzV2RankingResult
+  limit?: number
+}): Promise<PublicZvzTopFrontItem[]> {
+  const selection = options.rankingResult.selections[0]
+  const snapshot = selection?.snapshot
+  if (!selection || !snapshot) return []
+  const rankings = options.rankingResult.rankings
+    .filter(
+      (ranking) =>
+        ranking.rank >= 1
+        && ranking.rank <= PUBLIC_ZVZ_TOP_FRONT_RANK_LIMIT
+        && ranking.sampleStatus === 'ranked',
+    )
+    .sort((a, b) => a.rank - b.rank)
+    .map((ranking): PublicZvzTopFrontRanking => ({
+      entityAlbionId: ranking.entityAlbionId,
+      entityName: ranking.entityName,
+      entityKind: ranking.entityKind,
+      rank: ranking.rank,
+      sampleStatus: ranking.sampleStatus,
+    }))
+  const server = options.rankingResult.rankings[0]?.server
+  if (!server || rankings.length === 0) return []
+
+  return loadTopFrontCached(
+    server,
+    options.rankingResult.entityKind,
+    selection.season.id,
+    snapshot.snapshotDate,
+    snapshot.dataThroughAt,
+    JSON.stringify(rankings),
+    options.limit ?? PUBLIC_ZVZ_TOP_FRONT_RESULT_LIMIT,
+  )
 }
 
 function opponents(value: unknown): PublicZvzV2Opponent[] {
