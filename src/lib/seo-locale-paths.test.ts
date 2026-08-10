@@ -33,19 +33,22 @@ describe('SEO locale paths', () => {
   })
 
   it('builds reciprocal hreflang alternates for translated static marketing pages', () => {
-    expect(buildSeoMarketingLanguageAlternates('/zh/privacy')).toEqual({
+    expect(buildSeoMarketingLanguageAlternates('/zh/privacy')).toMatchObject({
       'x-default': 'https://albion-guildmanager.com/privacy',
       ko: 'https://albion-guildmanager.com/ko/privacy',
       ja: 'https://albion-guildmanager.com/ja/privacy',
       en: 'https://albion-guildmanager.com/en/privacy',
-      zh: 'https://albion-guildmanager.com/zh/privacy',
+      'zh-Hans': 'https://albion-guildmanager.com/zh/privacy',
+      'zh-Hant': 'https://albion-guildmanager.com/zh-Hant/privacy',
+      fr: 'https://albion-guildmanager.com/fr/privacy',
+      es: 'https://albion-guildmanager.com/es-419/privacy',
     })
-    expect(buildSeoMarketingLanguageAlternates('/guilds')).toEqual({
+    expect(buildSeoMarketingLanguageAlternates('/guilds')).toMatchObject({
       'x-default': 'https://albion-guildmanager.com/guilds',
       ko: 'https://albion-guildmanager.com/ko/guilds',
       ja: 'https://albion-guildmanager.com/ja/guilds',
       en: 'https://albion-guildmanager.com/en/guilds',
-      zh: 'https://albion-guildmanager.com/zh/guilds',
+      'zh-Hans': 'https://albion-guildmanager.com/zh/guilds',
     })
   })
 
@@ -84,12 +87,13 @@ describe('SEO locale paths', () => {
     expect(getSeoZvzRecordInternalPathname('/zvz-battles/battle/east/not-a-battle')).toBeNull()
     expect(getSeoZvzRecordInternalPathname('/zvz-battles/session/east/1,invalid')).toBeNull()
     expect(getSeoZvzRecordInternalPathname('/zvz-battles/session/invalid/1,2')).toBeNull()
-    expect(buildSeoZvzRecordLanguageAlternates('/en/zvz-battles/battle/east/123456')).toEqual({
+    expect(buildSeoZvzRecordLanguageAlternates('/en/zvz-battles/battle/east/123456')).toMatchObject({
       'x-default': 'https://albion-guildmanager.com/zvz-battles/battle/east/123456',
       ko: 'https://albion-guildmanager.com/ko/zvz-battles/battle/east/123456',
       ja: 'https://albion-guildmanager.com/ja/zvz-battles/battle/east/123456',
       en: 'https://albion-guildmanager.com/en/zvz-battles/battle/east/123456',
-      zh: 'https://albion-guildmanager.com/zh/zvz-battles/battle/east/123456',
+      'zh-Hans': 'https://albion-guildmanager.com/zh/zvz-battles/battle/east/123456',
+      ar: 'https://albion-guildmanager.com/ar/zvz-battles/battle/east/123456',
     })
     expect(
       replaceSeoMarketingLocale(
@@ -111,7 +115,9 @@ describe('SEO locale paths', () => {
     expect(getSeoFeatureCanonicalPathname('/public/features/auto-regear')).toBe(
       '/features/auto-regear',
     )
-    expect(getSeoFeatureCanonicalPathname('/fr/features/auto-regear')).toBeNull()
+    expect(getSeoFeatureCanonicalPathname('/fr/features/auto-regear')).toBe(
+      '/fr/features/auto-regear',
+    )
   })
 
   it('maps locale-prefixed feature URLs to the shared internal public route', () => {
@@ -123,12 +129,13 @@ describe('SEO locale paths', () => {
   })
 
   it('builds reciprocal hreflang alternates for every feature page variant', () => {
-    expect(buildSeoFeatureLanguageAlternates('/ko/features/auto-regear')).toEqual({
+    expect(buildSeoFeatureLanguageAlternates('/ko/features/auto-regear')).toMatchObject({
       'x-default': 'https://albion-guildmanager.com/features/auto-regear',
       ko: 'https://albion-guildmanager.com/ko/features/auto-regear',
       ja: 'https://albion-guildmanager.com/ja/features/auto-regear',
       en: 'https://albion-guildmanager.com/en/features/auto-regear',
-      zh: 'https://albion-guildmanager.com/zh/features/auto-regear',
+      'zh-Hans': 'https://albion-guildmanager.com/zh/features/auto-regear',
+      de: 'https://albion-guildmanager.com/de/features/auto-regear',
     })
   })
 
@@ -154,7 +161,9 @@ describe('SEO locale paths', () => {
     expect(getSeoDocsCanonicalPathname('/public/docs/regear/auto')).toBe(
       '/docs/regear/auto',
     )
-    expect(getSeoDocsCanonicalPathname('/fr/docs/regear/auto')).toBeNull()
+    expect(getSeoDocsCanonicalPathname('/fr/docs/regear/auto')).toBe(
+      '/fr/docs/regear/auto',
+    )
   })
 
   it('maps locale-prefixed docs URLs to the shared internal public route', () => {
@@ -166,12 +175,13 @@ describe('SEO locale paths', () => {
   })
 
   it('builds reciprocal hreflang alternates only for the translated docs home', () => {
-    expect(buildSeoDocsHomeLanguageAlternates('/ja/docs')).toEqual({
+    expect(buildSeoDocsHomeLanguageAlternates('/ja/docs')).toMatchObject({
       'x-default': 'https://albion-guildmanager.com/docs',
       ko: 'https://albion-guildmanager.com/ko/docs',
       ja: 'https://albion-guildmanager.com/ja/docs',
       en: 'https://albion-guildmanager.com/en/docs',
-      zh: 'https://albion-guildmanager.com/zh/docs',
+      'zh-Hans': 'https://albion-guildmanager.com/zh/docs',
+      'pt-BR': 'https://albion-guildmanager.com/pt-BR/docs',
     })
     expect(buildSeoDocsHomeLanguageAlternates('/en/docs/regear/auto')).toBeNull()
   })

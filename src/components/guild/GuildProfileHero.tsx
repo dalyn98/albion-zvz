@@ -7,7 +7,11 @@ import {
   Languages,
   ShieldCheck,
 } from 'lucide-react'
-import { type GuildProfileSettings, type ACCENT_CLASS_MAP } from '@/lib/guild-profile'
+import {
+  PROFILE_LANGUAGES,
+  type GuildProfileSettings,
+  type ACCENT_CLASS_MAP,
+} from '@/lib/guild-profile'
 import type { AllianceInfo } from '@/lib/guild-profile-stats'
 import {
   BannerEditControl,
@@ -59,9 +63,10 @@ export default async function GuildProfileHero({
     { value: 'west', label: t('server_west') },
     { value: 'europe', label: t('server_europe') },
   ]
-  const languageOptions: EditorOption[] = (
-    ['ko', 'ja', 'en', 'zh', 'es', 'fr', 'de', 'pt'] as const
-  ).map((code) => ({ value: code, label: t(`language_${code}`) }))
+  const languageOptions: EditorOption[] = PROFILE_LANGUAGES.map((code) => ({
+    value: code,
+    label: t(`language_${code}`),
+  }))
 
   return (
     <header className="relative overflow-hidden">

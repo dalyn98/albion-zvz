@@ -1,8 +1,7 @@
 import {
-  DEFAULT_LOCALE,
-  SUPPORTED_LOCALES,
+  DETECTION_FALLBACK_LOCALE,
   type Locale,
-  isLocale,
+  resolveSupportedLocale,
 } from '@/i18n/locales'
 
 interface LanguagePreference {
@@ -12,15 +11,12 @@ interface LanguagePreference {
 }
 
 function normalizeLocaleTag(tag: string): Locale | null {
-  const lower = tag.trim().toLowerCase()
-  if (!lower || lower === '*') return null
-  const base = lower.split('-')[0]
-  return isLocale(base) ? base : null
+  return resolveSupportedLocale(tag)
 }
 
 export function detectLocaleFromAcceptLanguage(
   header: string | null | undefined,
-  fallback: Locale = DEFAULT_LOCALE,
+  fallback: Locale = DETECTION_FALLBACK_LOCALE,
 ): Locale {
   if (!header) return fallback
   const preferences: LanguagePreference[] = []
@@ -42,7 +38,7 @@ export function detectLocaleFromAcceptLanguage(
   preferences.sort((a, b) => b.q - a.q || a.index - b.index)
   for (const preference of preferences) {
     const locale = normalizeLocaleTag(preference.tag)
-    if (locale && (SUPPORTED_LOCALES as readonly string[]).includes(locale)) return locale
+    if (locale) return locale
   }
 
   return fallback

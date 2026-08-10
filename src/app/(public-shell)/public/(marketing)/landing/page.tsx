@@ -25,6 +25,7 @@ import {
   type MarketingScreenshotKey,
 } from '@/lib/marketing-screenshots'
 import { buildPublicLandingMetadata } from '@/lib/seo-metadata'
+import { headers } from 'next/headers'
 import { getMarketingPathsForEnvironment, resolveMarketingHref } from '@/lib/marketing-paths'
 import { getMarketingLocale, getMarketingTranslator } from '@/lib/marketing-static-intl'
 import InAppBrowserNoticeWithMessages from '@/components/InAppBrowserNoticeWithMessages'
@@ -38,8 +39,20 @@ import {
 
 export const revalidate = 3600
 
-export const generateMetadata = () =>
-  buildPublicLandingMetadata(process.env.GOOGLE_SITE_VERIFICATION)
+export async function generateMetadata() {
+  const [locale, t, headerStore] = await Promise.all([
+    getMarketingLocale(),
+    getMarketingTranslator('meta'),
+    headers(),
+  ])
+  return buildPublicLandingMetadata(process.env.GOOGLE_SITE_VERIFICATION, {
+    locale,
+    pathname: headerStore.get('x-pathname') ?? '/',
+    title: t('title'),
+    description: t('description'),
+    openGraphDescription: t('ogDefaultDescription'),
+  })
+}
 
 interface FeatureSection {
   imagePosition: 'left' | 'right'

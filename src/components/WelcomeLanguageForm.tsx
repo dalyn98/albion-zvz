@@ -12,7 +12,7 @@ interface Props {
   returnTo: string
 }
 
-// 첫 방문 환영 화면의 언어 선택 폼. 3개 버튼 중 하나 클릭 시 서버 액션으로
+// 첫 방문 환영 화면의 언어 선택 폼. 언어 버튼 클릭 시 서버 액션으로
 // DB + 쿠키 저장 후 returnTo 로 이동. router.replace 를 쓰는 건 뒤로가기로
 // 다시 이 페이지에 돌아오지 않게 하려는 의도.
 export default function WelcomeLanguageForm({ returnTo }: Props) {
@@ -37,7 +37,7 @@ export default function WelcomeLanguageForm({ returnTo }: Props) {
   }
 
   return (
-    <div className="space-y-3">
+    <div className="grid max-h-[60vh] grid-cols-1 gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
       {SUPPORTED_LOCALES.map((locale) => {
         const isPending = pending === locale
         return (

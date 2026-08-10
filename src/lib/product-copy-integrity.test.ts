@@ -1,8 +1,9 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { SUPPORTED_LOCALES, type Locale } from '@/i18n/locales'
 
-const LOCALES = ['ko', 'ja', 'en', 'zh'] as const
+const LOCALES = SUPPORTED_LOCALES
 
 type Messages = {
   adminGuide: { battles: { body: string } }
@@ -10,7 +11,7 @@ type Messages = {
   demo: { battles: { notice: string; ctaDescription: string } }
 }
 
-function messages(locale: (typeof LOCALES)[number]): Messages {
+function messages(locale: Locale): Messages {
   return JSON.parse(
     readFileSync(join(process.cwd(), 'src', 'messages', `${locale}.json`), 'utf8'),
   ) as Messages
@@ -36,11 +37,13 @@ describe('product copy integrity', () => {
   })
 
   it('describes the free offer as beta-period access in every locale', () => {
-    expect(Object.fromEntries(LOCALES.map((locale) => [locale, messages(locale).publicFaq.a3]))).toEqual({
+    const copy = Object.fromEntries(LOCALES.map((locale) => [locale, messages(locale).publicFaq.a3]))
+    expect(copy).toMatchObject({
       ko: '정식 출시 전 베타 기간에는 모든 기능을 무료로 사용할 수 있습니다.',
       ja: '正式リリース前のベータ期間中は、すべての機能を無料で利用できます。',
       en: 'All features are free during the beta period before the full release.',
       zh: '正式发布前的测试阶段，所有功能均可免费使用。',
     })
+    for (const locale of LOCALES) expect(copy[locale]?.trim(), locale).toBeTruthy()
   })
 })

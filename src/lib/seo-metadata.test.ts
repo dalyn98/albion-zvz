@@ -7,6 +7,7 @@ import {
   buildFaqStructuredData,
   buildCanonicalRootMetadata,
   buildPublicLandingMetadata,
+  buildPublicMarketingMetadata,
   getCanonicalUrlForPathname,
   serializeJsonLd,
 } from './seo-metadata'
@@ -45,23 +46,25 @@ describe('seo metadata helpers', () => {
   })
 
   it('builds feature hreflang alternates for localized SEO URLs', () => {
-    expect(buildSeoFeatureLanguageAlternates('/en/features/guild-shop')).toEqual({
+    expect(buildSeoFeatureLanguageAlternates('/en/features/guild-shop')).toMatchObject({
       'x-default': 'https://albion-guildmanager.com/features/guild-shop',
       ko: 'https://albion-guildmanager.com/ko/features/guild-shop',
       ja: 'https://albion-guildmanager.com/ja/features/guild-shop',
       en: 'https://albion-guildmanager.com/en/features/guild-shop',
-      zh: 'https://albion-guildmanager.com/zh/features/guild-shop',
+      'zh-Hans': 'https://albion-guildmanager.com/zh/features/guild-shop',
+      fr: 'https://albion-guildmanager.com/fr/features/guild-shop',
     })
     expect(buildSeoFeatureLanguageAlternates('/pricing')).toBeNull()
   })
 
   it('builds docs home hreflang alternates for the translated minimum docs set', () => {
-    expect(buildSeoDocsHomeLanguageAlternates('/en/docs')).toEqual({
+    expect(buildSeoDocsHomeLanguageAlternates('/en/docs')).toMatchObject({
       'x-default': 'https://albion-guildmanager.com/docs',
       ko: 'https://albion-guildmanager.com/ko/docs',
       ja: 'https://albion-guildmanager.com/ja/docs',
       en: 'https://albion-guildmanager.com/en/docs',
-      zh: 'https://albion-guildmanager.com/zh/docs',
+      'zh-Hans': 'https://albion-guildmanager.com/zh/docs',
+      ar: 'https://albion-guildmanager.com/ar/docs',
     })
     expect(buildSeoDocsHomeLanguageAlternates('/en/docs/events/create')).toBeNull()
   })
@@ -124,12 +127,49 @@ describe('seo metadata helpers', () => {
   it('adds a canonical URL only for the public landing metadata', () => {
     const metadata = buildPublicLandingMetadata('abc_123-XYZ')
 
-    expect(metadata.alternates).toEqual({
+    expect(metadata.alternates).toMatchObject({
       canonical: 'https://albion-guildmanager.com/',
+      languages: {
+        'x-default': 'https://albion-guildmanager.com/',
+        en: 'https://albion-guildmanager.com/en',
+        'zh-Hans': 'https://albion-guildmanager.com/zh',
+        'zh-Hant': 'https://albion-guildmanager.com/zh-Hant',
+        es: 'https://albion-guildmanager.com/es-419',
+      },
     })
     expect(metadata.openGraph).toMatchObject({
       type: 'website',
       url: 'https://albion-guildmanager.com/',
+    })
+  })
+
+  it('keeps unprefixed and localized marketing pages self-canonical', () => {
+    const root = buildPublicLandingMetadata(null, {
+      locale: 'ko',
+      pathname: '/',
+      title: '제목',
+      description: '설명',
+      openGraphDescription: '공유 설명',
+    })
+    expect(root.alternates).toMatchObject({
+      canonical: 'https://albion-guildmanager.com/',
+    })
+
+    const pricing = buildPublicMarketingMetadata({
+      pathname: '/de/pricing',
+      fallbackPathname: '/pricing',
+      title: 'Preise',
+      description: 'Beschreibung',
+    })
+    expect(pricing.alternates).toMatchObject({
+      canonical: 'https://albion-guildmanager.com/de/pricing',
+      languages: {
+        de: 'https://albion-guildmanager.com/de/pricing',
+        ar: 'https://albion-guildmanager.com/ar/pricing',
+      },
+    })
+    expect(pricing.openGraph).toMatchObject({
+      url: 'https://albion-guildmanager.com/de/pricing',
     })
   })
 })

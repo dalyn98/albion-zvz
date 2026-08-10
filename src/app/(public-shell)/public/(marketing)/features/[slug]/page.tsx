@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -77,7 +78,10 @@ export function generateStaticParams(): Array<{ slug: string }> {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params
-  const t = await getMarketingTranslator('publicSeoFeatures')
+  const [t, headerStore] = await Promise.all([
+    getMarketingTranslator('publicSeoFeatures'),
+    headers(),
+  ])
   const page = getSeoFeaturePage(slug)
   if (!page) {
     return {
@@ -86,9 +90,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     }
   }
   const fallbackPathname = `/features/${page.slug}`
+  const requestPathname = headerStore.get('x-pathname') ?? fallbackPathname
   const canonicalUrl =
-    getCanonicalUrlForPathname(fallbackPathname) ?? `${getCanonicalOrigin()}${fallbackPathname}`
-  const languages = buildSeoFeatureLanguageAlternates(fallbackPathname)
+    getCanonicalUrlForPathname(requestPathname) ?? `${getCanonicalOrigin()}${fallbackPathname}`
+  const languages = buildSeoFeatureLanguageAlternates(requestPathname)
 
   return {
     title: t(`${page.messageKey}MetaTitle`),

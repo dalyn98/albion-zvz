@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { SUPPORTED_LOCALES } from '@/i18n/locales'
 import {
   FEATURE_PAGE_SLUGS,
   FEATURE_LOCALIZED_SITEMAP_ROUTES,
@@ -37,7 +38,7 @@ describe('SEO feature pages', () => {
     expect(FEATURE_LOCALIZED_SITEMAP_ROUTES).toContain('/ja/features/guild-shop')
     expect(FEATURE_LOCALIZED_SITEMAP_ROUTES).toContain('/zh/features/guild-stats')
     expect(FEATURE_LOCALIZED_SITEMAP_ROUTES).toHaveLength(
-      FEATURE_SITEMAP_ROUTES.length * 4,
+      FEATURE_SITEMAP_ROUTES.length * SUPPORTED_LOCALES.length,
     )
   })
 

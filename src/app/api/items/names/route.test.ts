@@ -28,4 +28,20 @@ describe('GET /api/items/names', () => {
     expect(response.status).toBe(200)
     await expect(response.json()).resolves.toEqual({ names: {} })
   })
+
+  it('returns official Albion names for added and RTL locales', async () => {
+    const german = GET(new NextRequest(
+      'https://example.test/api/items/names?locale=de&id=T4_MAIN_SWORD',
+    ))
+    await expect(german.json()).resolves.toEqual({
+      names: { T4_MAIN_SWORD: 'Breitschwert des Adepten' },
+    })
+
+    const arabic = GET(new NextRequest(
+      'https://example.test/api/items/names?locale=ar&id=T4_MAIN_SWORD',
+    ))
+    await expect(arabic.json()).resolves.toEqual({
+      names: { T4_MAIN_SWORD: 'سيف عريض للبارع' },
+    })
+  })
 })

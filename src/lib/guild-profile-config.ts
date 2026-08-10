@@ -156,18 +156,9 @@ export function isRecruitmentStatus(value: string): value is RecruitmentStatus {
   return (RECRUITMENT_STATUSES as readonly string[]).includes(value)
 }
 
-export type ProfileLanguage = 'ko' | 'ja' | 'en' | 'zh' | 'es' | 'fr' | 'de' | 'pt'
+export type ProfileLanguage = Locale
 
-export const PROFILE_LANGUAGES: readonly ProfileLanguage[] = [
-  'ko',
-  'ja',
-  'en',
-  'zh',
-  'es',
-  'fr',
-  'de',
-  'pt',
-] as const
+export const PROFILE_LANGUAGES: readonly ProfileLanguage[] = SUPPORTED_LOCALES
 
 export function isProfileLanguage(value: string): value is ProfileLanguage {
   return (PROFILE_LANGUAGES as readonly string[]).includes(value)
@@ -316,3 +307,4 @@ export function resolvePublicDiscordJoinUrl(
   if (!settings.discordInviteVerified) return ''
   return settings.discordInviteUrl
 }
+import { SUPPORTED_LOCALES, type Locale } from '@/i18n/locales'

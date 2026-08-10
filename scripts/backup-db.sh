@@ -5,7 +5,7 @@
 #   ./scripts/backup-db.sh                        # ~/backups/albion-zvz/daily/<TS>.tar.gz
 #   ./scripts/backup-db.sh pre-migration mig135   # pre-migration 폴더, 라벨 부착
 #
-# 묶음 내용: roles.sql + schema.sql + data.sql (3-step pg_dump)
+# 묶음 내용: roles.sql + schema.sql + data.sql.gz (3-step pg_dump)
 # 메커니즘: `supabase db dump --linked --dry-run` 이 출력하는 pg_dump 파이프라인을
 # 그대로 bash 에 흘려보내 로컬 pg_dump 로 실행. Docker 의존 회피 + Supabase 가
 # 추천하는 sed 정리 그대로 적용.
@@ -68,13 +68,38 @@ dump_step() {
 
 dump_step "roles"  roles.sql  --role-only
 dump_step "schema" schema.sql
-dump_step "data"   data.sql   --data-only --use-copy
 
-tar -czf "$TARGET_DIR/$NAME.tar.gz" -C "$TMP_DIR" roles.sql schema.sql data.sql
-chmod 600 "$TARGET_DIR/$NAME.tar.gz"
+# 데이터 덤프는 수 GB까지 커질 수 있다. 평문 data.sql을 디스크에 먼저
+# 저장하면 압축본을 만들 여유 공간까지 필요하므로 생성 즉시 gzip으로 압축한다.
+# 복원할 때는 gzip -dc data.sql.gz | psql "$DATABASE_URL" 을 사용한다.
+DATA_ARCHIVE="$TMP_DIR/data.sql.gz"
+ARCHIVE="$TARGET_DIR/$NAME.tar.gz"
+ARCHIVE_TMP="$TARGET_DIR/.$NAME.tar.gz.tmp"
 
-SIZE="$(du -h "$TARGET_DIR/$NAME.tar.gz" | cut -f1)"
-echo "[backup] 완료: $TARGET_DIR/$NAME.tar.gz ($SIZE)"
+echo "  · data"
+if ! supabase db dump --linked --dry-run --data-only --use-copy 2>/dev/null \
+  | bash \
+  | gzip -c > "$DATA_ARCHIVE"; then
+  echo "ERROR: data dump 실패" >&2
+  exit 1
+fi
+if [ ! -s "$DATA_ARCHIVE" ] || ! gzip -t "$DATA_ARCHIVE"; then
+  echo "ERROR: data dump 압축 결과가 유효하지 않음" >&2
+  exit 1
+fi
+
+if ! COPYFILE_DISABLE=1 tar --no-xattrs -czf "$ARCHIVE_TMP" \
+  -C "$TMP_DIR" roles.sql schema.sql data.sql.gz; then
+  rm -f "$ARCHIVE_TMP"
+  echo "ERROR: backup archive 생성 실패" >&2
+  exit 1
+fi
+
+mv "$ARCHIVE_TMP" "$ARCHIVE"
+chmod 600 "$ARCHIVE"
+
+SIZE="$(du -h "$ARCHIVE" | cut -f1)"
+echo "[backup] 완료: $ARCHIVE ($SIZE)"
 
 # Rotation
 case "$KIND" in

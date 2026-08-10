@@ -1,5 +1,6 @@
 import type { MDXComponents } from 'mdx/types'
 import Link from 'next/link'
+import LocalizedMdxText from '@/components/LocalizedMdxText'
 
 // docs MDX 본문에 매핑되는 dark-theme 컴포넌트. tailwind typography 플러그인을
 // 쓰지 않고 직접 매핑한다 — 사이트 톤 (gray-900 배경, amber accent) 과 prose
@@ -13,26 +14,26 @@ const REDIRECT_TO_EXTERNAL = new Set(['/invite'])
 const components: MDXComponents = {
   h1: ({ children }) => (
     <h1 className="text-2xl sm:text-3xl font-bold text-white mt-8 mb-4 pb-2 border-b border-gray-800">
-      {children}
+      <LocalizedMdxText>{children}</LocalizedMdxText>
     </h1>
   ),
   h2: ({ children }) => (
-    <h2 className="text-xl sm:text-2xl font-bold text-white mt-10 mb-3">{children}</h2>
+    <h2 className="text-xl sm:text-2xl font-bold text-white mt-10 mb-3"><LocalizedMdxText>{children}</LocalizedMdxText></h2>
   ),
   h3: ({ children }) => (
-    <h3 className="text-base sm:text-lg font-bold text-amber-300 mt-6 mb-2">{children}</h3>
+    <h3 className="text-base sm:text-lg font-bold text-amber-300 mt-6 mb-2"><LocalizedMdxText>{children}</LocalizedMdxText></h3>
   ),
   h4: ({ children }) => (
     <h4 className="text-sm font-bold text-gray-200 mt-4 mb-2 uppercase tracking-wider">
-      {children}
+      <LocalizedMdxText>{children}</LocalizedMdxText>
     </h4>
   ),
-  p: ({ children }) => <p className="text-gray-300 leading-relaxed my-3">{children}</p>,
+  p: ({ children }) => <p className="text-gray-300 leading-relaxed my-3"><LocalizedMdxText>{children}</LocalizedMdxText></p>,
   ul: ({ children }) => <ul className="list-disc pl-6 text-gray-300 my-3 space-y-1">{children}</ul>,
   ol: ({ children }) => (
     <ol className="list-decimal pl-6 text-gray-300 my-3 space-y-1">{children}</ol>
   ),
-  li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+  li: ({ children }) => <li className="leading-relaxed"><LocalizedMdxText>{children}</LocalizedMdxText></li>,
   a: ({ href, children }) => {
     const isExternal = typeof href === 'string' && /^https?:\/\//.test(href)
     const redirectsExternal = typeof href === 'string' && REDIRECT_TO_EXTERNAL.has(href)
@@ -44,7 +45,7 @@ const components: MDXComponents = {
           rel="noopener noreferrer"
           className="text-amber-300 underline underline-offset-2 hover:text-amber-200"
         >
-          {children}
+          <LocalizedMdxText>{children}</LocalizedMdxText>
         </a>
       )
     }
@@ -53,7 +54,7 @@ const components: MDXComponents = {
         href={href ?? '#'}
         className="text-amber-300 underline underline-offset-2 hover:text-amber-200"
       >
-        {children}
+        <LocalizedMdxText>{children}</LocalizedMdxText>
       </Link>
     )
   },
@@ -61,7 +62,7 @@ const components: MDXComponents = {
   // 처리 — pre 안에서는 배경 없는 모노폰트로 두고 pre 가 스타일을 잡는다.
   code: ({ children }) => (
     <code className="bg-gray-800 text-amber-200 px-1.5 py-0.5 rounded text-[0.85em] font-mono">
-      {children}
+      <LocalizedMdxText>{children}</LocalizedMdxText>
     </code>
   ),
   pre: ({ children }) => (
@@ -82,14 +83,14 @@ const components: MDXComponents = {
   ),
   th: ({ children }) => (
     <th className="border border-gray-800 bg-gray-900 px-3 py-2 text-left text-gray-200 font-bold">
-      {children}
+      <LocalizedMdxText>{children}</LocalizedMdxText>
     </th>
   ),
   td: ({ children }) => (
-    <td className="border border-gray-800 px-3 py-2 text-gray-300">{children}</td>
+    <td className="border border-gray-800 px-3 py-2 text-gray-300"><LocalizedMdxText>{children}</LocalizedMdxText></td>
   ),
-  strong: ({ children }) => <strong className="text-white font-bold">{children}</strong>,
-  em: ({ children }) => <em className="text-gray-200 italic">{children}</em>,
+  strong: ({ children }) => <strong className="text-white font-bold"><LocalizedMdxText>{children}</LocalizedMdxText></strong>,
+  em: ({ children }) => <em className="text-gray-200 italic"><LocalizedMdxText>{children}</LocalizedMdxText></em>,
 }
 
 export function useMDXComponents(): MDXComponents {

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { headers } from 'next/headers'
 import Link from 'next/link'
 import {
   CalendarCheck,
@@ -14,25 +15,18 @@ import InAppBrowserNoticeWithMessages from '@/components/InAppBrowserNoticeWithM
 import { SectionCard } from '@/components/ui-patterns'
 import { getMarketingPathsForEnvironment } from '@/lib/marketing-paths'
 import { getMarketingLocale, getMarketingTranslator } from '@/lib/marketing-static-intl'
+import { buildPublicMarketingMetadata } from '@/lib/seo-metadata'
 
 export const revalidate = 3600
 
 export async function generateMetadata(): Promise<Metadata> {
-  const t = await getMarketingTranslator('meta')
-  return {
+  const [t, headerStore] = await Promise.all([getMarketingTranslator('meta'), headers()])
+  return buildPublicMarketingMetadata({
+    pathname: headerStore.get('x-pathname') ?? '/pricing',
+    fallbackPathname: '/pricing',
     title: t('pricingTitle'),
     description: t('pricingDescription'),
-    openGraph: {
-      type: 'website',
-      title: t('pricingTitle'),
-      description: t('pricingDescription'),
-    },
-    twitter: {
-      card: 'summary_large_image',
-      title: t('pricingTitle'),
-      description: t('pricingDescription'),
-    },
-  }
+  })
 }
 
 export default async function PublicPricingPage() {

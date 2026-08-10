@@ -124,7 +124,7 @@ describe('app route classification', () => {
     expect(isIndexablePathname('/en/pricing')).toBe(true)
     expect(isIndexablePathname('/zh/terms')).toBe(true)
     expect(nextConfigSource).toContain(
-      "{ source: '/:locale(ko|ja|en|zh)/pricing', headers: cachedIndexHeaders }",
+      "{ source: '/:locale(ko|ja|en|zh|zh-Hant|fr|de|es-ES|es-419|pt-BR|pt-PT|pl|ru|it|id|ar|tr)/pricing', headers: cachedIndexHeaders }",
     )
   })
 
@@ -142,13 +142,13 @@ describe('app route classification', () => {
     expect(isIndexablePathname('/en/docs/current-contract')).toBe(true)
     expect(isIndexablePathname('/ja/docs/regear/auto')).toBe(false)
     expect(nextConfigSource).toContain(
-      "{ source: '/:locale(ko|ja|en|zh)/docs', headers: cachedIndexHeaders }",
+      "{ source: '/:locale(ko|ja|en|zh|zh-Hant|fr|de|es-ES|es-419|pt-BR|pt-PT|pl|ru|it|id|ar|tr)/docs', headers: cachedIndexHeaders }",
     )
     expect(nextConfigSource).not.toContain(
-      "{ source: '/:locale(ko|ja|en|zh)/docs/:path*', headers: cachedIndexHeaders }",
+      "{ source: '/:locale(ko|ja|en|zh|zh-Hant|fr|de|es-ES|es-419|pt-BR|pt-PT|pl|ru|it|id|ar|tr)/docs/:path*', headers: cachedIndexHeaders }",
     )
     expect(nextConfigSource).toContain(
-      "{ source: '/:locale(ko|ja|en|zh)/docs/current-contract', headers: cachedIndexHeaders }",
+      "{ source: '/:locale(ko|ja|en|zh|zh-Hant|fr|de|es-ES|es-419|pt-BR|pt-PT|pl|ru|it|id|ar|tr)/docs/current-contract', headers: cachedIndexHeaders }",
     )
   })
 

@@ -8,6 +8,7 @@ interface BundledItem {
   dj: string
   de: string
   dz: string
+  l?: Partial<Record<Locale, string>>
 }
 
 const ITEMS_BY_ID = new Map<string, BundledItem>()
@@ -20,6 +21,8 @@ const NAMES_CACHE_CONTROL =
   'public, max-age=86400, s-maxage=604800, stale-while-revalidate=604800'
 
 function localizedName(item: BundledItem, locale: Locale): string {
+  const officialName = item.l?.[locale]
+  if (officialName) return officialName
   if (locale === 'ja') return item.dj
   if (locale === 'en') return item.de
   if (locale === 'zh') return item.dz

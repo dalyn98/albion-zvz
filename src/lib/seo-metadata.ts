@@ -1,4 +1,9 @@
 import type { Metadata } from 'next'
+import {
+  SUPPORTED_LOCALES,
+  getIntlLocale,
+  type Locale,
+} from '@/i18n/locales'
 import { getCanonicalIndexablePathname } from '@/lib/app-route-classification'
 import { normalizeGoogleSiteVerificationToken } from '@/lib/google-site-verification'
 import {
@@ -7,6 +12,7 @@ import {
   buildSeoMarketingLanguageAlternates,
   getLocalizedSeoFeaturePathname,
   getSeoFeatureLocale,
+  getSeoMarketingCanonicalPathname,
 } from '@/lib/seo-locale-paths'
 
 export {
@@ -17,7 +23,7 @@ export {
 
 const SITE_NAME = 'AlbionGuildManager'
 const CANONICAL_ORIGIN = 'https://albion-guildmanager.com'
-const SUPPORTED_LANGUAGES = ['ko', 'en', 'ja', 'zh'] as const
+const SUPPORTED_LANGUAGES = SUPPORTED_LOCALES.map(getIntlLocale)
 const ROOT_TITLE = 'AlbionGuildManager — Albion Online 길드 운영 도구'
 const ROOT_DESCRIPTION =
   'AlbionGuildManager는 알비온 온라인 길드의 ZvZ 킬보드 추적, 자동 리기어, 길드 상점, 통계·업적까지 한 번에 자동화합니다.'
@@ -82,20 +88,75 @@ export function buildCanonicalRootMetadata(
 
 export function buildPublicLandingMetadata(
   googleSiteVerificationValue?: string | null,
+  localized?: {
+    locale: Locale
+    pathname?: string
+    title: string
+    description: string
+    openGraphDescription: string
+  },
 ): Metadata {
   const metadata = buildCanonicalRootMetadata(googleSiteVerificationValue)
+  const pathname = localized?.pathname
+    ? getSeoMarketingCanonicalPathname(localized.pathname) ?? `/${localized.locale}`
+    : localized
+      ? `/${localized.locale}`
+      : '/'
+  const canonical = `${CANONICAL_ORIGIN}${pathname === '/' ? '/' : pathname}`
+  const title = localized?.title ?? ROOT_TITLE
+  const description = localized?.description ?? ROOT_DESCRIPTION
+  const openGraphDescription = localized?.openGraphDescription ?? ROOT_OG_DESCRIPTION
 
   return {
     ...metadata,
+    title,
+    description,
     alternates: {
-      canonical: `${CANONICAL_ORIGIN}/`,
+      canonical,
+      languages: buildSeoMarketingLanguageAlternates(pathname) ?? undefined,
     },
     openGraph: {
       type: 'website',
       siteName: SITE_NAME,
-      title: ROOT_TITLE,
-      description: ROOT_OG_DESCRIPTION,
-      url: `${CANONICAL_ORIGIN}/`,
+      title,
+      description: openGraphDescription,
+      url: canonical,
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description: openGraphDescription,
+    },
+  }
+}
+
+export function buildPublicMarketingMetadata(input: {
+  pathname: string
+  fallbackPathname: string
+  title: string
+  description: string
+}): Metadata {
+  const canonicalPathname = getSeoMarketingCanonicalPathname(input.pathname)
+    ?? input.fallbackPathname
+  const canonical = `${CANONICAL_ORIGIN}${canonicalPathname}`
+  return {
+    title: input.title,
+    description: input.description,
+    alternates: {
+      canonical,
+      languages: buildSeoMarketingLanguageAlternates(canonicalPathname) ?? undefined,
+    },
+    openGraph: {
+      type: 'website',
+      siteName: SITE_NAME,
+      title: input.title,
+      description: input.description,
+      url: canonical,
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: input.title,
+      description: input.description,
     },
   }
 }

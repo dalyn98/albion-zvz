@@ -58,6 +58,23 @@ describeIntegration('support ticket database invariants', () => {
     )
   })
 
+  it('accepts a newly added Albion locale at the ticket RPC boundary', async () => {
+    const reserved = await client.rpc('reserve_support_ticket', {
+      p_support_guild_id: supportGuildId,
+      p_opener_discord_id: openerId,
+      p_opener_name: 'Requester',
+      p_opener_locale: 'zh-Hant',
+      p_related_tenant_id: null,
+      p_related_guild_hint: null,
+      p_category: 'other',
+      p_subject: 'Locale support',
+      p_description: 'Traditional Chinese locale',
+      p_interaction_id: '123456789012345677',
+    }).single()
+    expect(reserved.error).toBeNull()
+    expect((reserved.data as { opener_locale?: string } | null)?.opener_locale).toBe('zh-Hant')
+  })
+
   it('enforces requester ownership and idempotent workflow interactions', async () => {
     const reserved = await client.rpc('reserve_support_ticket', {
       p_support_guild_id: supportGuildId,

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import { parseSeoMarketingPathname } from '@/lib/seo-locale-paths'
 
 type ClientSeoEvent =
   | 'landing_view'
@@ -44,7 +45,10 @@ function battlesViewEvent(pathname: string): ClientSeoEvent | null {
   if (/\/zvz-battles\/battle\/(west|east|europe)\/\d+$/.test(pathname)) return 'battle_report_open'
   if (/\/zvz-battles\/guild\/(west|east|europe)\//.test(pathname)) return 'guild_record_open'
   if (/\/zvz-battles\/alliance\/(west|east|europe)\//.test(pathname)) return 'alliance_record_open'
-  if (/(^|\/(ko|ja|en|zh))\/zvz-battles$/.test(pathname) || pathname === '/public/zvz-battles') return 'battles_board_view'
+  if (
+    parseSeoMarketingPathname(pathname)?.unprefixedPathname === '/zvz-battles'
+    || pathname === '/public/zvz-battles'
+  ) return 'battles_board_view'
   return null
 }
 

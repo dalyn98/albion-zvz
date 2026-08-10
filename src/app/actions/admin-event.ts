@@ -28,7 +28,7 @@ import { log } from '@/lib/log'
 import { logAdminAction } from '@/lib/admin-audit'
 import { logTenantOnboardingEvent } from '@/lib/tenant-onboarding-events'
 import { loadDiscordEventSignupMessages } from '@/lib/discord-event-signups'
-import type { Locale } from '@/i18n/locales'
+import { getIntlLocale, type Locale } from '@/i18n/locales'
 import type {
   EventCategory,
   EventRegearAutoPolicy,
@@ -62,16 +62,6 @@ import { isApplicationCommandIdempotencyKey } from '@/lib/application-command-id
 import { ApplicationCommandError } from '@/lib/application-command'
 import { isRegearSupported } from '@/lib/regear-support-server'
 import { buildClonedSlotRow } from '@/lib/event-clone'
-
-// next-intl locale 코드(ko/ja/en/zh) → Intl.DateTimeFormat 이 받는 BCP 47 태그.
-// Discord embed 의 일시 표기 포맷에 사용 — 시간대는 길드 설정(getTenantTimezone)
-// 으로 결정.
-const LOCALE_TO_BCP47: Record<Locale, string> = {
-  ko: 'ko-KR',
-  ja: 'ja-JP',
-  en: 'en-US',
-  zh: 'zh-CN',
-}
 
 interface EventPayload {
   title: string
@@ -887,7 +877,7 @@ async function dispatchEventNotification(
     // 단일 운영 언어 컨벤션을 가정한다 (channel 은 1 곳, 라벨은 1 종류).
     const adminLocale = await getLocale()
     const signupMessages = await loadDiscordEventSignupMessages(adminLocale)
-    const dateLocale = LOCALE_TO_BCP47[adminLocale]
+    const dateLocale = getIntlLocale(adminLocale)
     const tenantTimezone = await getTenantTimezone(guildId)
     await sendEventNotification(data, {
       content,

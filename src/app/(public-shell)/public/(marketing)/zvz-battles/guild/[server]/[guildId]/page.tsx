@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { headers } from 'next/headers'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import {
@@ -29,7 +30,10 @@ import {
   loadPublicGuildZvzSeasonRecord,
 } from '@/lib/public-zvz-records'
 import { getCanonicalOrigin } from '@/lib/seo-metadata'
-import { buildSeoZvzRecordLanguageAlternates } from '@/lib/seo-locale-paths'
+import {
+  buildSeoZvzRecordLanguageAlternates,
+  getSeoZvzRecordLocale,
+} from '@/lib/seo-locale-paths'
 import type { PublicZvzSeasonSummary } from '@/lib/public-zvz-seasons'
 import {
   formatPublicZvzDateTime,
@@ -72,10 +76,10 @@ export async function generateMetadata({
   params,
   searchParams,
 }: GuildRecordPageProps): Promise<Metadata> {
-  const [route, query, locale, t] = await Promise.all([
+  const [route, query, headerStore, t] = await Promise.all([
     params,
     searchParams,
-    getMarketingLocale(),
+    headers(),
     getMarketingTranslator('publicZvzRecords'),
   ])
   if (!isAlbionServer(route.server)) {
@@ -98,7 +102,8 @@ export async function generateMetadata({
     return { title: t('notFoundTitle'), robots: { index: false, follow: false } }
   }
 
-  const paths = getMarketingPathsForEnvironment(locale)
+  const requestLocale = getSeoZvzRecordLocale(headerStore.get('x-pathname') ?? '')
+  const paths = getMarketingPathsForEnvironment(requestLocale)
   const canonicalUrl = canonicalRecordUrl(
     buildPublicZvzGuildRecordHref({
       basePath: paths.zvzBattles,

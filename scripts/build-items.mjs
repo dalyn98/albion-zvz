@@ -124,6 +124,46 @@ const ITEM_OVERRIDES = {
   },
 }
 
+// Albion's official item dump currently exposes 15 localization catalogs.
+// Latin-American Spanish and European Portuguese do not have distinct item
+// names in the dump, so those UI locales deliberately reuse the closest
+// official catalog instead of machine-translating game terminology.
+const LOCALE_NAME_KEYS = {
+  ko: 'KO-KR',
+  ja: 'JA-JP',
+  en: 'EN-US',
+  zh: 'ZH-CN',
+  'zh-Hant': 'ZH-TW',
+  fr: 'FR-FR',
+  de: 'DE-DE',
+  'es-ES': 'ES-ES',
+  'es-419': 'ES-ES',
+  'pt-BR': 'PT-BR',
+  'pt-PT': 'PT-BR',
+  pl: 'PL-PL',
+  ru: 'RU-RU',
+  it: 'IT-IT',
+  id: 'ID-ID',
+  ar: 'AR-SA',
+  tr: 'TR-TR',
+}
+
+function buildLocaleNames(names, uniqueName, overrides = {}) {
+  const english = names?.['EN-US'] || uniqueName
+  return Object.fromEntries(
+    Object.entries(LOCALE_NAME_KEYS).map(([locale, upstreamKey]) => [
+      locale,
+      overrides[locale] || names?.[upstreamKey] || english,
+    ]),
+  )
+}
+
+function buildAllLocaleSearch(localeNames, extras = []) {
+  return [...new Set([...Object.values(localeNames), ...extras].filter(Boolean))]
+    .join(' ')
+    .toLowerCase()
+}
+
 function categoryOf(uniqueName) {
   for (const [cat, regex] of Object.entries(CATEGORY_PATTERNS)) {
     if (regex.test(uniqueName)) return cat
@@ -183,6 +223,7 @@ async function main() {
       const ko = names?.['KO-KR'] ?? ''
       const ja = names?.['JA-JP'] ?? ''
       const zh = names?.['ZH-CN'] ?? ''
+      const localeNames = buildLocaleNames(names, uniqueName, { ko: specialOverride.d })
       processed.push({
         u: uniqueName,
         c: specialOverride.c,
@@ -194,6 +235,8 @@ async function main() {
         dj: ja || en || uniqueName,
         de: en || uniqueName,
         dz: zh || en || uniqueName,
+        l: localeNames,
+        q: buildAllLocaleSearch(localeNames, [specialOverride.kExtra, uniqueName]),
       })
       continue
     }
@@ -208,6 +251,7 @@ async function main() {
       const ko = names?.['KO-KR'] ?? ''
       const ja = names?.['JA-JP'] ?? ''
       const zh = names?.['ZH-CN'] ?? ''
+      const localeNames = buildLocaleNames(names, uniqueName, { ko: mountOverride.d })
       processed.push({
         u: uniqueName,
         c: 'mount',
@@ -219,6 +263,8 @@ async function main() {
         dj: ja || en || uniqueName,
         de: en || uniqueName,
         dz: zh || en || uniqueName,
+        l: localeNames,
+        q: buildAllLocaleSearch(localeNames, [mountOverride.kExtra, uniqueName]),
       })
       seenMountIds.add(uniqueName)
       continue
@@ -241,6 +287,12 @@ async function main() {
     const zh = names['ZH-CN']
     const itemOverride = ITEM_OVERRIDES[uniqueName]
     if (!en && !ko && !ja && !zh) continue
+    const localeNames = buildLocaleNames(names, uniqueName, {
+      ...(itemOverride?.d ? { ko: itemOverride.d } : {}),
+      ...(itemOverride?.dj ? { ja: itemOverride.dj } : {}),
+      ...(itemOverride?.de ? { en: itemOverride.de } : {}),
+      ...(itemOverride?.dz ? { zh: itemOverride.dz } : {}),
+    })
     processed.push({
       u: uniqueName,
       c: category,
@@ -257,6 +309,14 @@ async function main() {
       de: itemOverride?.de || en || uniqueName,
       // Simplified Chinese display prefers ZH-CN, then EN, then raw id.
       dz: itemOverride?.dz || zh || en || uniqueName,
+      l: localeNames,
+      q: buildAllLocaleSearch(localeNames, [
+        itemOverride?.eExtra,
+        itemOverride?.kExtra,
+        itemOverride?.jExtra,
+        itemOverride?.zExtra,
+        uniqueName,
+      ]),
     })
   }
 

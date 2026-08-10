@@ -30,7 +30,7 @@ describe('resolveDiscordDmLocaleMap', () => {
       ['missing-avatar', 'invalid-avatar'],
       [
         { discord_id: 'missing-avatar', preferred_language: null },
-        { discord_id: 'invalid-avatar', preferred_language: 'de' },
+        { discord_id: 'invalid-avatar', preferred_language: 'vi' },
       ],
       [
         { discord_id: 'missing-avatar', preferred_language: 'zh' },

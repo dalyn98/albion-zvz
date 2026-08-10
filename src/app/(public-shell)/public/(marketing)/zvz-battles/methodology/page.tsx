@@ -1,19 +1,24 @@
 import type { Metadata } from 'next'
+import { headers } from 'next/headers'
 import { Database, Scale, ShieldCheck, Swords } from 'lucide-react'
 import { getMarketingPathsForEnvironment } from '@/lib/marketing-paths'
 import { getMarketingLocale, getMarketingTranslator } from '@/lib/marketing-static-intl'
 import { getCanonicalOrigin } from '@/lib/seo-metadata'
-import { buildSeoZvzRecordLanguageAlternates } from '@/lib/seo-locale-paths'
+import {
+  buildSeoZvzRecordLanguageAlternates,
+  getSeoZvzRecordLocale,
+} from '@/lib/seo-locale-paths'
 import { PublicZvzRecordChrome, PublicZvzRecordHeader } from '../record-ui'
 
 export const dynamic = 'force-dynamic'
 
 export async function generateMetadata(): Promise<Metadata> {
-  const [locale, t] = await Promise.all([
-    getMarketingLocale(),
+  const [headerStore, t] = await Promise.all([
+    headers(),
     getMarketingTranslator('publicZvzRecords'),
   ])
-  const pathname = `${locale ? `/${locale}` : ''}/zvz-battles/methodology`
+  const requestLocale = getSeoZvzRecordLocale(headerStore.get('x-pathname') ?? '')
+  const pathname = `${requestLocale ? `/${requestLocale}` : ''}/zvz-battles/methodology`
   const canonicalUrl = `${getCanonicalOrigin()}${pathname}`
   const title = t('methodologyMetaTitle')
   const description = t('methodologyMetaDescription')

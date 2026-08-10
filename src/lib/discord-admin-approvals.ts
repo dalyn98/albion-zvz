@@ -33,7 +33,7 @@ import {
   type DiscordMessageComponent,
 } from '@/lib/discord-interactions'
 import type { AdminNotificationTopic } from '@/lib/admin-notification-topics'
-import type { Locale } from '@/i18n/locales'
+import { resolveSupportedLocale, type Locale } from '@/i18n/locales'
 
 const CUSTOM_ID_PREFIX = 'agm_admin:v1'
 const REJECT_NOTE_INPUT_ID = 'note'
@@ -164,10 +164,7 @@ export async function loadDiscordAdminApprovalMessages(
 
 function resolveAdminApprovalLocale(payload: DiscordInteractionPayload): Locale {
   const raw = payload.locale ?? payload.guild_locale ?? 'ko'
-  const language = raw.toLowerCase().split('-')[0]
-  return language === 'en' || language === 'ja' || language === 'zh' || language === 'ko'
-    ? language
-    : 'ko'
+  return resolveSupportedLocale(raw) ?? 'ko'
 }
 
 export function resolveAdminApprovalKind(input: {

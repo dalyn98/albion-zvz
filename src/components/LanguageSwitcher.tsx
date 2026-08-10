@@ -5,56 +5,33 @@ import { Globe } from 'lucide-react'
 import { setLocaleAction } from '@/app/actions/locale'
 import { SUPPORTED_LOCALES, LOCALE_LABELS, type Locale } from '@/i18n/locales'
 
-// 모바일에서는 cycle 버튼 (다음 언어로 한 번에 전환), sm 이상에서는 4개 라벨을
-// 펼친 그룹. 헤더 좌우에 다른 컨트롤 (로고, 로그인) 이 동시에 들어가 모바일
-// 폭이 부족할 때 4개 인라인 버튼은 줄바꿈/잘림이 발생.
-//
-// 같은 form action 을 양쪽에 다 두고 Tailwind responsive 로 가시성만 토글 —
-// useEffect 기반 viewport detect 는 SSR-CSR mismatch 로 첫 페인트가 깜빡인다.
+// 17개 언어를 헤더 폭 안에서 안정적으로 제공하기 위해 native select를 사용한다.
+// JS가 꺼져도 현재 값과 옵션은 읽을 수 있고, 변경 시 기존 Server Action으로
+// 쿠키를 갱신해 동일한 페이지를 다시 렌더한다.
 export default function LanguageSwitcher() {
   const currentLocale = useLocale() as Locale
   const t = useTranslations('sidebar')
-  const currentIndex = SUPPORTED_LOCALES.indexOf(currentLocale)
-  const nextLocale = SUPPORTED_LOCALES[(currentIndex + 1) % SUPPORTED_LOCALES.length]
-  const switchLabel = t('languageSwitchTo', { label: LOCALE_LABELS[nextLocale] })
 
   return (
-    <>
-      <form action={setLocaleAction} className="sm:hidden flex justify-center">
-        <input type="hidden" name="locale" value={nextLocale} />
-        <button
-          type="submit"
-          aria-label={switchLabel}
-          title={switchLabel}
-          className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-lg text-muted transition-colors hover:bg-surface-2 hover:text-foreground active:scale-[0.96]"
-        >
-          <Globe size={16} />
-        </button>
-      </form>
-
-      <div
-        className="hidden sm:flex items-center gap-1 px-1"
-        role="group"
+    <form action={setLocaleAction} className="flex items-center gap-1.5">
+      <Globe size={14} aria-hidden="true" className="shrink-0 text-gray-500" />
+      <label htmlFor="app-language" className="sr-only">
+        {t('language')}
+      </label>
+      <select
+        id="app-language"
+        name="locale"
+        value={currentLocale}
+        onChange={(event) => event.currentTarget.form?.requestSubmit()}
         aria-label={t('language')}
+        className="min-h-10 min-w-10 max-w-40 rounded-lg border border-gray-800 bg-gray-950 px-2 text-xs font-semibold text-gray-300 outline-none transition-colors hover:border-gray-700 hover:text-white focus:border-amber-500/50"
       >
-        <Globe size={13} className="text-gray-500 ml-1 mr-1 flex-shrink-0" />
-        {SUPPORTED_LOCALES.map((loc) => (
-          <form key={loc} action={setLocaleAction}>
-            <input type="hidden" name="locale" value={loc} />
-            <button
-              type="submit"
-              aria-current={currentLocale === loc ? 'true' : undefined}
-              className={`min-h-10 rounded-lg px-2.5 text-xs transition-colors active:scale-[0.96] ${
-                currentLocale === loc
-                  ? 'bg-amber-500/20 text-amber-300 font-semibold'
-                  : 'text-gray-500 hover:text-white hover:bg-gray-800'
-              }`}
-            >
-              {LOCALE_LABELS[loc]}
-            </button>
-          </form>
+        {SUPPORTED_LOCALES.map((locale) => (
+          <option key={locale} value={locale}>
+            {LOCALE_LABELS[locale]}
+          </option>
         ))}
-      </div>
-    </>
+      </select>
+    </form>
   )
 }

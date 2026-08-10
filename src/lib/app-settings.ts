@@ -288,7 +288,7 @@ export type AppSettingKey =
   // 활동 시간대. 자유 텍스트 — 예: "KST 21시 ~ 24시", "주말 오후 + 평일 22시 이후".
   // 빈 문자열이면 hero 칩에서 숨김. 최대 100자 권장 (UI 칩 폭 제약).
   | 'guild_profile_active_hours'
-  // 사용 언어 (csv: 'ko', 'ja', 'en' 중 하나 이상). 비어 있으면 hero 칩 숨김.
+  // 사용 언어 (csv: src/i18n/locales.ts 의 지원 로케일). 비어 있으면 hero 칩 숨김.
   // 입력은 어드민 폼이 csv 로 직렬화. 표시 시 i18n 라벨로 풀어 칩으로 노출.
   | 'guild_profile_languages'
   // 모집 중인 포지션 자유 텍스트. 예: "탱커/힐러 우선 모집". 모집 상태가 'closed'

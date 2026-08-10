@@ -16,7 +16,7 @@ import {
 } from 'lucide-react'
 import DocsMyGuildLink from '@/components/DocsMyGuildLink'
 import { SectionCard } from '@/components/ui-patterns'
-import { SUPPORTED_LOCALES } from '@/i18n/locales'
+import { SUPPORTED_LOCALES, getHreflangLocale } from '@/i18n/locales'
 import { getMarketingPathsForEnvironment, resolveMarketingHref } from '@/lib/marketing-paths'
 import { getMarketingLocale, getMarketingTranslator } from '@/lib/marketing-static-intl'
 import { getCanonicalOrigin } from '@/lib/seo-metadata'
@@ -47,7 +47,7 @@ function buildCurrentContractAlternates(): Record<string, string> {
   return {
     'x-default': `${origin}${pathname}`,
     ...Object.fromEntries(SUPPORTED_LOCALES.map((locale) => [
-      locale,
+      getHreflangLocale(locale),
       `${origin}${getLocalizedSeoDocsPathname(locale, pathname)}`,
     ])),
   }

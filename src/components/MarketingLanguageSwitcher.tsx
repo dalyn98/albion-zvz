@@ -11,17 +11,11 @@ import {
 } from '@/i18n/locales'
 import { replaceSeoMarketingLocale } from '@/lib/seo-locale-paths'
 
-// 마케팅 페이지 언어 스위처. 마케팅 카피도 ko/ja/en/zh 모두 번역 완료되어
-// 사이트 전체와 동일한 언어 셋을 노출한다. 모바일에서는 cycle 버튼,
-// sm 이상에서는 인라인 4개 라벨 — 헤더에 로고/홈/문서/로그인이 같이 들어가
-// 모바일 폭 부족 시 줄바꿈/잘림을 막기 위함.
+// 마케팅 페이지의 언어별 SEO URL로 이동하는 17개 언어 선택기.
 export default function MarketingLanguageSwitcher() {
   const currentLocale = useLocale() as Locale
   const pathname = usePathname()
   const t = useTranslations('sidebar')
-  const currentIndex = SUPPORTED_LOCALES.indexOf(currentLocale)
-  const nextLocale = SUPPORTED_LOCALES[(currentIndex + 1) % SUPPORTED_LOCALES.length]
-  const switchLabel = t('languageSwitchTo', { label: LOCALE_LABELS[nextLocale] })
   const returnToFor = (locale: Locale): string | null =>
     replaceSeoMarketingLocale(pathname, locale)
 
@@ -32,45 +26,20 @@ export default function MarketingLanguageSwitcher() {
   }
 
   return (
-    <>
-      <div className="sm:hidden">
-        <button
-          type="button"
-          onClick={() => switchTo(nextLocale)}
-          aria-label={switchLabel}
-          title={switchLabel}
-          data-seo-event="language_switch"
-          data-seo-target={nextLocale}
-          className="inline-flex h-10 w-10 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-gray-800/60 hover:text-white"
-        >
-          <Globe size={16} />
-        </button>
-      </div>
-
-      <div
-        className="hidden sm:flex items-center gap-1"
-        role="group"
+    <label className="flex items-center gap-1.5 text-gray-400">
+      <span className="sr-only">{t('language')}</span>
+      <Globe size={15} aria-hidden="true" className="shrink-0" />
+      <select
+        value={currentLocale}
+        onChange={(event) => switchTo(event.target.value as Locale)}
         aria-label={t('language')}
+        data-seo-event="language_switch"
+        className="min-h-10 max-w-40 rounded-md border border-gray-800 bg-gray-950 px-2 text-xs font-semibold text-gray-300 outline-none transition-colors hover:border-gray-700 hover:text-white focus:border-amber-500/50"
       >
         {SUPPORTED_LOCALES.map((loc) => (
-          <div key={loc}>
-            <button
-              type="button"
-              onClick={() => switchTo(loc)}
-              aria-current={currentLocale === loc ? 'true' : undefined}
-              data-seo-event="language_switch"
-              data-seo-target={loc}
-              className={`min-h-10 rounded-md px-3 text-xs transition-colors ${
-                currentLocale === loc
-                  ? 'bg-amber-500/15 text-amber-200 font-semibold'
-                  : 'text-gray-400 hover:text-white hover:bg-gray-800/60'
-              }`}
-            >
-              {LOCALE_LABELS[loc]}
-            </button>
-          </div>
+          <option key={loc} value={loc}>{LOCALE_LABELS[loc]}</option>
         ))}
-      </div>
-    </>
+      </select>
+    </label>
   )
 }

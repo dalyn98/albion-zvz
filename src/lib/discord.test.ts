@@ -5,8 +5,21 @@ import {
   buildBotInstallUrl,
   buildOpenBotInstallUrl,
   getCurrentUser,
+  mapDiscordLocale,
   removeDiscordGuildMemberRole,
 } from './discord'
+
+describe('mapDiscordLocale', () => {
+  it('maps Discord BCP 47 locales to every supported regional variant', () => {
+    expect(mapDiscordLocale('zh-TW')).toBe('zh-Hant')
+    expect(mapDiscordLocale('es-MX')).toBe('es-419')
+    expect(mapDiscordLocale('es-ES')).toBe('es-ES')
+    expect(mapDiscordLocale('pt-PT')).toBe('pt-PT')
+    expect(mapDiscordLocale('pt-BR')).toBe('pt-BR')
+    expect(mapDiscordLocale('ar')).toBe('ar')
+    expect(mapDiscordLocale('vi')).toBeNull()
+  })
+})
 
 describe('buildAuthorizeUrl', () => {
   beforeEach(() => {

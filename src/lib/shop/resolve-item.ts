@@ -9,6 +9,7 @@
 // 상자 로그의 별도 컬럼을 그대로 사용한다. 티어는 UniqueName 의 T{N}_ 프리픽스에서 파싱.
 
 import items from '@/data/albion-items.json'
+import type { Locale } from '@/i18n/locales'
 
 interface BundledItem {
   u: string
@@ -21,6 +22,7 @@ interface BundledItem {
   de?: string
   dj?: string
   dz?: string
+  l?: Partial<Record<Locale, string>>
 }
 
 const EXTRA_RESOLVABLE_ITEMS: BundledItem[] = [
@@ -84,6 +86,9 @@ for (const it of ITEMS) {
     const name = it[field]
     if (!name) continue
     addLocalizedItemName(name, it)
+  }
+  for (const name of Object.values(it.l ?? {})) {
+    if (name) addLocalizedItemName(name, it)
   }
 }
 

@@ -1,5 +1,5 @@
 import { DEFAULT_TENANT_TIMEZONE, toZonedParts, zonedPartsToUtc } from '@/lib/timezone'
-import type { Locale } from '@/i18n/locales'
+import { getIntlLocale, type Locale } from '@/i18n/locales'
 import { isOperationallyEnded } from '@/lib/event-operational-state'
 
 export interface GatherTimeParts {
@@ -89,6 +89,22 @@ export function formatGatherTimeZh(iso: string | Date, tz: string = DEFAULT_TENA
   return `${p.month}月${p.day}日 ${pad2(p.hour)}时${pad2(p.minute)}分`
 }
 
+function formatGatherTimeIntl(
+  locale: Locale,
+  iso: string | Date,
+  tz: string,
+): string {
+  return new Intl.DateTimeFormat(getIntlLocale(locale), {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: tz,
+    timeZoneName: 'short',
+  }).format(typeof iso === 'string' ? new Date(iso) : iso)
+}
+
 // Locale dispatcher for runtime rendering. Use when you have the ISO
 // timestamp (Event.gather_at). For legacy rows without gather_at, the
 // caller should fall back to Event.gather_time (stored Korean string).
@@ -100,7 +116,8 @@ export function formatGatherTimeFor(
   if (locale === 'ja') return formatGatherTimeJa(iso, tz)
   if (locale === 'en') return formatGatherTimeEn(iso, tz)
   if (locale === 'zh') return formatGatherTimeZh(iso, tz)
-  return formatGatherTimeKo(iso, tz)
+  if (locale === 'ko') return formatGatherTimeKo(iso, tz)
+  return formatGatherTimeIntl(locale, iso, tz)
 }
 
 export function defaultGatherParts(

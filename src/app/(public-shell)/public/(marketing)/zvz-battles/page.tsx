@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { headers } from 'next/headers'
 import Link from 'next/link'
 import { Fragment } from 'react'
 import {
@@ -38,6 +39,7 @@ import {
   getCanonicalUrlForPathname,
 } from '@/lib/seo-metadata'
 import { arePublicAgmBattlesAvailable } from '@/lib/public-agm-battles-visibility'
+import { getSeoMarketingCanonicalPathname } from '@/lib/seo-locale-paths'
 import { getUtcWeekStartDateString } from '@/lib/public-battlelog-sync'
 import { groupPublicZvzBattleSessions } from '@/lib/public-zvz-battle-sessions'
 import {
@@ -213,11 +215,12 @@ function podiumTone(rank: number) {
 }
 
 export async function generateMetadata(): Promise<Metadata> {
-  const [t, locale] = await Promise.all([
+  const [t, headerStore] = await Promise.all([
     getMarketingTranslator('publicZvzBattles'),
-    getMarketingLocale(),
+    headers(),
   ])
-  const canonicalPathname = locale ? `/${locale}/zvz-battles` : '/zvz-battles'
+  const requestPathname = headerStore.get('x-pathname') ?? '/zvz-battles'
+  const canonicalPathname = getSeoMarketingCanonicalPathname(requestPathname) ?? '/zvz-battles'
   const canonicalUrl =
     getCanonicalUrlForPathname(canonicalPathname) ?? `${getCanonicalOrigin()}${canonicalPathname}`
   if (!arePublicAgmBattlesAvailable()) {

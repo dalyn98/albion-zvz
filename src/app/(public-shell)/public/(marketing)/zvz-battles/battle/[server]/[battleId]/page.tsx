@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { headers } from 'next/headers'
 import { Suspense } from 'react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
@@ -27,7 +28,10 @@ import {
   normalizePublicZvzWeekStart,
 } from '@/lib/public-zvz-record-links'
 import { getCanonicalOrigin } from '@/lib/seo-metadata'
-import { buildSeoZvzRecordLanguageAlternates } from '@/lib/seo-locale-paths'
+import {
+  buildSeoZvzRecordLanguageAlternates,
+  getSeoZvzRecordLocale,
+} from '@/lib/seo-locale-paths'
 import {
   formatPublicZvzDateTime,
   formatPublicZvzNumber,
@@ -129,9 +133,9 @@ function resultKey(result: 'advantage' | 'disadvantage' | 'even' | null) {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const [route, locale, t] = await Promise.all([
+  const [route, headerStore, t] = await Promise.all([
     params,
-    getMarketingLocale(),
+    headers(),
     getMarketingTranslator('publicZvzRecords'),
   ])
   const battleId = normalizePublicZvzBattleId(route.battleId)
@@ -140,7 +144,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
   const report = await loadPublicZvzBattleReport(route.server, battleId).catch(() => null)
   if (!report) return { title: t('notFoundTitle'), robots: { index: false, follow: false } }
-  const pathname = canonicalPath(route.server, battleId, locale)
+  const requestLocale = getSeoZvzRecordLocale(headerStore.get('x-pathname') ?? '')
+  const pathname = canonicalPath(route.server, battleId, requestLocale ?? '')
   const canonicalUrl = `${getCanonicalOrigin()}${pathname}`
   const title = t('battleReportMetaTitle', { id: battleId })
   const description = t('battleReportMetaDescription', {

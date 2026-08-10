@@ -174,11 +174,14 @@ describe('complete Discord command suite', () => {
     }
   })
 
-  it('answers in the invoking Discord client locale with a safe English fallback', () => {
+  it('answers in every supported Discord client locale with a safe English fallback', () => {
     expect(resolveDiscordCommandLocale({ locale: 'ko' })).toBe('ko')
     expect(resolveDiscordCommandLocale({ locale: 'ja-JP' })).toBe('ja')
     expect(resolveDiscordCommandLocale({ locale: 'zh-CN' })).toBe('zh')
-    expect(resolveDiscordCommandLocale({ locale: 'de' })).toBe('en')
+    expect(resolveDiscordCommandLocale({ locale: 'de' })).toBe('de')
+    expect(resolveDiscordCommandLocale({ locale: 'es-MX' })).toBe('es-419')
+    expect(resolveDiscordCommandLocale({ locale: 'zh-TW' })).toBe('zh-Hant')
+    expect(resolveDiscordCommandLocale({ locale: 'vi' })).toBe('en')
   })
 
   it('defers slash-command database work before running the handler', () => {

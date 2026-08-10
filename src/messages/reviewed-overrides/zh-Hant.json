@@ -1,0 +1,7 @@
+{
+  "adminCraft.settlementPayConfirmHint": "請僅在遊戲內向 {name} 支付 {count} 件物品共 {silver} 銀幣後確認。",
+  "specialRewards.success": "已向 {count} 名成員發放 {total} 點積分。",
+  "memberDetail.statRankSub": "第 {rank} 名，共 {total} 名",
+  "onboard.stepOf": "第 {current} 步，共 {total} 步",
+  "adminSiphonPage.logPageInfo": "第 {offsetStart}–{offsetEnd} 筆，共 {total} 筆"
+}

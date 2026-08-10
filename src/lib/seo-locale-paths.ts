@@ -1,5 +1,6 @@
 import {
   SUPPORTED_LOCALES,
+  getHreflangLocale,
   isLocale,
   type Locale,
 } from '@/i18n/locales'
@@ -191,7 +192,7 @@ export function buildSeoZvzRecordLanguageAlternates(
     'x-default': `${CANONICAL_ORIGIN}${parsed.unprefixedPathname}`,
     ...Object.fromEntries(
       SUPPORTED_LOCALES.map((locale) => [
-        locale,
+        getHreflangLocale(locale),
         `${CANONICAL_ORIGIN}/${locale}${parsed.unprefixedPathname}`,
       ]),
     ),
@@ -219,7 +220,7 @@ export function buildSeoMarketingLanguageAlternates(
     'x-default': `${CANONICAL_ORIGIN}${parsed.unprefixedPathname}`,
     ...Object.fromEntries(
       SUPPORTED_LOCALES.map((locale) => [
-        locale,
+        getHreflangLocale(locale),
         `${CANONICAL_ORIGIN}${getLocalizedSeoMarketingPathname(locale, parsed.unprefixedPathname)}`,
       ]),
     ),
@@ -377,7 +378,7 @@ export function buildSeoFeatureLanguageAlternates(
     'x-default': `${CANONICAL_ORIGIN}${unprefixedPathname}`,
     ...Object.fromEntries(
       SUPPORTED_LOCALES.map((locale) => [
-        locale,
+        getHreflangLocale(locale),
         `${CANONICAL_ORIGIN}${getLocalizedSeoFeaturePathname(locale, unprefixedPathname)}`,
       ]),
     ),
@@ -396,7 +397,7 @@ export function buildSeoDocsHomeLanguageAlternates(
     'x-default': `${CANONICAL_ORIGIN}${DOCS_ROOT}`,
     ...Object.fromEntries(
       SUPPORTED_LOCALES.map((locale) => [
-        locale,
+        getHreflangLocale(locale),
         `${CANONICAL_ORIGIN}${getLocalizedSeoDocsPathname(locale, DOCS_ROOT)}`,
       ]),
     ),

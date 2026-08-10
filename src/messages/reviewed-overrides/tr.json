@@ -1,0 +1,10 @@
+{
+  "adminStats.regearVideoProofAttachedHint": "Tüm regear taleplerinin {rate} kadarı",
+  "adminShopImport.stagingGapDangerBody": "Bu grupta sitenin son uygulanan günlüğü {when}{tail} sonrasında {gap} boyunca günlük yok. Oyun içi günlük yenilenmeden önce bir bölümü kaçırmış olabilirsiniz; stok temelini sıfırlamayı değerlendirin.",
+  "adminShopImport.stagingGapWarnBody": "Bu grupta sitenin son uygulanan günlüğü {when}{tail} sonrasında {gap} boyunca günlük yok. Bu aralıkta işlem yapıldıysa stok gerçeği yansıtmaz.",
+  "publicZvzRecords.guildMetaDescription": "{week} haftasında {guild} sıralamasına dahil edilen savaşları ve kanıtları inceleyin.",
+  "publicSeoFeatures.autoRegearMetaDescription": "Killboard senkronizasyonu, Black Zone filtresi, piyasa fiyatı, talep sahibi kontrolü ve yönetici onayıyla Albion Online regear taleplerini otomatikleştirin.",
+  "event.roleAvailabilitySubtitle": "{total} slottan {applied} başvuru · {remaining} açık · %{rate} dolu",
+  "adminSiphonPage.continuityGapDangerBody": "Bu grupta DB'nin son kaydı {when}{tail} sonrasında {gap} boyunca sifon günlüğü yok. Aradaki eksik kullanım, üye toplamlarını bozacaktır.",
+  "adminSiphonPage.continuityGapWarnBody": "Bu grupta DB'nin son kaydı {when}{tail} sonrasında {gap} boyunca günlük yok. Bu aralıkta yatırma veya çekme olduysa toplamlar sapar."
+}

@@ -1,6 +1,12 @@
 import { cookies, headers } from 'next/headers'
 import { getRequestConfig } from 'next-intl/server'
-import { DEFAULT_LOCALE, LOCALE_COOKIE, isLocale } from './locales'
+import {
+  DEFAULT_LOCALE,
+  DETECTION_FALLBACK_LOCALE,
+  LOCALE_COOKIE,
+  isLocale,
+  resolveSupportedLocale,
+} from './locales'
 import { detectLocaleFromAcceptLanguage } from '@/lib/accept-language'
 import { DEFAULT_TENANT_TIMEZONE } from '@/lib/timezone'
 import {
@@ -32,9 +38,10 @@ export default getRequestConfig(async ({ locale: localeOverride }) => {
   }
   if (!locale) {
     const cookieValue = (await cookies()).get(LOCALE_COOKIE)?.value
-    locale = isLocale(cookieValue)
-      ? cookieValue
-      : detectLocaleFromAcceptLanguage(headerStore.get('accept-language'), DEFAULT_LOCALE)
+    locale = resolveSupportedLocale(cookieValue) ?? detectLocaleFromAcceptLanguage(
+      headerStore.get('accept-language'),
+      DETECTION_FALLBACK_LOCALE,
+    )
   }
   const messages = (await import(`../messages/${locale}.json`)).default
   return { locale, messages, timeZone: DEFAULT_TENANT_TIMEZONE }

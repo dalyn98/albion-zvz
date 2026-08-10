@@ -73,6 +73,20 @@ describe('GET /api/items/search', () => {
     }
   })
 
+  it('searches and displays official Albion names in added locales', async () => {
+    const request = new NextRequest(
+      'https://example.test/api/items/search?q=Breitschwert&category=weapon&tier=4',
+      { headers: { cookie: 'lang=de' } },
+    )
+    const response = GET(request)
+
+    await expect(response.json()).resolves.toContainEqual({
+      uniqueName: 'T4_MAIN_SWORD',
+      displayName: 'Breitschwert des Adepten',
+      category: 'weapon',
+    })
+  })
+
   it('marks locale-cookie dependent search responses as varying by cookie', () => {
     const response = GET(new NextRequest('https://example.test/api/items/search?q=sword'))
 

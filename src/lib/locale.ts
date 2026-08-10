@@ -1,5 +1,12 @@
 import { cookies, headers } from 'next/headers'
-import { DEFAULT_LOCALE, LOCALE_COOKIE, type Locale, isLocale } from '@/i18n/locales'
+import {
+  DEFAULT_LOCALE,
+  DETECTION_FALLBACK_LOCALE,
+  LOCALE_COOKIE,
+  type Locale,
+  isLocale,
+  resolveSupportedLocale,
+} from '@/i18n/locales'
 import { detectLocaleFromAcceptLanguage } from '@/lib/accept-language'
 import {
   getSeoDocsCanonicalPathname,
@@ -30,6 +37,10 @@ export async function getLocale(): Promise<Locale> {
 
   const cookieStore = await cookies()
   const value = cookieStore.get(LOCALE_COOKIE)?.value
-  if (isLocale(value)) return value
-  return detectLocaleFromAcceptLanguage(headerStore.get('accept-language'), DEFAULT_LOCALE)
+  const cookieLocale = resolveSupportedLocale(value)
+  if (cookieLocale) return cookieLocale
+  return detectLocaleFromAcceptLanguage(
+    headerStore.get('accept-language'),
+    DETECTION_FALLBACK_LOCALE,
+  )
 }

@@ -1,10 +1,17 @@
 import type { Metadata } from 'next'
+import { headers } from 'next/headers'
 import { DEFAULT_LOCALE } from '@/i18n/locales'
 import { getMarketingPathsForEnvironment } from '@/lib/marketing-paths'
 import { getMarketingLocale, getMarketingTranslator } from '@/lib/marketing-static-intl'
 import { DOCS_NAV } from '@/lib/docs-nav'
 import MarketingNav from '@/components/MarketingNav'
 import DocsSidebar from '@/components/DocsSidebar'
+import {
+  buildSeoDocsHomeLanguageAlternates,
+  getCanonicalOrigin,
+} from '@/lib/seo-metadata'
+import { getSeoDocsCanonicalPathname } from '@/lib/seo-locale-paths'
+import { hasCompleteDocsTranslation } from '@/lib/docs-translations'
 
 export const revalidate = 3600
 
@@ -12,17 +19,25 @@ export const revalidate = 3600
 // 가 명확히 보이도록 OG 를 docs 전용으로 덮어쓴다. root layout 의 default OG
 // 와 metadataBase/openGraph.images (opengraph-image.tsx) 는 그대로 상속.
 export async function generateMetadata(): Promise<Metadata> {
-  const t = await getMarketingTranslator('meta')
+  const [t, headerStore] = await Promise.all([getMarketingTranslator('meta'), headers()])
+  const requestPathname = headerStore.get('x-pathname') ?? '/docs'
+  const canonicalPathname = getSeoDocsCanonicalPathname(requestPathname) ?? '/docs'
+  const canonicalUrl = `${getCanonicalOrigin()}${canonicalPathname}`
   const title = t('ogDocsTitle')
   const description = t('ogDocsDescription')
   return {
     title,
     description,
+    alternates: {
+      canonical: canonicalUrl,
+      languages: buildSeoDocsHomeLanguageAlternates(canonicalPathname) ?? undefined,
+    },
     openGraph: {
       type: 'article',
       siteName: t('ogSiteName'),
       title,
       description,
+      url: canonicalUrl,
     },
     twitter: {
       card: 'summary_large_image',
@@ -51,7 +66,7 @@ export default async function DocsLayout({ children }: { children: React.ReactNo
     })),
   }))
 
-  const showNonKoBanner = locale !== DEFAULT_LOCALE
+  const showNonKoBanner = locale !== DEFAULT_LOCALE && !hasCompleteDocsTranslation(locale)
 
   return (
     <>

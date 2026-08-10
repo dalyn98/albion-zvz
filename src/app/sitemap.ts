@@ -3,6 +3,7 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import { DOCS_NAV } from '@/lib/docs-nav'
 import { DEMO_SITEMAP_ROUTES } from '@/lib/demo-routes'
 import {
+  getHreflangLocale,
   SUPPORTED_LOCALES,
   type Locale,
 } from '@/i18n/locales'
@@ -57,7 +58,7 @@ function buildCurrentContractLanguageAlternates(): Record<string, string> {
   return {
     'x-default': `${BASE_URL}${pathname}`,
     ...Object.fromEntries(SUPPORTED_LOCALES.map((locale) => [
-      locale,
+      getHreflangLocale(locale),
       `${BASE_URL}${getLocalizedSeoDocsPathname(locale, pathname)}`,
     ])),
   }
@@ -310,7 +311,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const languages = {
       'x-default': `${BASE_URL}${path}`,
       ...Object.fromEntries(SUPPORTED_LOCALES.map((locale) => [
-        locale,
+        getHreflangLocale(locale),
         `${BASE_URL}/${locale}${path}`,
       ])),
     }

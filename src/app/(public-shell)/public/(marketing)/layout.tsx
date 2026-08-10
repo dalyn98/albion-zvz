@@ -1,5 +1,6 @@
 import MarketingFooter from '@/components/MarketingFooter'
 import MarketingIntlProvider from '@/components/MarketingIntlProvider'
+import MarketingLocaleSuggestion from '@/components/MarketingLocaleSuggestion'
 import { getMarketingClientMessages } from '@/lib/client-messages'
 import { getMarketingLocale, getMarketingMessages } from '@/lib/marketing-static-intl'
 
@@ -17,6 +18,7 @@ export default async function MarketingLayout({ children }: { children: React.Re
       messages={getMarketingClientMessages(messages)}
     >
       <div className="visual-refresh-v3 visual-refresh-v4 min-h-screen" data-visual-refresh="v4">
+        <MarketingLocaleSuggestion />
         {children}
         <MarketingFooter />
       </div>

@@ -43,7 +43,7 @@ export default function LanguageSetting({ initialLocale }: Props) {
     <section className="bg-gray-900 border border-gray-800 rounded-lg px-4 py-4 space-y-3">
       <h2 className="text-sm font-semibold text-white">{t('title')}</h2>
       <p className="text-xs text-gray-400 leading-relaxed">{t('description')}</p>
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
         {SUPPORTED_LOCALES.map((locale) => {
           const isActive = current === locale
           const isPending = pending === locale

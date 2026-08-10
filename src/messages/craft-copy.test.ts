@@ -1,8 +1,9 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { SUPPORTED_LOCALES, type Locale } from '@/i18n/locales'
 
-const LOCALES = ['ko', 'en', 'ja', 'zh'] as const
+const LOCALES = SUPPORTED_LOCALES
 
 interface Messages {
   publicFeatures: Record<string, string>
@@ -12,13 +13,13 @@ interface Messages {
   }
 }
 
-function loadMessages(locale: (typeof LOCALES)[number]): Messages {
+function loadMessages(locale: Locale): Messages {
   return JSON.parse(
     readFileSync(join(process.cwd(), 'src', 'messages', `${locale}.json`), 'utf8'),
   ) as Messages
 }
 
-const FORBIDDEN_CRAFT_AGGREGATE_COPY: Record<(typeof LOCALES)[number], RegExp> = {
+const FORBIDDEN_CRAFT_AGGREGATE_COPY: Partial<Record<Locale, RegExp>> = {
   ko: /자재\s*BoM|장비\/재료|재료\s*합산/,
   en: /material\s*BoM|raw materials|material aggregate|equipment and materials/i,
   ja: /材料\s*BoM|装備・素材|素材合計/,
@@ -40,7 +41,8 @@ describe('craft regear public copy', () => {
         messages.demo.craft.linkMyTasks,
       ].join('\n')
 
-      expect(checkedCopy).not.toMatch(FORBIDDEN_CRAFT_AGGREGATE_COPY[locale])
+      const forbidden = FORBIDDEN_CRAFT_AGGREGATE_COPY[locale]
+      if (forbidden) expect(checkedCopy).not.toMatch(forbidden)
     }
   })
 })

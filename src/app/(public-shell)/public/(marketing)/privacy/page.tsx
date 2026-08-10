@@ -1,16 +1,20 @@
 import type { Metadata } from 'next'
+import { headers } from 'next/headers'
 import MarketingNav from '@/components/MarketingNav'
 import { SectionCard } from '@/components/ui-patterns'
 import { getMarketingTranslator } from '@/lib/marketing-static-intl'
+import { buildPublicMarketingMetadata } from '@/lib/seo-metadata'
 
 export const revalidate = 3600
 
 export async function generateMetadata(): Promise<Metadata> {
-  const t = await getMarketingTranslator('meta')
-  return {
+  const [t, headerStore] = await Promise.all([getMarketingTranslator('meta'), headers()])
+  return buildPublicMarketingMetadata({
+    pathname: headerStore.get('x-pathname') ?? '/privacy',
+    fallbackPathname: '/privacy',
     title: t('privacyTitle'),
     description: t('privacyDescription'),
-  }
+  })
 }
 
 export default async function PublicPrivacyPage() {

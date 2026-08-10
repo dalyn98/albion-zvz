@@ -12,7 +12,7 @@ import {
   type DiscordInteractionPayload,
   type DiscordInteractionResponse,
 } from '@/lib/discord-interactions'
-import { type Locale } from '@/i18n/locales'
+import { resolveSupportedLocale, type Locale } from '@/i18n/locales'
 import { log } from '@/lib/log'
 import { getAdminClient } from '@/lib/supabase-admin'
 
@@ -171,11 +171,7 @@ export function buildDiscordSelfRolePanelPayload(
 }
 
 function resolveLocale(locale: string | null | undefined): Locale {
-  const language = locale?.toLowerCase().split('-')[0]
-  if (language === 'ko' || language === 'ja' || language === 'en' || language === 'zh') {
-    return language
-  }
-  return 'en'
+  return resolveSupportedLocale(locale) ?? 'en'
 }
 
 async function loadMessages(locale: Locale): Promise<DiscordSelfRolePanelMessages> {

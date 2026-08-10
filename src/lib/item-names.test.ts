@@ -54,4 +54,12 @@ describe('getLocalizedItemName', () => {
     expect(getLocalizedItemName('T8_2H_AXE', 'ko', null)).toBe('장로의 그레이트액스')
     expect(getLocalizedItemName('T8_2H_AXE', 'en', null)).toBe("Elder's Greataxe")
   })
+
+  it('uses official Albion item catalogs for every added locale', () => {
+    expect(getLocalizedItemName('T4_MAIN_SWORD', 'de', null)).toBe(
+      'Breitschwert des Adepten',
+    )
+    expect(getLocalizedItemName('T4_MAIN_SWORD', 'zh-Hant', null)).toBe('老手級闊劍')
+    expect(getLocalizedItemName('T4_MAIN_SWORD', 'ar', null)).toBe('سيف عريض للبارع')
+  })
 })

@@ -47,6 +47,7 @@ import {
 import { isRegearSupported } from '@/lib/regear-support-server'
 import { resolveGuildFeatureForSettingKey } from '@/lib/guild-features'
 import { requireGuildFeatureUse } from '@/lib/guild-features-server'
+import { SUPPORTED_LOCALES } from '@/i18n/locales'
 
 const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'event_notification_message',
@@ -360,7 +361,7 @@ const ENUM_VALUES: Partial<Record<AppSettingKey, readonly string[]>> = {
 // csv 직렬화 키. 콤마로 split 한 각 토큰이 화이트리스트에 들어 있어야 한다.
 // 빈 문자열은 ALLOW_EMPTY_KEYS 가 처리.
 const CSV_ENUM_VALUES: Partial<Record<AppSettingKey, readonly string[]>> = {
-  guild_profile_languages: ['ko', 'ja', 'en', 'zh', 'es', 'fr', 'de', 'pt'] as const,
+  guild_profile_languages: SUPPORTED_LOCALES,
 }
 
 type DiscordInviteSettingVerification =

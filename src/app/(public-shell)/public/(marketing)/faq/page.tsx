@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { headers } from 'next/headers'
 import { HelpCircle } from 'lucide-react'
 import Link from 'next/link'
 import MarketingNav from '@/components/MarketingNav'
@@ -7,6 +8,7 @@ import { getMarketingPathsForEnvironment } from '@/lib/marketing-paths'
 import { getMarketingLocale, getMarketingTranslator } from '@/lib/marketing-static-intl'
 import {
   buildFaqStructuredData,
+  buildPublicMarketingMetadata,
   getCanonicalOrigin,
   serializeJsonLd,
 } from '@/lib/seo-metadata'
@@ -14,21 +16,13 @@ import {
 export const revalidate = 3600
 
 export async function generateMetadata(): Promise<Metadata> {
-  const t = await getMarketingTranslator('meta')
-  return {
+  const [t, headerStore] = await Promise.all([getMarketingTranslator('meta'), headers()])
+  return buildPublicMarketingMetadata({
+    pathname: headerStore.get('x-pathname') ?? '/faq',
+    fallbackPathname: '/faq',
     title: t('faqTitle'),
     description: t('faqDescription'),
-    openGraph: {
-      type: 'website',
-      title: t('faqTitle'),
-      description: t('faqDescription'),
-    },
-    twitter: {
-      card: 'summary_large_image',
-      title: t('faqTitle'),
-      description: t('faqDescription'),
-    },
-  }
+  })
 }
 
 const FAQ_KEYS = [

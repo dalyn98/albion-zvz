@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { SUPPORTED_LOCALES } from '@/i18n/locales'
 
 function source(path: string): string {
   return readFileSync(join(process.cwd(), path), 'utf8')
@@ -148,7 +149,7 @@ describe('public ZvZ battle card source contracts', () => {
   })
 
   it('keeps developer vocabulary and redundant official labels out of public copy', () => {
-    for (const locale of ['ko', 'ja', 'en', 'zh']) {
+    for (const locale of SUPPORTED_LOCALES) {
       const messages = JSON.parse(source(`src/messages/${locale}.json`)) as {
         publicZvzBattles: Record<string, string>
         publicZvzRecords: Record<string, string>

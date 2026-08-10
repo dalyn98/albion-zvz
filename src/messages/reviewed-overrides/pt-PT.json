@@ -1,0 +1,6 @@
+{
+  "adminRegearReview.killboardDelayHint": "O Killboard do Albion demora cerca de 30 minutos a indexar os registos de morte. Aguarde um pouco e selecione ‘Verificar novamente’.",
+  "adminRegearLimits.windowMinutesHint": "{min}–{max} minutos. Os membros podem enviar pedidos de regear quando este intervalo terminar após o início das operações do evento ou quando terminar um registo de batalha associado — o que acontecer primeiro. Isto dá tempo ao Killboard do Albion para indexar as mortes.",
+  "demo.tour.pages.myRequests.introBody": "Os membros podem consultar num único local o estado dos seus pedidos de regear, troca e carregamento de pontos.",
+  "discordCommandSuite.historyLine": "{when} · **{delta}p** · `{reason}`{memo}"
+}

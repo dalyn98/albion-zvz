@@ -104,6 +104,26 @@ describeIntegration('global access preferences (migration 351)', () => {
     expect(retry.data).toEqual(changed.data)
   })
 
+  it('accepts a newly added Albion locale and projects it across memberships', async () => {
+    const client = getTestServiceClient()
+    const changed = await client.rpc('set_global_access_preferences', {
+      p_provider: 'discord',
+      p_subject: discordId,
+      p_preferred_language: 'ar',
+      p_timezone: null,
+      p_update_language: true,
+      p_update_timezone: false,
+    })
+    expect(changed.error).toBeNull()
+    expect(changed.data).toEqual({ preferredLanguage: 'ar', timezone: 'Asia/Seoul' })
+
+    const memberships = await client.from('guild_avatars')
+      .select('preferred_language')
+      .eq('discord_id', discordId)
+    expect(memberships.error).toBeNull()
+    expect(memberships.data?.map((row) => row.preferred_language)).toEqual(['ar', 'ar'])
+  })
+
   it('keeps legacy writes compatible without allowing direct global table mutation', async () => {
     const client = getTestServiceClient()
     const legacy = await client.from('guild_avatars')

@@ -12,6 +12,7 @@ interface BundledItem {
   dj: string
   de: string
   dz: string
+  l?: Partial<Record<Locale, string>>
 }
 
 const ITEMS = items as BundledItem[]
@@ -72,6 +73,8 @@ export function getLocalizedItemName(
   if (!uniqueName) return fallback ?? null
   const bundled = BY_ID.get(uniqueName)
   if (!bundled) return fallback ?? null
+  const officialName = bundled.l?.[locale]
+  if (officialName) return officialName
   if (locale === 'ja') return bundled.dj
   if (locale === 'en') return bundled.de
   if (locale === 'zh') return bundled.dz

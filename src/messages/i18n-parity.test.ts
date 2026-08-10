@@ -1,12 +1,11 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { SUPPORTED_LOCALES, type Locale } from '@/i18n/locales'
 
-const LOCALES = ['ko', 'ja', 'en', 'zh'] as const
+const LOCALES = SUPPORTED_LOCALES
 const BASE_LOCALE = 'ko'
 const SUPER_ADMIN_PREFIX = 'superAdmin.'
-
-type Locale = (typeof LOCALES)[number]
 
 function loadMessages(locale: Locale): unknown {
   return JSON.parse(

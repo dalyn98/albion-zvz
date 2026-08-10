@@ -17,6 +17,8 @@ interface BundledItem {
   dj: string // displayName (JA > EN > id)
   de: string // displayName (EN > id)
   dz: string // displayName (ZH-CN > EN > id)
+  l?: Partial<Record<Locale, string>> // all official Albion locale display names
+  q?: string // lowercased search text across all official locale names
 }
 
 const ITEMS = items as BundledItem[]
@@ -41,7 +43,13 @@ function normalizeQuery(value: string | null): string | null {
 }
 
 function matchesQuery(item: BundledItem, q: string): boolean {
-  if (item.e.includes(q) || item.k.includes(q) || item.j.includes(q) || item.z.includes(q)) {
+  if (
+    item.q?.includes(q)
+    || item.e.includes(q)
+    || item.k.includes(q)
+    || item.j.includes(q)
+    || item.z.includes(q)
+  ) {
     return true
   }
   const uniqueName = item.u.toLowerCase()
@@ -87,13 +95,13 @@ export function GET(request: NextRequest) {
     // Match across EN + KO + JA + ZH so any-locale user searching any-locale
     // name still hits. Display name follows the active locale.
     if (!matchesQuery(item, q)) continue
-    const displayName = locale === 'ja'
+    const displayName = item.l?.[locale] ?? (locale === 'ja'
       ? item.dj
       : locale === 'en'
         ? item.de
         : locale === 'zh'
           ? item.dz
-          : item.d
+          : item.d)
     results.push({ uniqueName: item.u, displayName, category: item.c })
     if (results.length >= MAX_RESULTS) break
   }

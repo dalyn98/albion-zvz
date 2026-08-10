@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { headers } from 'next/headers'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { Trophy } from 'lucide-react'
@@ -11,7 +12,10 @@ import {
   normalizePublicZvzWeekStart,
 } from '@/lib/public-zvz-record-links'
 import { getCanonicalOrigin } from '@/lib/seo-metadata'
-import { buildSeoZvzRecordLanguageAlternates } from '@/lib/seo-locale-paths'
+import {
+  buildSeoZvzRecordLanguageAlternates,
+  getSeoZvzRecordLocale,
+} from '@/lib/seo-locale-paths'
 import {
   formatPublicZvzDecimal,
   formatPublicZvzNumber,
@@ -34,16 +38,17 @@ async function load(route: Awaited<Props['params']>) {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const [route, locale, t] = await Promise.all([
+  const [route, headerStore, t] = await Promise.all([
     params,
-    getMarketingLocale(),
+    headers(),
     getMarketingTranslator('publicZvzRecords'),
   ])
   const data = await load(route).catch(() => null)
   if (!data || !isAlbionServer(route.server)) {
     return { title: t('notFoundTitle'), robots: { index: false, follow: false } }
   }
-  const pathname = `${locale ? `/${locale}` : ''}/zvz-battles/weekly/${route.server}/${data.weekStart}`
+  const requestLocale = getSeoZvzRecordLocale(headerStore.get('x-pathname') ?? '')
+  const pathname = `${requestLocale ? `/${requestLocale}` : ''}/zvz-battles/weekly/${route.server}/${data.weekStart}`
   const canonicalUrl = `${getCanonicalOrigin()}${pathname}`
   const server = route.server.toUpperCase()
   const title = t('weeklyMetaTitle', { server, week: data.weekStart })

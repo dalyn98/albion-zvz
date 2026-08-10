@@ -47,8 +47,13 @@ function parseLanguagesCsv(raw: string): ProfileLanguage[] {
   const out: ProfileLanguage[] = []
   for (const piece of raw.split(',')) {
     const trimmed = piece.trim()
-    if (isProfileLanguage(trimmed) && !out.includes(trimmed)) {
-      out.push(trimmed)
+    const normalized = trimmed === 'es'
+      ? 'es-ES'
+      : trimmed === 'pt'
+        ? 'pt-BR'
+        : trimmed
+    if (isProfileLanguage(normalized) && !out.includes(normalized)) {
+      out.push(normalized)
     }
   }
   return out

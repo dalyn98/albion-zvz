@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { headers } from 'next/headers'
 import Link from 'next/link'
 import {
   BarChart3,
@@ -38,8 +39,11 @@ const ICONS: Record<SeoFeatureIconKey, typeof Bot> = {
 }
 
 export async function generateMetadata(): Promise<Metadata> {
-  const t = await getMarketingTranslator('publicSeoFeatures')
-  const pathname = '/features'
+  const [t, headerStore] = await Promise.all([
+    getMarketingTranslator('publicSeoFeatures'),
+    headers(),
+  ])
+  const pathname = headerStore.get('x-pathname') ?? '/features'
   const canonicalUrl = getCanonicalUrlForPathname(pathname) ?? `${getCanonicalOrigin()}/features`
   const languages = buildSeoFeatureLanguageAlternates(pathname)
   return {

@@ -1,3 +1,18 @@
+import generatedLocalizations from './discord-command-localizations.json' with { type: 'json' }
+
+const DISCORD_LOCALE_BY_SITE_LOCALE = {
+  fr: 'fr',
+  de: 'de',
+  'es-ES': 'es-ES',
+  'es-419': 'es-419',
+  'pt-BR': 'pt-BR',
+  pl: 'pl',
+  ru: 'ru',
+  it: 'it',
+  id: 'id',
+  tr: 'tr',
+}
+
 const localized = (ko, ja, zhCN, zhTW = zhCN) => ({
   ko,
   ja,
@@ -5,10 +20,19 @@ const localized = (ko, ja, zhCN, zhTW = zhCN) => ({
   'zh-TW': zhTW,
 })
 
+const withGeneratedLocalizations = (english, existing) => {
+  const output = { ...existing }
+  for (const [siteLocale, discordLocale] of Object.entries(DISCORD_LOCALE_BY_SITE_LOCALE)) {
+    const translated = generatedLocalizations[siteLocale]?.[english]
+    if (translated) output[discordLocale] = translated
+  }
+  return output
+}
+
 const node = (name, description, descriptionLocalizations, type, options) => ({
   name,
   description,
-  description_localizations: descriptionLocalizations,
+  description_localizations: withGeneratedLocalizations(description, descriptionLocalizations),
   type,
   ...(options ? { options } : {}),
 })
@@ -26,7 +50,7 @@ const input = (name, description, descriptions, type, config = {}) => ({
 
 const choice = (name, names, value) => ({
   name,
-  name_localizations: names,
+  name_localizations: withGeneratedLocalizations(name, names),
   value,
 })
 
@@ -262,12 +286,12 @@ const discordCommandCatalog = [
   {
     name: 'agm',
     description: 'Albion Guild Manager commands',
-    description_localizations: localized(
+    description_localizations: withGeneratedLocalizations('Albion Guild Manager commands', localized(
       'Albion Guild Manager 명령어',
       'Albion Guild Manager コマンド',
       'Albion Guild Manager 命令',
       'Albion Guild Manager 指令',
-    ),
+    )),
     type: 1,
     options: commands,
   },

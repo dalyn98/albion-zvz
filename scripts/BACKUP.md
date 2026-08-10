@@ -4,7 +4,7 @@ Supabase 프로젝트의 데이터베이스를 맥미니 로컬 (`~/backups/albi
 
 ## 구성
 
-- `backup-db.sh` — 백업 본체. roles + schema + data 3-step pg_dump → tar.gz
+- `backup-db.sh` — 백업 본체. roles + schema + gzip data 3-step pg_dump → tar.gz
 - `safe-db-push.sh` — `supabase db push --linked` 직전에 자동 백업 (pre-migration)
 - `com.albion-zvz.backup.plist` — launchd 정의 (매일 03:00 KST)
 - `install-backup-cron.sh` — launchd 등록/제거/상태/즉시실행
@@ -48,14 +48,15 @@ cron 상태 확인 / 즉시 실행:
 
 ## 복원
 
-tar.gz 안에 `roles.sql`, `schema.sql`, `data.sql` 가 있다. 새 Supabase 프로젝트로
+tar.gz 안에 `roles.sql`, `schema.sql`, `data.sql.gz` 가 있다. 데이터 덤프는 로컬
+디스크에 수 GB의 평문 SQL을 만들지 않도록 생성과 동시에 압축한다. 새 Supabase 프로젝트로
 복원할 때:
 
 ```bash
 tar -xzf 2026-05-01_160043.tar.gz
 psql "$DATABASE_URL" -f roles.sql
 psql "$DATABASE_URL" -f schema.sql
-psql "$DATABASE_URL" -f data.sql
+gzip -dc data.sql.gz | psql "$DATABASE_URL"
 ```
 
 같은 프로젝트로 PITR 복원이 필요하면 Supabase 대시보드의 "Database → Backups"
