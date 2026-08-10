@@ -14,7 +14,7 @@ import { ToastProvider } from '@/components/ToastProvider'
 import ServerActionFailureNotifier from '@/components/ServerActionFailureNotifier'
 import { ConfirmDialogProvider } from '@/components/ConfirmDialog'
 import { UnsavedChangesProvider } from '@/components/UnsavedChangesProvider'
-import { getSession, getSignedSession } from '@/lib/session'
+import { getSessionResolution } from '@/lib/session'
 import { canRecoverDiscordSession } from '@/lib/session-recovery'
 import { getAppSetting } from '@/lib/app-settings'
 import { getAdminClient } from '@/lib/supabase-admin'
@@ -327,9 +327,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     isMarketingByPathname: isMarketingPathname(pathname),
     shouldSkipSessionByPathname: shouldSkipRootSessionForPathname(pathname),
   })
-  const [session, signedSession] = routeContext.shouldSkipSession
-    ? [null, null]
-    : await Promise.all([getSession(), getSignedSession()])
+  const sessionResolution = routeContext.shouldSkipSession
+    ? { session: null, signedSession: null, status: 'missing' as const }
+    : await getSessionResolution()
+  const { session, signedSession } = sessionResolution
   const isPublic = routeContext.isPublic
   const isMarketingRaw = routeContext.isMarketing
   const isStandalonePublic = isStandalonePublicPathname(pathname)
@@ -359,11 +360,15 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     hostTenant !== null && sessionGuildId !== null && sessionGuildId === hostTenant.tenantId
   const sessionBelongsToOtherTenant =
     hostTenant !== null && session !== null && !sessionBelongsToHostTenant
-  const recoverSession = canRecoverDiscordSession({
-    currentSession: session,
-    signedSession,
-    hostTenantId: hostTenant?.tenantId ?? null,
-  })
+  const sessionVerificationUnavailable =
+    sessionResolution.status === 'unavailable'
+  const recoverSession =
+    sessionResolution.status === 'revoked' &&
+    canRecoverDiscordSession({
+      currentSession: session,
+      signedSession,
+      hostTenantId: hostTenant?.tenantId ?? null,
+    })
 
   // `/public/g/<slug>` 페이지에서, 그 길드의 멤버 본인이 접속한 경우에만 marketing
   // 처리를 끄고 AppShell(사이드바) 을 둘러준다. 다른 길드 멤버나 비로그인 방문자는
@@ -586,6 +591,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       gateGuildId = sessionGuildId
       const cfg = await getTenantDiscordConfig(sessionGuildId)
       resolvedTenantSlug = cfg?.slug ?? null
+    } else if (signedSession?.guildId) {
+      // Avoid another tenant lookup merely to render the fail-closed state
+      // when the revocation authority is temporarily unavailable.
+      gateGuildId = signedSession.guildId
+      resolvedTenantSlug =
+        hostClassification.kind === 'tenant'
+          ? hostClassification.slug
+          : null
     } else {
       gateGuildId = await getPrimaryTenantId()
     }
@@ -617,7 +630,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       : null
     gateContent = (
       <AppGate
-        reason={session ? 'no_role' : 'not_logged_in'}
+        reason={
+          sessionVerificationUnavailable
+            ? 'verification_unavailable'
+            : session
+              ? 'no_role'
+              : 'not_logged_in'
+        }
         siteName={siteName}
         bannerUrl={bannerUrl}
         ctaText={ctaText || tLanding('defaultCta')}

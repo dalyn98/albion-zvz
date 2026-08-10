@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { usePathname, useSearchParams } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import DiscordIcon from '@/components/DiscordIcon'
 import DiscordBrowserSessionConnect from '@/components/DiscordBrowserSessionConnect'
 import InAppBrowserNotice from '@/components/InAppBrowserNotice'
@@ -14,7 +14,10 @@ import {
 import { resolveAuthErrorLabel } from '@/lib/auth-error-label'
 import { useBodyScrollLock } from '@/components/useBodyScrollLock'
 
-export type GateReason = 'not_logged_in' | 'no_role'
+export type GateReason =
+  | 'not_logged_in'
+  | 'no_role'
+  | 'verification_unavailable'
 
 interface Props {
   reason: GateReason
@@ -102,10 +105,22 @@ export default function AppGate({
 
   const searchParams = useSearchParams()
   const pathname = usePathname()
+  const router = useRouter()
   const authError = searchParams.get('auth_error')
   const errorMessage = resolveAuthErrorLabel(authError, authErrorLabels)
   const [sessionRecoveryFailed, setSessionRecoveryFailed] = useState(false)
-  const isRecoveringSession = recoverSession && !sessionRecoveryFailed
+  const verificationUnavailable = reason === 'verification_unavailable'
+  const isRecoveringSession =
+    verificationUnavailable || (recoverSession && !sessionRecoveryFailed)
+
+  useEffect(() => {
+    if (!verificationUnavailable) return
+
+    // Keep access fail-closed while the revocation authority is unavailable,
+    // but retry the server render instead of presenting another OAuth login.
+    const retryId = window.setInterval(() => router.refresh(), 10_000)
+    return () => window.clearInterval(retryId)
+  }, [router, verificationUnavailable])
 
   useEffect(() => {
     if (!recoverSession) return
@@ -153,7 +168,9 @@ export default function AppGate({
   // 버튼을 노출. login 버튼이 이미 같은 동작을 하므로 logout-only 경로(no_role)
   // 에선 의미 없음.
   const showRetry = !!authError && showLogin
-  const promptText = hasInvite
+  const promptText = verificationUnavailable
+    ? sessionRecoveryLabel
+    : hasInvite
     ? invitePromptLabel
     : reason === 'no_role'
       ? memberRequiredLabel

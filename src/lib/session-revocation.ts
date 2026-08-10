@@ -13,6 +13,8 @@ interface SessionRevocationRow {
   invalid_before: string
 }
 
+export type TenantSessionStatus = 'current' | 'revoked' | 'unavailable'
+
 export function isSessionIssuedAfterRevocation(
   issuedAt: number,
   revocations: readonly SessionRevocationRow[],
@@ -43,8 +45,10 @@ async function retrySessionRevocationRead<T>(
   })
 }
 
-export async function isTenantSessionCurrent(session: SessionPayload): Promise<boolean> {
-  if (!session.guildId) return true
+export async function getTenantSessionStatus(
+  session: SessionPayload,
+): Promise<TenantSessionStatus> {
+  if (!session.guildId) return 'current'
   let result: SupabaseReadResult<SessionRevocationRow[] | null>
   try {
     result = await retrySessionRevocationRead(session, () =>
@@ -60,7 +64,7 @@ export async function isTenantSessionCurrent(session: SessionPayload): Promise<b
       discord_id: session.discordId,
       reason: 'lookup_error',
     })
-    return false
+    return 'unavailable'
   }
 
   // The table is the revocation authority. A database failure must not leave a
@@ -72,7 +76,7 @@ export async function isTenantSessionCurrent(session: SessionPayload): Promise<b
       reason: 'lookup_error',
       error_code: getSupabaseErrorCode(result.error),
     })
-    return false
+    return 'unavailable'
   }
 
   const revocations = (result.data ?? []) as SessionRevocationRow[]
@@ -91,5 +95,11 @@ export async function isTenantSessionCurrent(session: SessionPayload): Promise<b
       revocation_count: revocations.length,
     })
   }
-  return isCurrent
+  return isCurrent ? 'current' : 'revoked'
+}
+
+export async function isTenantSessionCurrent(
+  session: SessionPayload,
+): Promise<boolean> {
+  return (await getTenantSessionStatus(session)) === 'current'
 }

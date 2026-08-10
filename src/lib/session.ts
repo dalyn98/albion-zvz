@@ -15,7 +15,10 @@
 import { cache } from 'react'
 import { cookies } from 'next/headers'
 import { SESSION_COOKIE_NAME, verifySession, type SessionPayload } from './session-verify'
-import { isTenantSessionCurrent } from './session-revocation'
+import {
+  getTenantSessionStatus,
+  type TenantSessionStatus,
+} from './session-revocation'
 import {
   parseCapabilities,
   hasCapability,
@@ -42,10 +45,33 @@ export const getSignedSession = cache(async (): Promise<SessionPayload | null> =
   return verifySession(store.get(SESSION_COOKIE_NAME)?.value)
 })
 
+export type SessionResolutionStatus = 'missing' | TenantSessionStatus
+
+export interface SessionResolution {
+  session: SessionPayload | null
+  signedSession: SessionPayload | null
+  status: SessionResolutionStatus
+}
+
+// Keep revocation lookup failures distinct from an absent or intentionally
+// revoked session. Login surfaces can block access without sending a user with
+// a still-valid signed cookie through Discord OAuth again.
+export const getSessionResolution = cache(async (): Promise<SessionResolution> => {
+  const signedSession = await getSignedSession()
+  if (!signedSession) {
+    return { session: null, signedSession: null, status: 'missing' }
+  }
+
+  const status = await getTenantSessionStatus(signedSession)
+  return {
+    session: status === 'current' ? signedSession : null,
+    signedSession,
+    status,
+  }
+})
+
 export const getSession = cache(async (): Promise<SessionPayload | null> => {
-  const session = await getSignedSession()
-  if (!session) return null
-  return (await isTenantSessionCurrent(session)) ? session : null
+  return (await getSessionResolution()).session
 })
 
 // ─── capability helpers ───────────────────────────────────────

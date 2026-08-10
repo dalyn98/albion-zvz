@@ -27,6 +27,7 @@ vi.mock('@/lib/log', () => ({
 }))
 
 import {
+  getTenantSessionStatus,
   isSessionIssuedAfterRevocation,
   isTenantSessionCurrent,
 } from './session-revocation'
@@ -109,6 +110,23 @@ describe('session revocation cutoff', () => {
         error_code: '503',
       }),
     )
+  })
+
+  it('distinguishes authority outages from intentional revocations', async () => {
+    mocks.lookup.mockResolvedValue({
+      data: null,
+      error: { code: '503', message: 'service unavailable' },
+    })
+
+    await expect(getTenantSessionStatus(session)).resolves.toBe('unavailable')
+
+    mocks.lookup.mockReset()
+    mocks.lookup.mockResolvedValue({
+      data: [{ invalid_before: '2026-07-12T10:05:00.001Z' }],
+      error: null,
+    })
+
+    await expect(getTenantSessionStatus(session)).resolves.toBe('revoked')
   })
 
   it('records an intentional revocation separately from lookup failures', async () => {
