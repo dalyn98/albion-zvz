@@ -174,8 +174,10 @@ export default function PartyEditorPanel({
   return (
     <details
       id={`event-save-party-${partyNumber}`}
+      name={`event-party-editor-${eventId}`}
       open={isOpen}
       onToggle={(e) => setIsOpen(e.currentTarget.open)}
+      data-party-editor-panel
       className="group overflow-clip rounded-xl border border-gray-700"
     >
       <summary className="flex items-center justify-between px-4 py-3 bg-gray-900 cursor-pointer hover:bg-gray-800 list-none [&::-webkit-details-marker]:hidden">

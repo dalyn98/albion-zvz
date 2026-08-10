@@ -128,6 +128,37 @@ async function openFirstSlotWorkspace(page, config) {
   return workspace
 }
 
+async function verifyExclusivePartyPanels(page) {
+  const panels = page.locator('[data-party-editor-panel]')
+  const panelCount = await panels.count()
+  if (panelCount < 2) return
+  const firstPanel = panels.nth(0)
+  const secondPanel = panels.nth(1)
+
+  if (!await firstPanel.evaluate((element) => element.open)) {
+    const firstSummary = firstPanel.locator('summary').first()
+    await waitForReactHydration(firstSummary)
+    await firstSummary.evaluate((element) => element.click())
+  }
+
+  const secondSummary = secondPanel.locator('summary').first()
+  await waitForReactHydration(secondSummary)
+  await secondSummary.evaluate((element) => element.click())
+  assert.equal(
+    await firstPanel.evaluate((element) => element.open),
+    false,
+    'opening party two must close party one and remove its floating editor',
+  )
+  assert.equal(
+    await secondPanel.evaluate((element) => element.open),
+    true,
+    'party two must open after the exclusive panel transition',
+  )
+
+  const firstSummary = firstPanel.locator('summary').first()
+  await firstSummary.evaluate((element) => element.click())
+}
+
 async function discoverEditableEvent(page, config) {
   if (config.eventPath) {
     await page.goto(new URL(config.eventPath, config.baseUrl).toString(), {
@@ -344,7 +375,10 @@ async function verifyResponsiveBreakpoints(page, eventPath, config) {
           width: Math.round(box.width),
         }
       })
-      assert.equal(layout.position, 'sticky', `${width}px editor must follow desktop scrolling`)
+      assert.ok(
+        layout.position === 'relative' || layout.position === 'fixed',
+        `${width}px editor must use the anchored floating layout`,
+      )
       assert.ok(layout.width >= 720, `${width}px inline editor must retain at least 720px`)
     } else {
       // Creating the first row intentionally activates its editor. Normalize
@@ -384,6 +418,7 @@ async function verifyDesktop(page, eventPath, config) {
     timeout: config.timeoutMs,
   })
   await suppressLocalTestOnboarding(page, config)
+  await verifyExclusivePartyPanels(page)
   const workspace = await openFirstSlotWorkspace(page, config)
   await workspace.evaluate((element) => element.scrollIntoView({ block: 'start' }))
   await page.waitForTimeout(100)

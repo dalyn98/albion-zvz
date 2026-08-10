@@ -12,6 +12,15 @@ describe('slot workspace UI contract', () => {
     expect(source('src/components/TemplateEditor.tsx')).toContain('<PartySlotWorkspace')
   })
 
+  it('keeps only one event party editor open while switching parties', () => {
+    const partyEditor = source('src/components/PartyEditorPanel.tsx')
+    const smoke = source('scripts/slot-workspace-smoke.mjs')
+
+    expect(partyEditor).toContain('name={`event-party-editor-${eventId}`}')
+    expect(partyEditor).toContain('data-party-editor-panel')
+    expect(smoke).toContain('verifyExclusivePartyPanels')
+  })
+
   it('offers a persistent standard-desktop editor and a full-screen editor in narrow app shells', () => {
     const editor = source('src/components/SlotEditor.tsx')
     const workspace = source('src/components/PartySlotWorkspace.tsx')
