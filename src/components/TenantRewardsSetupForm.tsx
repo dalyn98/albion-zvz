@@ -10,16 +10,13 @@ import { isValidRoleRegearPayoutRate } from '@/lib/regear-payout'
 
 interface Labels {
   quickStartTitle: string
-  quickStartDescription: string
   supportSectionTitle: string
-  supportSectionDescription: string
   supportRequiredError: string
   supportUnsupportedLabel: string
   supportUnsupportedHint: string
   supportSupportedLabel: string
   supportSupportedHint: string
   participationCloseoutSectionTitle: string
-  participationCloseoutSectionDescription: string
   participationCloseoutRequiredError: string
   participationCloseoutAutomaticLabel: string
   participationCloseoutAutomaticHint: string
@@ -32,7 +29,6 @@ interface Labels {
   fulfillmentCraftedLabel: string
   fulfillmentCraftedHint: string
   advancedSettingsLabel: string
-  advancedSettingsDescription: string
   rewardsRoleColumn: string
   rewardsSilverColumn: string
   rewardsPayoutColumn: string
@@ -41,7 +37,6 @@ interface Labels {
   rewardsErrorInvalidSilver: string
   rewardsErrorInvalidPayout: string
   policySectionTitle: string
-  policySectionDescription: string
   policyAutoLabel: string
   policyAutoHint: string
   policyCraftLabel: string
@@ -53,11 +48,9 @@ interface Labels {
   policyPayoutSuffix: string
   policyErrorInvalidPayout: string
   eventsSectionTitle: string
-  eventsSectionDescription: string
   eventsAutoStartLabel: string
   eventsAutoStartHint: string
   rewardsSectionTitle: string
-  rewardsSectionDescription: string
   finishButton: string
   finishingButton: string
   errorGeneric: string
@@ -213,29 +206,15 @@ export default function TenantRewardsSetupForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-      <section className="rounded-lg border border-emerald-400/30 bg-emerald-500/10 p-4">
-        <div className="flex items-start gap-3">
-          <span className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-emerald-400/30 bg-emerald-500/15 text-emerald-200">
-            <ShieldCheck size={17} />
-          </span>
-          <div className="min-w-0">
-            <h2 className="text-sm font-semibold text-emerald-100">{labels.quickStartTitle}</h2>
-            <p className="mt-1 text-xs leading-relaxed text-emerald-100/70">
-              {labels.quickStartDescription}
-            </p>
-          </div>
-        </div>
-      </section>
+      <div className="flex min-h-11 items-center gap-2 rounded-lg border border-emerald-400/25 bg-emerald-500/[0.08] px-4 py-2 text-sm font-semibold text-emerald-100">
+        <ShieldCheck size={16} className="shrink-0 text-emerald-300" />
+        {labels.quickStartTitle}
+      </div>
 
       <section className="space-y-3 rounded-lg border border-white/10 bg-white/[0.02] p-4">
-        <header>
-          <h2 className="text-base font-semibold text-white">
-            {labels.supportSectionTitle}
-          </h2>
-          <p className="mt-1 text-xs text-gray-500">
-            {labels.supportSectionDescription}
-          </p>
-        </header>
+        <h2 className="text-base font-semibold text-white">
+          {labels.supportSectionTitle}
+        </h2>
         <div className="grid gap-2 sm:grid-cols-2">
           <ChoiceCard
             checked={regearSupportEnabled === false}
@@ -274,14 +253,9 @@ export default function TenantRewardsSetupForm({
       </section>
 
       <section className="space-y-3 rounded-lg border border-white/10 bg-white/[0.02] p-4">
-        <header>
-          <h2 className="text-base font-semibold text-white">
-            {labels.participationCloseoutSectionTitle}
-          </h2>
-          <p className="mt-1 text-xs text-gray-500">
-            {labels.participationCloseoutSectionDescription}
-          </p>
-        </header>
+        <h2 className="text-base font-semibold text-white">
+          {labels.participationCloseoutSectionTitle}
+        </h2>
         <div className="grid gap-2 sm:grid-cols-2">
           <ChoiceCard
             checked={participationAutoCloseoutEnabled === true}
@@ -303,13 +277,8 @@ export default function TenantRewardsSetupForm({
         className="group overflow-hidden rounded-lg border border-white/10 bg-white/[0.02]"
       >
         <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-white/[0.04] [&::-webkit-details-marker]:hidden">
-          <span className="min-w-0">
-            <span className="block text-sm font-semibold text-white">
-              {labels.advancedSettingsLabel}
-            </span>
-            <span className="mt-0.5 block text-xs leading-relaxed text-gray-500">
-              {labels.advancedSettingsDescription}
-            </span>
+          <span className="text-sm font-semibold text-white">
+            {labels.advancedSettingsLabel}
           </span>
           <ChevronDown
             size={16}
@@ -320,10 +289,7 @@ export default function TenantRewardsSetupForm({
         <div className="space-y-8 border-t border-white/10 p-4">
           {regearSupportEnabled && (
           <section className="space-y-3">
-            <header>
-              <h2 className="text-base font-semibold text-white">{labels.policySectionTitle}</h2>
-              <p className="text-xs text-gray-500 mt-1">{labels.policySectionDescription}</p>
-            </header>
+            <h2 className="text-base font-semibold text-white">{labels.policySectionTitle}</h2>
             <div className="rounded-lg border border-white/10 bg-white/[0.02] p-3 space-y-2">
               <ToggleRow
                 checked={autoRegearEnabled}
@@ -364,10 +330,7 @@ export default function TenantRewardsSetupForm({
           )}
 
           <section className="space-y-3">
-            <header>
-              <h2 className="text-base font-semibold text-white">{labels.eventsSectionTitle}</h2>
-              <p className="text-xs text-gray-500 mt-1">{labels.eventsSectionDescription}</p>
-            </header>
+            <h2 className="text-base font-semibold text-white">{labels.eventsSectionTitle}</h2>
             <div className="rounded-lg border border-white/10 bg-white/[0.02] p-3 space-y-2">
               <div className="flex items-start gap-3 rounded-lg border border-emerald-500/25 bg-emerald-500/[0.07] p-3">
                 <ShieldCheck size={16} className="mt-0.5 shrink-0 text-emerald-300" />
@@ -385,10 +348,7 @@ export default function TenantRewardsSetupForm({
 
           {regearSupportEnabled && (
           <section className="space-y-3">
-            <header>
-              <h2 className="text-base font-semibold text-white">{labels.rewardsSectionTitle}</h2>
-              <p className="text-xs text-gray-500 mt-1">{labels.rewardsSectionDescription}</p>
-            </header>
+            <h2 className="text-base font-semibold text-white">{labels.rewardsSectionTitle}</h2>
             <div className="space-y-3 sm:hidden">
               {initial.map((r) => {
                 const roleLabel = translateSlotRole(r.role_name, tRole)

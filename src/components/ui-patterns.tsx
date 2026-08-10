@@ -84,8 +84,8 @@ interface PageHeaderProps extends Omit<HTMLAttributes<HTMLElement>, 'title'> {
 
 /**
  * Product-level page heading. Keep the primary decision and its action in a
- * single horizontal band so the first viewport has an obvious reading order:
- * context → title → explanation → action.
+ * single horizontal band. Add a description only when the title and nearby
+ * controls cannot explain the page scope on their own.
  */
 export function PageHeader({
   eyebrow,

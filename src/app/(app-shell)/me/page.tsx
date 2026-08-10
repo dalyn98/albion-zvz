@@ -280,7 +280,7 @@ export default async function MePage({
       data-tour-id="member-tour-me"
       className="v3-member-workspace flex-1 w-full max-w-3xl mx-auto px-4 py-6 sm:py-8 space-y-6"
     >
-      <PageHeader title={t('title')} description={t('description')} />
+      <PageHeader title={t('title')} />
 
       {!regearSupported && (
         <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-100/80">
@@ -295,7 +295,6 @@ export default async function MePage({
         regearItems={regearActionItems}
         labels={{
           title: t('actionTitle'),
-          description: t('actionDescription'),
           verifyTitle: t('actionVerifyTitle'),
           verifyBody: t('actionVerifyBody'),
           requestsTitle: t('actionWorkInboxTitle'),
@@ -355,9 +354,6 @@ export default async function MePage({
                   <UserCircle2 size={18} className="text-amber-300" />
                   {t('accountInfoTitle')}
                 </h2>
-                <p className="text-gray-400 text-xs leading-relaxed mt-1">
-                  {t('accountInfoDescription')}
-                </p>
               </div>
               <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-200">
                 <LockKeyhole size={11} />

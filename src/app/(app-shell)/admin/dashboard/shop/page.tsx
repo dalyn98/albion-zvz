@@ -221,7 +221,6 @@ async function ShopSyncView({
       <SectionHeading
         icon={<ClipboardList size={18} className="text-amber-400" />}
         title={t('logSyncSectionTitle')}
-        description={t('logSyncSectionDescription')}
       />
       <ShopImportForm
         lastImportAt={importSnapshot.lastImportAt}
@@ -282,7 +281,6 @@ async function ShopCatalogView({
       <SectionHeading
         icon={<Package size={18} className="text-emerald-400" />}
         title={t('itemsSectionTitle')}
-        description={t('itemsSectionDescription')}
       />
       <ShopInventoryEditor
         rows={inventoryRows}
@@ -335,14 +333,13 @@ async function ShopSettingsView({
       <SectionHeading
         icon={<Settings size={18} className="text-sky-300" />}
         title={t('settingsSectionTitle')}
-        description={t('settingsSectionDescription')}
       />
-      <div className="rounded-xl border border-sky-400/30 bg-sky-500/5 p-4 sm:p-5 flex items-start gap-3">
-        <Info size={16} className="text-sky-300 mt-0.5 flex-shrink-0" />
-        <div className="min-w-0 flex-1 space-y-1.5">
-          <h2 className="text-sm font-semibold text-sky-100">
-            {t('aodpInfoTitle')}
-          </h2>
+      <details className="group rounded-xl border border-sky-400/25 bg-sky-500/5">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-4 py-2 text-sm font-semibold text-sky-100 transition-colors hover:bg-sky-500/10 marker:content-none">
+          <Info size={16} className="shrink-0 text-sky-300" />
+          {t('aodpInfoTitle')}
+        </summary>
+        <div className="space-y-1.5 border-t border-sky-400/15 px-4 py-3">
           <p className="text-xs text-sky-100/80 leading-relaxed">
             {t('aodpInfoBody')}
           </p>
@@ -351,7 +348,7 @@ async function ShopSettingsView({
             <li>{t('aodpInfoModeHint')}</li>
           </ul>
         </div>
-      </div>
+      </details>
       <NoticeSettingForm
         settingKey="shop_delivery_notice"
         target="shop"
@@ -525,10 +522,7 @@ function ShopOperationsOverview({
   if (!uxRefreshEnabled) {
     return (
       <section id="shop-overview" className="scroll-mt-24 space-y-3">
-        <div>
-          <h2 className="text-lg font-bold text-white">{t('overviewTitle')}</h2>
-          <p className="mt-1 text-sm text-gray-400">{t('overviewDescription')}</p>
-        </div>
+        <h2 className="text-lg font-bold text-white">{t('overviewTitle')}</h2>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <LegacyShopMetric
             icon={<ShoppingBag size={16} className="text-emerald-300" />}
@@ -563,15 +557,6 @@ function ShopOperationsOverview({
             href="/admin/dashboard/approvals?tab=shop"
           />
         </div>
-        <div className="rounded-lg border border-gray-800 bg-gray-900/70 p-4">
-          <h3 className="text-sm font-semibold text-white">{t('overviewNextTitle')}</h3>
-          <ol className="mt-3 grid gap-2 text-xs text-gray-300 sm:grid-cols-2 xl:grid-cols-4">
-            <LegacyWorkflowStep title={t('workflowSettingsTitle')} body={t('workflowSettingsBody')} href="/admin/dashboard/shop?view=settings" />
-            <LegacyWorkflowStep title={t('workflowLogTitle')} body={t('workflowLogBody')} href="/admin/dashboard/shop?view=sync" />
-            <LegacyWorkflowStep title={t('workflowPriceTitle')} body={t('workflowPriceBody', { rate: discountRate })} href="/admin/dashboard/shop?view=catalog" />
-            <LegacyWorkflowStep title={t('workflowOrdersTitle')} body={t('workflowOrdersBody')} href="/admin/dashboard/approvals?tab=shop" />
-          </ol>
-        </div>
       </section>
     )
   }
@@ -604,10 +589,7 @@ function ShopOperationsOverview({
 
   return (
     <section id="shop-overview" className="scroll-mt-24 space-y-3">
-      <div>
-        <h2 className="text-lg font-bold text-white">{t('overviewTitle')}</h2>
-        <p className="text-sm text-gray-400 mt-1">{t('overviewDescription')}</p>
-      </div>
+      <h2 className="text-lg font-bold text-white">{t('overviewTitle')}</h2>
       <div className="divide-y divide-border overflow-hidden rounded-xl bg-surface shadow-card ring-1 ring-border">
         <ShopHealthRow
           icon={<ShoppingBag size={16} className="text-emerald-300" />}
@@ -701,17 +683,6 @@ function LegacyShopMetric({
   )
 }
 
-function LegacyWorkflowStep({ title, body, href }: { title: string; body: string; href: string }) {
-  return (
-    <li>
-      <Link href={href} className="block h-full rounded-md border border-gray-800 bg-gray-950/60 p-3 hover:border-amber-500/45">
-        <p className="font-semibold text-white">{title}</p>
-        <p className="mt-2 leading-relaxed text-gray-400">{body}</p>
-      </Link>
-    </li>
-  )
-}
-
 function ShopHealthRow({
   icon,
   label,
@@ -795,19 +766,14 @@ function ShopAdminSectionNav({
 function SectionHeading({
   icon,
   title,
-  description,
 }: {
   icon: ReactNode
   title: string
-  description: string
 }) {
   return (
-    <div className="flex items-start gap-2">
-      <div className="mt-0.5">{icon}</div>
-      <div>
-        <h2 className="text-lg font-bold text-white">{title}</h2>
-        <p className="text-sm text-gray-400 mt-1">{description}</p>
-      </div>
+    <div className="flex items-center gap-2">
+      {icon}
+      <h2 className="text-lg font-bold text-white">{title}</h2>
     </div>
   )
 }

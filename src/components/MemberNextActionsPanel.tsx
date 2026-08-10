@@ -11,7 +11,6 @@ interface NextEvent {
 
 interface Labels {
   title: string
-  description: string
   verifyTitle: string
   verifyBody: string
   requestsTitle: string
@@ -121,10 +120,7 @@ export default function MemberNextActionsPanel({
   return (
     <section className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-4">
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <h2 className="text-white text-base font-bold">{labels.title}</h2>
-          <p className="text-gray-400 text-xs leading-relaxed mt-1">{labels.description}</p>
-        </div>
+        <h2 className="text-white text-base font-bold">{labels.title}</h2>
         {!hasActions && (
           <CheckCircle2 size={20} className="text-emerald-400 flex-shrink-0 mt-0.5" />
         )}

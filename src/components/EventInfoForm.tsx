@@ -83,7 +83,11 @@ export default function EventInfoForm({
   const roleId = useId()
   const categoryLabelId = useId()
   const recruitmentModeLabelId = useId()
+  const recruitmentModeHintId = useId()
   const participationStatsId = useId()
+  const regearPolicyHintId = useId()
+  const regearVideoPolicyHintId = useId()
+  const regearAutoPolicyHintId = useId()
   const regearSilverCapId = useId()
   const regearMaxDeathsId = useId()
   const regearVideoRateId = useId()
@@ -567,26 +571,31 @@ export default function EventInfoForm({
 
       <div>
         <p id={recruitmentModeLabelId} className="text-gray-400 text-xs mb-1 block">{t('recruitmentModeLabel')}</p>
-        <div role="group" aria-labelledby={recruitmentModeLabelId} className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        <div
+          role="group"
+          aria-labelledby={recruitmentModeLabelId}
+          aria-describedby={recruitmentModeHintId}
+          className="grid grid-cols-1 sm:grid-cols-3 gap-2"
+        >
           {EVENT_RECRUITMENT_MODES.map((mode) => (
             <button
               key={mode}
               type="button"
               onClick={() => setRecruitmentMode(mode)}
               aria-pressed={recruitmentMode === mode}
-              className={`rounded-lg border px-3 py-2 text-left transition-colors ${
+              className={`min-h-10 rounded-lg border px-3 py-2 text-left transition-colors ${
                 recruitmentMode === mode
                   ? 'border-amber-500/70 bg-amber-500/15 text-amber-100'
                   : 'border-gray-700 bg-gray-800 text-gray-300 hover:border-amber-500/40'
               }`}
             >
               <span className="block text-sm font-bold">{t(`recruitmentMode.${mode}.title`)}</span>
-              <span className="mt-0.5 block text-[11px] leading-snug text-gray-500">
-                {t(`recruitmentMode.${mode}.hint`)}
-              </span>
             </button>
           ))}
         </div>
+        <p id={recruitmentModeHintId} className="mt-1.5 text-pretty text-xs text-gray-500">
+          {t(`recruitmentMode.${recruitmentMode}.hint`)}
+        </p>
       </div>
 
       <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-3">
@@ -622,25 +631,33 @@ export default function EventInfoForm({
           <div>
             <label className="text-gray-400 text-xs mb-1 block">{t('eventRegearPolicyLabel')}</label>
             {canUseEventPolicy ? (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                {EVENT_REGEAR_POLICIES.map((policy) => (
-                  <button
-                    key={policy}
-                    type="button"
-                    onClick={() => setRegearPolicy(policy)}
-                    className={`rounded-lg border px-3 py-2 text-left transition-colors ${
-                      regearPolicy === policy
-                        ? 'border-amber-500/70 bg-amber-500/15 text-amber-100'
-                        : 'border-gray-700 bg-gray-800 text-gray-300 hover:border-amber-500/40'
-                    }`}
-                  >
-                    <span className="block text-sm font-bold">{t(`eventRegearPolicy.${policy}.title`)}</span>
-                    <span className="mt-0.5 block text-[11px] leading-snug text-gray-500">
-                      {t(`eventRegearPolicy.${policy}.hint`)}
-                    </span>
-                  </button>
-                ))}
-              </div>
+              <>
+                <div
+                  role="group"
+                  aria-label={t('eventRegearPolicyLabel')}
+                  aria-describedby={regearPolicyHintId}
+                  className="grid grid-cols-1 sm:grid-cols-3 gap-2"
+                >
+                  {EVENT_REGEAR_POLICIES.map((policy) => (
+                    <button
+                      key={policy}
+                      type="button"
+                      onClick={() => setRegearPolicy(policy)}
+                      aria-pressed={regearPolicy === policy}
+                      className={`min-h-10 rounded-lg border px-3 py-2 text-left transition-colors ${
+                        regearPolicy === policy
+                          ? 'border-amber-500/70 bg-amber-500/15 text-amber-100'
+                          : 'border-gray-700 bg-gray-800 text-gray-300 hover:border-amber-500/40'
+                      }`}
+                    >
+                      <span className="block text-sm font-bold">{t(`eventRegearPolicy.${policy}.title`)}</span>
+                    </button>
+                  ))}
+                </div>
+                <p id={regearPolicyHintId} className="mt-1.5 text-pretty text-xs text-gray-500">
+                  {t(`eventRegearPolicy.${regearPolicy}.hint`)}
+                </p>
+              </>
             ) : (
               <p className="rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2 text-xs text-gray-400">
                 {t('eventRegearCombatLockedHint')}
@@ -717,7 +734,12 @@ export default function EventInfoForm({
                 <label className="text-gray-400 text-xs mb-1 block">
                   {t('eventRegearVideoPolicyLabel')}
                 </label>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div
+                  role="group"
+                  aria-label={t('eventRegearVideoPolicyLabel')}
+                  aria-describedby={regearVideoPolicyHintId}
+                  className="grid grid-cols-1 sm:grid-cols-3 gap-2"
+                >
                   {EVENT_REGEAR_VIDEO_POLICIES.map((policy) => (
                     <button
                       key={policy}
@@ -726,7 +748,8 @@ export default function EventInfoForm({
                         setRegearVideoPolicy(policy)
                         if (policy === 'disabled') setRegearVideoRateAppliesWithoutProof(false)
                       }}
-                      className={`rounded-lg border px-3 py-2 text-left transition-colors ${
+                      aria-pressed={regearVideoPolicy === policy}
+                      className={`min-h-10 rounded-lg border px-3 py-2 text-left transition-colors ${
                         regearVideoPolicy === policy
                           ? 'border-amber-500/70 bg-amber-500/15 text-amber-100'
                           : 'border-gray-700 bg-gray-800 text-gray-300 hover:border-amber-500/40'
@@ -735,12 +758,12 @@ export default function EventInfoForm({
                       <span className="block text-sm font-bold">
                         {t(`eventRegearVideoPolicy.${policy}.title`)}
                       </span>
-                      <span className="mt-0.5 block text-[11px] leading-snug text-gray-500">
-                        {t(`eventRegearVideoPolicy.${policy}.hint`)}
-                      </span>
                     </button>
                   ))}
                 </div>
+                <p id={regearVideoPolicyHintId} className="mt-1.5 text-pretty text-xs text-gray-500">
+                  {t(`eventRegearVideoPolicy.${regearVideoPolicy}.hint`)}
+                </p>
               </div>
 
               {regearVideoPolicy !== 'disabled' && (
@@ -809,13 +832,19 @@ export default function EventInfoForm({
                 <label className="text-gray-400 text-xs mb-1 block">
                   {t('eventRegearAutoPolicyLabel')}
                 </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div
+                  role="group"
+                  aria-label={t('eventRegearAutoPolicyLabel')}
+                  aria-describedby={regearAutoPolicyHintId}
+                  className="grid grid-cols-1 sm:grid-cols-2 gap-2"
+                >
                   {EVENT_REGEAR_AUTO_POLICIES.map((policy) => (
                     <button
                       key={policy}
                       type="button"
                       onClick={() => setRegearAutoPolicy(policy)}
-                      className={`rounded-lg border px-3 py-2 text-left transition-colors ${
+                      aria-pressed={regearAutoPolicy === policy}
+                      className={`min-h-10 rounded-lg border px-3 py-2 text-left transition-colors ${
                         regearAutoPolicy === policy
                           ? 'border-amber-500/70 bg-amber-500/15 text-amber-100'
                           : 'border-gray-700 bg-gray-800 text-gray-300 hover:border-amber-500/40'
@@ -824,12 +853,12 @@ export default function EventInfoForm({
                       <span className="block text-sm font-bold">
                         {t(`eventRegearAutoPolicy.${policy}.title`)}
                       </span>
-                      <span className="mt-0.5 block text-[11px] leading-snug text-gray-500">
-                        {t(`eventRegearAutoPolicy.${policy}.hint`)}
-                      </span>
                     </button>
                   ))}
                 </div>
+                <p id={regearAutoPolicyHintId} className="mt-1.5 text-pretty text-xs text-gray-500">
+                  {t(`eventRegearAutoPolicy.${regearAutoPolicy}.hint`)}
+                </p>
               </div>
             </>
           )}

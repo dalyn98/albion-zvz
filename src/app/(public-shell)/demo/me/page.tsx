@@ -194,7 +194,6 @@ export default async function DemoMePage() {
         nextEvent={nextEventForAction}
         labels={{
           title: t('actionTitle'),
-          description: t('actionDescription'),
           verifyTitle: t('actionVerifyTitle'),
           verifyBody: t('actionVerifyBody'),
           requestsTitle: t('actionRequestsTitle'),

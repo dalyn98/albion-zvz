@@ -65,6 +65,7 @@ export default function NewEventDraftForm({
   const titleId = useId()
   const categoryLabelId = useId()
   const recruitmentModeLabelId = useId()
+  const recruitmentModeHintId = useId()
   const participationStatsId = useId()
   const [title, setTitle] = useState('')
   const visibleCategories = allowedCategories
@@ -313,26 +314,31 @@ export default function NewEventDraftForm({
 
       <div>
         <p id={recruitmentModeLabelId} className="text-gray-400 text-xs mb-1 block">{t('recruitmentModeLabel')}</p>
-        <div role="group" aria-labelledby={recruitmentModeLabelId} className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        <div
+          role="group"
+          aria-labelledby={recruitmentModeLabelId}
+          aria-describedby={recruitmentModeHintId}
+          className="grid grid-cols-1 sm:grid-cols-3 gap-2"
+        >
           {EVENT_RECRUITMENT_MODES.map((mode) => (
             <button
               key={mode}
               type="button"
               onClick={() => setRecruitmentMode(mode)}
               aria-pressed={recruitmentMode === mode}
-              className={`rounded-lg border px-3 py-2 text-left transition-colors ${
+              className={`min-h-10 rounded-lg border px-3 py-2 text-left transition-colors ${
                 recruitmentMode === mode
                   ? 'border-amber-500/70 bg-amber-500/15 text-amber-100'
                   : 'border-gray-700 bg-gray-800 text-gray-300 hover:border-amber-500/40'
               }`}
             >
               <span className="block text-sm font-bold">{t(`recruitmentMode.${mode}.title`)}</span>
-              <span className="mt-0.5 block text-[11px] leading-snug text-gray-500">
-                {t(`recruitmentMode.${mode}.hint`)}
-              </span>
             </button>
           ))}
         </div>
+        <p id={recruitmentModeHintId} className="mt-1.5 text-pretty text-xs text-gray-500">
+          {t(`recruitmentMode.${recruitmentMode}.hint`)}
+        </p>
       </div>
 
       <div className="rounded-lg border border-gray-700 bg-gray-950/50 p-3">
@@ -619,8 +625,6 @@ export default function NewEventDraftForm({
           )}
         </div>
       )}
-
-      <p className="text-xs text-gray-500 leading-relaxed">{t('draftFormHint')}</p>
 
       {error && (
         <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-2">

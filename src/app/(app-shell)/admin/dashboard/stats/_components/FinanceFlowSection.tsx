@@ -70,7 +70,6 @@ export default async function FinanceFlowSection({
           {tStats('financeTitle', { days: stats.windowDays })}
         </h2>
       </div>
-      <p className="text-xs text-gray-500 leading-relaxed">{tStats('financeDescription')}</p>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {cards.map((card) => {

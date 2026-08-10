@@ -333,10 +333,7 @@ export default function SettingsTabs({
           />
         )}
         {active === 'guild' && (
-          <SettingsGroup
-            title={t('guildGroupTitle')}
-            description={t('guildGroupDescription')}
-          >
+          <SettingsGroup title={t('guildGroupTitle')}>
             {access.general && (
               <AlbionHomeGuildForm
                 embedded
@@ -393,10 +390,7 @@ export default function SettingsTabs({
           />
         )}
         {active === 'notifications' && access.notifications && (
-          <SettingsGroup
-            title={t('adminNotificationGroupTitle')}
-            description={t('adminNotificationGroupDescription')}
-          >
+          <SettingsGroup title={t('adminNotificationGroupTitle')}>
             <AdminNotificationSettingsForm
               embedded
               initialEnabled={adminNotificationsEnabled}
@@ -410,10 +404,7 @@ export default function SettingsTabs({
         {active === 'events' && (
           <div className="space-y-4">
             {(access.toggles || access.general) && (
-              <SettingsGroup
-                title={t('eventOpsGroupTitle')}
-                description={t('eventOpsGroupDescription')}
-              >
+              <SettingsGroup title={t('eventOpsGroupTitle')}>
                 {access.toggles && (
                   <EventAutoStartForm embedded />
                 )}
@@ -434,20 +425,14 @@ export default function SettingsTabs({
               </SettingsGroup>
             )}
             {access.general && (
-              <SettingsGroup
-                title={t('eventNoticeGroupTitle')}
-                description={t('eventNoticeGroupDescription')}
-              >
+              <SettingsGroup title={t('eventNoticeGroupTitle')}>
                 <EventChannelSetting embedded initialChannelId={eventChannelId} />
                 <NotificationSettingsForm embedded initialMessage={notificationMessage} />
                 <EventDmLeadMinutesForm embedded initialMinutes={eventDmLeadMinutes} />
               </SettingsGroup>
             )}
             {access.general && (
-              <SettingsGroup
-                title={t('quickStarterGroupTitle')}
-                description={t('quickStarterGroupDescription')}
-              >
+              <SettingsGroup title={t('quickStarterGroupTitle')}>
                 <QuickStarterPanelSettingsForm
                   initialChannelId={quickStarterPanelChannelId}
                   initialTitle={quickStarterPanelTitle}
@@ -474,10 +459,7 @@ export default function SettingsTabs({
         )}
         {active === 'regear' && (
           <div className="space-y-4">
-            <SettingsGroup
-              title={t('regearGroupTitle')}
-              description={t('regearGroupDescription')}
-            >
+            <SettingsGroup title={t('regearGroupTitle')}>
               {access.toggles && (
                 <RegearModeCard
                   embedded
@@ -511,7 +493,6 @@ export default function SettingsTabs({
               )}
               {regearSupported && access.roleRewards && (
                 <div className="space-y-3">
-                  <p className="text-gray-500 text-xs">{t('rewardsDescription')}</p>
                   {rewardsError && (
                     <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
                       <p className="text-red-400 text-sm">{rewardsError}</p>
