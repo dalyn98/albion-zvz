@@ -71,14 +71,13 @@ interface Props {
   videoPayoutRatePercent: number
   videoClaimCeilingBonusSilver: number
   videoRateAppliesWithoutProof: boolean
-  // ISO 시각: 신청 오픈 시점. 서버에서 min(battle_started_at + windowMinutes,
-  // matched ended_at) 으로 사전 계산해서 박는다 — 즉 전투 시작 후
-  // windowMinutes 가 지나거나 전투가 종료되면 그 시점 부터 신청 가능.
-  // 이 시점 이전엔 button disabled + 모달에서 안내.
+  // ISO 시각: 신청 오픈 시점. 참가 확정 이벤트는 운영 시작 시각이며,
+  // 레거시 이벤트만 킬보드 인덱싱 대기를 적용한다.
   windowOpenAt: string
   // 길드 설정 regear_window_minutes (기본 60). UI 에 규칙 안내 ("전투 시작
   // 후 {minutes}분 또는 전투 종료 시점 중 빠른 쪽") 표시에 사용.
   windowMinutes: number
+  showWindowRule: boolean
   // 길드 모드. true 면 모든 신규 요청이 'crafted' 로 강제, false 면 'silver'.
   // 멤버는 모드를 선택할 수 없고, UI 에는 안내 배너로만 표시된다.
   craftEnabled: boolean
@@ -133,6 +132,7 @@ export default function RegearRequestButton({
   videoRateAppliesWithoutProof,
   windowOpenAt,
   windowMinutes,
+  showWindowRule,
   craftEnabled,
   craftIncludeCapeDefault,
   overchargeEnabled,
@@ -684,9 +684,11 @@ export default function RegearRequestButton({
                   <span className="text-gray-400">{t('windowOpensAt')}</span>
                   <span className="text-gray-200 font-mono text-xs">{formatWindowOpen(windowOpenAt)}</span>
                 </div>
-                <div className="text-[11px] text-gray-500 leading-snug">
-                  {t('windowRule', { minutes: windowMinutes })}
-                </div>
+                {showWindowRule && (
+                  <div className="text-[11px] text-gray-500 leading-snug">
+                    {t('windowRule', { minutes: windowMinutes })}
+                  </div>
+                )}
               </div>
               {rolePolicyNotice && (
                 <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[11px] leading-relaxed text-amber-100">

@@ -31,7 +31,7 @@ import {
   buildSnapshotFromSlot,
   computeMarketSilverFromItems,
   computeRegearEligibilityDeadlineMs,
-  computeRegearWindowOpenMs,
+  computeManualRegearWindowOpenMs,
   isRegearEligibilityExpired,
   latestEndedMsOf,
   normalizeBreakdownItems,
@@ -286,10 +286,8 @@ export interface RegearEligibleEvent {
   // When set, the page renders a read-only "auto submitted" card variant —
   // members aren't expected to file a manual claim on top of an auto pending.
   auto_request_id: string | null
-  // ISO 시각: 이 시점 이후로 신청 가능. 규칙은 min(battle_started_at +
-  // windowMinutes, latest matched ended_at) — 즉 전투 시작 후 windowMinutes 가
-  // 지나거나 전투가 종료되는 시점 둘 중 빠른 쪽. 매칭이 0건이면 start +
-  // windowMinutes 으로 폴백.
+  // ISO 시각: 참가 확정 이벤트는 운영 시작 즉시, 레거시 이벤트는 킬보드
+  // 인덱싱 대기 시간이 지난 뒤 신청 가능하다.
   window_open_at: string
   // ISO 시각: 이벤트 시작 기준 신청 마감. 자유 리기어(트래킹 사망)와 같은
   // regear_eligibility_days 정책을 수동 이벤트 리기어에도 적용한다.
@@ -602,11 +600,9 @@ async function requestRegearInner(
 
   const { windowMinutes, maxDeaths: globalMaxDeaths, eligibilityDays } = await loadRegearLimits(guildId)
 
-  // 2) Submission gate — `regear_window_minutes` 은 킬보드 indexing 대기 시간이며
-  //    상한이 아니다. 호스트가 누른 battle_started_at 은 부정확하므로 매칭된
-  //    tracked battle 의 ended_at (Albion /battles 가 보고하는 실측치) 을
-  //    anchor 로 쓴다. 매칭 0건(솔로 갱크/sync 지연) 은 battle_started_at 으로
-  //    폴백. Title 은 여기서 스냅샷해 이벤트 삭제돼도 이력에 남게 한다.
+  // 2) Submission gate — 참가 확정 이벤트는 운영 시작 시 고정된 정책 스냅샷을
+  //    기준으로 임시 신청을 즉시 받는다. 확정 전 승인·지급은 DB가 계속 차단한다.
+  //    레거시 이벤트만 기존 킬보드 인덱싱 대기 규칙을 유지한다.
   if (!event.battle_started_at) {
     return { error: tErr('battleNotStarted') }
   }
@@ -614,26 +610,31 @@ async function requestRegearInner(
   if (isRegearEligibilityExpired(battleStartMs, eligibilityDays)) {
     return { error: tErr('regearEligibilityExpired', { days: eligibilityDays }) }
   }
-  // tenant_battle_records 쿼리가 일시 실패해도 신청 자체가 throw 되지 않도록
-  // 폴백: 매칭이 없으면 battle_started_at + windowMinutes 만 사용. cron 측
-  // (auto-regear.ts) 은 별도 try/catch 없이 throw 그대로 유지.
-  let matchedBattles: Awaited<ReturnType<typeof findTrackedBattleIdsForEvent>> = []
-  try {
-    matchedBattles = await findTrackedBattleIdsForEvent(
-      db,
-      guildId,
-      event.battle_started_at,
-    )
-  } catch (err) {
-    log.error('[requestRegear] findTrackedBattleIdsForEvent failed', err, {
-      tenant_id: guildId,
-      event_id: eventId,
-    })
+  let latestEndedMs = 0
+  if (event.participation_closeout_required !== true) {
+    // 레거시 이벤트의 전투 종료 기반 조기 오픈에만 추적 전투 조회가 필요하다.
+    // 조회 실패 시 battle_started_at + windowMinutes 로 안전하게 폴백한다.
+    try {
+      const matchedBattles = await findTrackedBattleIdsForEvent(
+        db,
+        guildId,
+        event.battle_started_at,
+      )
+      latestEndedMs = latestEndedMsOf(matchedBattles)
+    } catch (err) {
+      log.error('[requestRegear] findTrackedBattleIdsForEvent failed', err, {
+        tenant_id: guildId,
+        event_id: eventId,
+      })
+    }
   }
-  const latestEndedMs = latestEndedMsOf(matchedBattles)
-  // 신청 오픈 규칙: 전투 시작 + windowMinutes (기본 60분) 이 지나거나, 매칭된
-  // 전투가 종료(ended_at 보유) 되면 즉시 오픈. 둘 중 빠른 시점.
-  if (Date.now() < computeRegearWindowOpenMs(battleStartMs, latestEndedMs, windowMinutes)) {
+  const windowOpenMs = computeManualRegearWindowOpenMs({
+    battleStartMs,
+    latestEndedMs,
+    windowMinutes,
+    participantCloseoutRequired: event.participation_closeout_required === true,
+  })
+  if (Date.now() < windowOpenMs) {
     return { error: tErr('regearWindowNotOpen', { minutes: windowMinutes }) }
   }
 
@@ -1357,8 +1358,8 @@ export async function listMyRegearEligibleEvents(): Promise<{
     }
   }
 
-  // 이벤트별 신청 오픈 시각 사전 계산. submission gate 와 동일한 규칙
-  // (computeRegearWindowOpenMs). tenant_battle_records 쿼리가 일시적으로 실패해도
+  // 이벤트별 신청 오픈 시각 사전 계산. 참가 확정 이벤트는 시작 즉시 열리고,
+  // 레거시 이벤트만 킬보드 대기 규칙을 적용한다. 추적 전투 쿼리가 실패해도
   // /regear 페이지 전체가 죽지 않도록 allSettled — 실패한 이벤트는
   // battle_started_at 기준으로 폴백되어 클라이언트는 정상 표시.
   const { windowMinutes, maxDeaths: globalMaxDeaths } = await loadRegearLimits(guildId)
@@ -1392,11 +1393,12 @@ export async function listMyRegearEligibleEvents(): Promise<{
   eligibleEvents.forEach((e) => {
     const matched = matchedByEvent.get(e.id) ?? []
     const battleStartMs = new Date(e.battle_started_at as string).getTime()
-    const windowOpenMs = computeRegearWindowOpenMs(
+    const windowOpenMs = computeManualRegearWindowOpenMs({
       battleStartMs,
-      latestEndedMsOf(matched),
+      latestEndedMs: latestEndedMsOf(matched),
       windowMinutes,
-    )
+      participantCloseoutRequired: e.participation_closeout_required === true,
+    })
     windowOpenByEvent.set(e.id, new Date(windowOpenMs).toISOString())
     deadlineByEvent.set(
       e.id,

@@ -116,6 +116,7 @@ export default async function EventGuestRegearPanel({
             }
             windowOpenAt={event.window_open_at}
             windowMinutes={view.limits.windowMinutes}
+            showWindowRule={event.participant_confirmation_status === 'not_required'}
             craftEnabled={view.craftEnabled}
             craftIncludeCapeDefault={view.craftIncludeCapeDefault}
             overchargeEnabled={false}

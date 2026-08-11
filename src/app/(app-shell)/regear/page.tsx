@@ -232,6 +232,7 @@ export default async function RegearPage() {
                             videoRateAppliesWithoutProof={event.video_rate_applies_without_proof}
                             windowOpenAt={event.window_open_at}
                             windowMinutes={limits.windowMinutes}
+                            showWindowRule={event.participant_confirmation_status === 'not_required'}
                             craftEnabled={craftEnabled}
                             craftIncludeCapeDefault={craftIncludeCapeDefault}
                             overchargeEnabled={overchargeEnabled}

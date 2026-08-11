@@ -136,14 +136,17 @@ export function computeMarketSilverFromItems(items: RegearLineItem[]): number {
   return total
 }
 
-// 리기어 신청 오픈 시각 계산: 전투 시작 + windowMinutes 가 지나거나, 매칭된 전투
-// 종료(ended_at 보유) 둘 중 빠른 쪽. 매칭이 0건이면 start + windowMinutes 폴백.
-// requestRegearInner 와 listMyRegearEligibleEvents 가 같은 규칙을 공유한다.
-export function computeRegearWindowOpenMs(
-  battleStartMs: number,
-  latestEndedMs: number,
-  windowMinutes: number,
-): number {
+// 참가 확정 이벤트는 시작 시점에 스냅샷된 정책으로 임시 신청을 안전하게 받을 수
+// 있으므로 즉시 연다. 레거시 이벤트만 킬보드 인덱싱 대기 규칙을 유지한다.
+export function computeManualRegearWindowOpenMs(input: {
+  battleStartMs: number
+  latestEndedMs: number
+  windowMinutes: number
+  participantCloseoutRequired: boolean
+}): number {
+  if (input.participantCloseoutRequired) return input.battleStartMs
+
+  const { battleStartMs, latestEndedMs, windowMinutes } = input
   const startPlusBufferMs = battleStartMs + windowMinutes * 60 * 1000
   return latestEndedMs > 0 ? Math.min(startPlusBufferMs, latestEndedMs) : startPlusBufferMs
 }
