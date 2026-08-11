@@ -832,7 +832,15 @@
     "tabShop": "Zamówienia sklepowe",
     "tabEventPayout": "Wypłata wydarzenia",
     "tabCraft": "Rozkazy gildii",
-    "tabMemberTrade": "Handel członkowski"
+    "tabMemberTrade": "Handel członkowski",
+    "approveAll": "Zatwierdź wszystkie oczekujące ({count})",
+    "approveAllHint": "Natychmiast przetwarza dostępne kolejki zatwierdzania. Prośby wymagające sprawdzenia salda, zapasów lub udziału są pomijane.",
+    "approvingAll": "Zatwierdzanie wszystkiego…",
+    "approveAllDone": "Zatwierdzono {count} próśb.",
+    "approveAllPartial": "Zatwierdzono {success} · błędy {failed} · pominięto {skipped}",
+    "approveAllFailed": "Nie udało się przetworzyć dostępnych próśb.",
+    "approveAllNoEligible": "Obecnie nie ma próśb gotowych do zatwierdzenia.",
+    "approveAllRetryHint": "Sprawdź błędne lub pominięte prośby w odpowiedniej kolejce."
   },
   "adminRegearWindows": {
     "pageTitle": "Otwórz okna regear",

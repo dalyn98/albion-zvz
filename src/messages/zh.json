@@ -832,7 +832,15 @@
     "tabShop": "商店订单",
     "tabEventPayout": "活动报酬",
     "tabCraft": "公会订单",
-    "tabMemberTrade": "个人交易"
+    "tabMemberTrade": "个人交易",
+    "approveAll": "批准全部 {count} 个待处理请求",
+    "approveAllHint": "立即处理您有权限的审核队列。需要核对余额、库存或参与情况的请求将被跳过。",
+    "approvingAll": "正在全部批准…",
+    "approveAllDone": "已批准 {count} 个请求。",
+    "approveAllPartial": "已批准 {success} 个 · 失败 {failed} 个 · 跳过 {skipped} 个",
+    "approveAllFailed": "无法处理可批准的请求。",
+    "approveAllNoEligible": "目前没有可立即批准的请求。",
+    "approveAllRetryHint": "请在对应队列中查看失败或跳过的请求。"
   },
   "adminRegearWindows": {
     "pageTitle": "开放装备补偿窗口",

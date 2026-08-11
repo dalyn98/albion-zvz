@@ -832,7 +832,15 @@
     "tabShop": "Pedidos da loja",
     "tabEventPayout": "Pagamento do evento",
     "tabCraft": "Ordens da guilda",
-    "tabMemberTrade": "Comércio de membros"
+    "tabMemberTrade": "Comércio de membros",
+    "approveAll": "Aprovar as {count} solicitações pendentes",
+    "approveAllHint": "Processa imediatamente as filas de aprovação autorizadas. Solicitações que exigem revisão de saldo, estoque ou participação são ignoradas.",
+    "approvingAll": "Aprovando tudo…",
+    "approveAllDone": "{count} solicitações aprovadas.",
+    "approveAllPartial": "{success} aprovadas · {failed} falharam · {skipped} ignoradas",
+    "approveAllFailed": "Não foi possível processar as solicitações elegíveis.",
+    "approveAllNoEligible": "Não há solicitações que possam ser aprovadas agora.",
+    "approveAllRetryHint": "Revise as solicitações com falha ou ignoradas na fila correspondente."
   },
   "adminRegearWindows": {
     "pageTitle": "Abrir janelas de regear",

@@ -832,7 +832,15 @@
     "tabShop": "طلبات التسوق",
     "tabEventPayout": "دفع ثمن الحدث",
     "tabCraft": "أوامر النقابة",
-    "tabMemberTrade": "تجارة الأعضاء"
+    "tabMemberTrade": "تجارة الأعضاء",
+    "approveAll": "الموافقة على كل الطلبات المعلّقة ({count})",
+    "approveAllHint": "يعالج فورًا قوائم الموافقة المسموح لك بإدارتها. تُتخطى الطلبات التي تحتاج مراجعة الرصيد أو المخزون أو المشاركة.",
+    "approvingAll": "جارٍ اعتماد الكل…",
+    "approveAllDone": "تمت الموافقة على {count} طلبات.",
+    "approveAllPartial": "تمت الموافقة على {success} · فشل {failed} · تم تخطي {skipped}",
+    "approveAllFailed": "تعذرت معالجة الطلبات المؤهلة.",
+    "approveAllNoEligible": "لا توجد طلبات يمكن الموافقة عليها الآن.",
+    "approveAllRetryHint": "راجع الطلبات الفاشلة أو المتخطاة في قائمتها."
   },
   "adminRegearWindows": {
     "pageTitle": "افتح فترات regear",

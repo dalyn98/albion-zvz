@@ -832,7 +832,15 @@
     "tabShop": "商店訂單",
     "tabEventPayout": "活動支付",
     "tabCraft": "公會命令",
-    "tabMemberTrade": "成員貿易"
+    "tabMemberTrade": "成員貿易",
+    "approveAll": "批准全部 {count} 個待處理請求",
+    "approveAllHint": "立即處理您有權限的審核佇列。需要核對餘額、庫存或參與情況的請求將被略過。",
+    "approvingAll": "正在全部批准…",
+    "approveAllDone": "已批准 {count} 個請求。",
+    "approveAllPartial": "已批准 {success} 個 · 失敗 {failed} 個 · 略過 {skipped} 個",
+    "approveAllFailed": "無法處理可批准的請求。",
+    "approveAllNoEligible": "目前沒有可立即批准的請求。",
+    "approveAllRetryHint": "請在對應佇列中查看失敗或略過的請求。"
   },
   "adminRegearWindows": {
     "pageTitle": "開啟補裝時段",

@@ -832,7 +832,15 @@
     "tabShop": "Shop-Bestellungen",
     "tabEventPayout": "Auszahlung der Veranstaltung",
     "tabCraft": "Gildenbestellungen",
-    "tabMemberTrade": "Mitgliederhandel"
+    "tabMemberTrade": "Mitgliederhandel",
+    "approveAll": "Alle {count} offenen Anträge genehmigen",
+    "approveAllHint": "Verarbeitet sofort alle berechtigten Genehmigungswarteschlangen. Anträge mit nötiger Guthaben-, Bestands- oder Teilnahmeprüfung werden übersprungen.",
+    "approvingAll": "Alle werden genehmigt…",
+    "approveAllDone": "{count} Anträge genehmigt.",
+    "approveAllPartial": "{success} genehmigt · {failed} fehlgeschlagen · {skipped} übersprungen",
+    "approveAllFailed": "Die berechtigten Anträge konnten nicht verarbeitet werden.",
+    "approveAllNoEligible": "Derzeit können keine Anträge genehmigt werden.",
+    "approveAllRetryHint": "Prüfe fehlgeschlagene oder übersprungene Anträge in ihrer Warteschlange."
   },
   "adminRegearWindows": {
     "pageTitle": "Regear-Fenster öffnen",

@@ -832,7 +832,15 @@
     "tabShop": "Ordini del negozio",
     "tabEventPayout": "Paga dell'evento",
     "tabCraft": "Ordini della gilda",
-    "tabMemberTrade": "Commercio dei membri"
+    "tabMemberTrade": "Commercio dei membri",
+    "approveAll": "Approva tutte le {count} richieste in sospeso",
+    "approveAllHint": "Elabora subito le code di approvazione autorizzate. Le richieste che richiedono controlli su saldo, scorte o partecipazione vengono saltate.",
+    "approvingAll": "Approvazione in corso…",
+    "approveAllDone": "Approvate {count} richieste.",
+    "approveAllPartial": "{success} approvate · {failed} non riuscite · {skipped} saltate",
+    "approveAllFailed": "Impossibile elaborare le richieste idonee.",
+    "approveAllNoEligible": "Non ci sono richieste approvabili al momento.",
+    "approveAllRetryHint": "Controlla le richieste non riuscite o saltate nella relativa coda."
   },
   "adminRegearWindows": {
     "pageTitle": "Aperto finestre di regear",

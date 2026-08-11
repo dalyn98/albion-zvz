@@ -832,7 +832,15 @@
     "tabShop": "ショップ注文",
     "tabEventPayout": "イベント報酬",
     "tabCraft": "ギルド発注",
-    "tabMemberTrade": "個人取引"
+    "tabMemberTrade": "個人取引",
+    "approveAll": "未処理 {count} 件をすべて承認",
+    "approveAllHint": "権限のある承認キューをすぐに処理します。残高・在庫・参加確認が必要な申請はスキップします。",
+    "approvingAll": "一括承認中…",
+    "approveAllDone": "{count} 件を承認しました。",
+    "approveAllPartial": "{success} 件承認 · {failed} 件失敗 · {skipped} 件スキップ",
+    "approveAllFailed": "承認可能な申請を処理できませんでした。",
+    "approveAllNoEligible": "今すぐ承認できる申請はありません。",
+    "approveAllRetryHint": "失敗またはスキップした申請は各キューで確認してください。"
   },
   "adminRegearWindows": {
     "pageTitle": "自由リギアの受付",

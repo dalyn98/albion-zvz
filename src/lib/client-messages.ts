@@ -8,6 +8,7 @@ export const CLIENT_MESSAGE_NAMESPACES = [
   'adminAlbionHomeGuild',
   'adminAllowUnverified',
   'adminAodp',
+  'adminApprovals',
   'adminAutoRegearSlots',
   'adminBackup',
   'adminBombSquadCallerRoles',
@@ -305,6 +306,7 @@ export const APP_ROUTE_CLIENT_MESSAGE_NAMESPACES = {
   onboarding: [],
   welcomeLanguage: ['welcomeLanguage'],
   admin: [
+    'adminApprovals',
     'adminActionError',
     'adminActiveMemberRoles',
     'adminAdminNotifications',

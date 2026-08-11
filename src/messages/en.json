@@ -832,7 +832,15 @@
     "tabShop": "Shop orders",
     "tabEventPayout": "Event payout",
     "tabCraft": "Guild orders",
-    "tabMemberTrade": "Member trade"
+    "tabMemberTrade": "Member trade",
+    "approveAll": "Approve all {count} pending",
+    "approveAllHint": "Immediately processes approval queues you can manage. Requests needing balance, stock, or participation review are skipped.",
+    "approvingAll": "Approving all…",
+    "approveAllDone": "Approved {count} requests.",
+    "approveAllPartial": "{success} approved · {failed} failed · {skipped} skipped",
+    "approveAllFailed": "Could not process the eligible requests.",
+    "approveAllNoEligible": "There are no requests that can be approved right now.",
+    "approveAllRetryHint": "Review failed or skipped requests in their queue."
   },
   "adminRegearWindows": {
     "pageTitle": "Open regear windows",

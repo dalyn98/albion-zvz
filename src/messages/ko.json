@@ -757,7 +757,15 @@
     "tabShop": "상점 주문",
     "tabEventPayout": "이벤트 보상",
     "tabCraft": "길드 발주",
-    "tabMemberTrade": "개인거래"
+    "tabMemberTrade": "개인거래",
+    "approveAll": "미처리 {count}건 모두 승인",
+    "approveAllHint": "권한이 있는 승인 대기열을 즉시 처리합니다. 잔액·재고·참가 확인이 필요한 요청은 건너뜁니다.",
+    "approvingAll": "전체 승인 중…",
+    "approveAllDone": "{count}건을 승인했어요.",
+    "approveAllPartial": "{success}건 승인 · {failed}건 실패 · {skipped}건 건너뜀",
+    "approveAllFailed": "승인 가능한 요청을 처리하지 못했어요.",
+    "approveAllNoEligible": "지금 바로 승인할 수 있는 요청이 없어요.",
+    "approveAllRetryHint": "실패하거나 건너뛴 요청은 해당 대기열에서 확인해 주세요."
   },
   "adminBackup": {
     "pageTitle": "핵심 상태 복구",

@@ -832,7 +832,15 @@
     "tabShop": "Pesanan toko",
     "tabEventPayout": "Pembayaran acara",
     "tabCraft": "Perintah serikat",
-    "tabMemberTrade": "Perdagangan anggota"
+    "tabMemberTrade": "Perdagangan anggota",
+    "approveAll": "Setujui semua {count} permintaan tertunda",
+    "approveAllHint": "Langsung memproses antrean persetujuan yang dapat Anda kelola. Permintaan yang memerlukan pemeriksaan saldo, stok, atau partisipasi akan dilewati.",
+    "approvingAll": "Menyetujui semua…",
+    "approveAllDone": "{count} permintaan disetujui.",
+    "approveAllPartial": "{success} disetujui · {failed} gagal · {skipped} dilewati",
+    "approveAllFailed": "Permintaan yang memenuhi syarat tidak dapat diproses.",
+    "approveAllNoEligible": "Tidak ada permintaan yang dapat disetujui sekarang.",
+    "approveAllRetryHint": "Periksa permintaan yang gagal atau dilewati di antreannya."
   },
   "adminRegearWindows": {
     "pageTitle": "Buka periode regear",

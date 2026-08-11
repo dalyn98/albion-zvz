@@ -832,7 +832,15 @@
     "tabShop": "Заказы магазина",
     "tabEventPayout": "Выплата события",
     "tabCraft": "Приказы гильдии",
-    "tabMemberTrade": "Торговля участниками"
+    "tabMemberTrade": "Торговля участниками",
+    "approveAll": "Одобрить все ожидающие заявки ({count})",
+    "approveAllHint": "Сразу обрабатывает доступные вам очереди. Заявки, требующие проверки баланса, запасов или участия, будут пропущены.",
+    "approvingAll": "Одобрение всех заявок…",
+    "approveAllDone": "Одобрено заявок: {count}.",
+    "approveAllPartial": "Одобрено {success} · ошибок {failed} · пропущено {skipped}",
+    "approveAllFailed": "Не удалось обработать доступные заявки.",
+    "approveAllNoEligible": "Сейчас нет заявок, готовых к одобрению.",
+    "approveAllRetryHint": "Проверьте неудачные или пропущенные заявки в их очереди."
   },
   "adminRegearWindows": {
     "pageTitle": "Открыть окна регира",

@@ -53,6 +53,7 @@ import ApprovalQueuePicker, {
   type ApprovalQueueKey,
 } from '@/components/ApprovalQueuePicker'
 import { getRegearSupportConfiguration } from '@/lib/regear-support-server'
+import ApproveAllPendingButton from '@/components/ApproveAllPendingButton'
 
 type TypeKey = ApprovalQueueKey
 type Scope = 'pending' | 'all'
@@ -149,6 +150,15 @@ const APPROVAL_TAB_CAPABILITIES: Record<TypeKey, readonly bigint[]> = {
   donation: [CAP.DONATION_APPROVE],
   shop: [CAP.INVENTORY_DELIVER, CAP.INVENTORY_MANAGE],
   member_trade: [CAP.INVENTORY_DELIVER, CAP.INVENTORY_MANAGE],
+  event_payout: [CAP.EVENT_MANAGE],
+  craft: [CAP.CRAFT_TASK_DELIVER, CAP.CRAFT_MASTER],
+}
+
+const BULK_APPROVAL_CAPABILITIES: Partial<Record<TypeKey, readonly bigint[]>> = {
+  regear: [CAP.REGEAR_APPROVE, CAP.REGEAR_EDIT_PRICE, CAP.REGEAR_BULK_ACTION],
+  exchange: [CAP.EXCHANGE_APPROVE],
+  donation: [CAP.DONATION_APPROVE],
+  shop: [CAP.INVENTORY_DELIVER],
   event_payout: [CAP.EVENT_MANAGE],
   craft: [CAP.CRAFT_TASK_DELIVER, CAP.CRAFT_MASTER],
 }
@@ -261,6 +271,11 @@ export default async function ApprovalsPage({
   if (!canAccessApprovalTab(session, type)) redirect(approvalTabHref(tabs[0].key))
   const activeTab = tabs.find((tab) => tab.key === type) ?? tabs[0]
   const totalPending = tabs.reduce((sum, tab) => sum + tab.badge, 0)
+  const bulkApprovablePending = tabs.reduce((sum, tab) => {
+    const caps = BULK_APPROVAL_CAPABILITIES[tab.key]
+    if (!caps || (!session.isAdmin && !sessionHasAny(session, caps))) return sum
+    return sum + tab.badge
+  }, 0)
 
   return (
     <div className="v3-approval-workspace space-y-6">
@@ -274,6 +289,7 @@ export default async function ApprovalsPage({
             <span className="text-sm text-muted">{tApprovals('pendingTotal')}</span>
           </div>
         )}
+        actions={<ApproveAllPendingButton count={bulkApprovablePending} />}
       />
 
       <div className="grid min-w-0 gap-6 lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-8">

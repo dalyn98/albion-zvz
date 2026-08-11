@@ -832,7 +832,15 @@
     "tabShop": "Alışveriş siparişleri",
     "tabEventPayout": "Etkinlik ödemesi",
     "tabCraft": "Lonca emirleri",
-    "tabMemberTrade": "Üye ticareti"
+    "tabMemberTrade": "Üye ticareti",
+    "approveAll": "Bekleyen {count} isteğin tümünü onayla",
+    "approveAllHint": "Yetkili olduğunuz onay kuyruklarını hemen işler. Bakiye, stok veya katılım kontrolü gereken istekler atlanır.",
+    "approvingAll": "Tümü onaylanıyor…",
+    "approveAllDone": "{count} istek onaylandı.",
+    "approveAllPartial": "{success} onaylandı · {failed} başarısız · {skipped} atlandı",
+    "approveAllFailed": "Uygun istekler işlenemedi.",
+    "approveAllNoEligible": "Şu anda onaylanabilecek istek yok.",
+    "approveAllRetryHint": "Başarısız veya atlanan istekleri ilgili kuyrukta inceleyin."
   },
   "adminRegearWindows": {
     "pageTitle": "Aç regear aralıkları",

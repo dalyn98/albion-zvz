@@ -832,7 +832,15 @@
     "tabShop": "Pedidos de la tienda",
     "tabEventPayout": "Pago del evento",
     "tabCraft": "Órdenes del gremio",
-    "tabMemberTrade": "Comercio de miembros"
+    "tabMemberTrade": "Comercio de miembros",
+    "approveAll": "Aprobar las {count} solicitudes pendientes",
+    "approveAllHint": "Procesa de inmediato las colas de aprobación autorizadas. Se omiten las solicitudes que requieren revisar saldo, existencias o participación.",
+    "approvingAll": "Aprobando todo…",
+    "approveAllDone": "Se aprobaron {count} solicitudes.",
+    "approveAllPartial": "{success} aprobadas · {failed} fallidas · {skipped} omitidas",
+    "approveAllFailed": "No se pudieron procesar las solicitudes aptas.",
+    "approveAllNoEligible": "No hay solicitudes que se puedan aprobar ahora.",
+    "approveAllRetryHint": "Revisa las solicitudes fallidas u omitidas en su cola."
   },
   "adminRegearWindows": {
     "pageTitle": "Abrir ventanas de regear",
