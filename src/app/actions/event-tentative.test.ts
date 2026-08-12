@@ -7,6 +7,8 @@ const mocks = vi.hoisted(() => ({
   getSessionGuildId: vi.fn(),
   getAlbionEventAccessGateState: vi.fn(),
   revalidatePath: vi.fn(),
+  after: vi.fn(),
+  sendTentativeSlotRecommendationNotification: vi.fn(),
 }))
 
 vi.mock('@/lib/supabase-admin', () => ({
@@ -41,6 +43,15 @@ vi.mock('@/lib/albion-identity', () => ({
 
 vi.mock('next/cache', () => ({
   revalidatePath: mocks.revalidatePath,
+}))
+
+vi.mock('next/server', () => ({
+  after: mocks.after,
+}))
+
+vi.mock('@/lib/event-tentative-notifications', () => ({
+  sendTentativeSlotRecommendationNotification:
+    mocks.sendTentativeSlotRecommendationNotification,
 }))
 
 vi.mock('next-intl/server', () => ({
@@ -95,6 +106,8 @@ describe('event tentative signup management permissions', () => {
     mocks.getSessionGuildId.mockReset()
     mocks.getAlbionEventAccessGateState.mockReset()
     mocks.revalidatePath.mockReset()
+    mocks.after.mockReset()
+    mocks.sendTentativeSlotRecommendationNotification.mockReset()
   })
 
   it('lets a verified same-alliance participant submit their tentative roles', async () => {
@@ -302,7 +315,7 @@ describe('event tentative signup management permissions', () => {
     expect(calls).toEqual([
       {
         method: 'select',
-        args: ['id, created_by, status'],
+        args: ['id, title, created_by, status'],
       },
       { method: 'eq', args: ['guild_id', 'guild-1'] },
       { method: 'eq', args: ['id', 'event-1'] },
@@ -358,9 +371,11 @@ describe('event tentative signup management permissions', () => {
   it('lets an event manager recommend a tenant-scoped slot through the atomic RPC', async () => {
     const { query } = createEventQuery({
       id: 'event-1',
+      title: 'Reset day',
       created_by: 'owner-1',
       status: 'published',
     })
+    const { query: signupQuery } = createEventQuery({ recommended_slot_id: null })
     const rpc = vi.fn().mockResolvedValue({ error: null })
     mocks.getSession.mockResolvedValue({
       discordId: 'manager-1',
@@ -372,6 +387,7 @@ describe('event tentative signup management permissions', () => {
     mocks.getAdminClient.mockReturnValue({
       from: vi.fn((table: string) => {
         if (table === 'events') return query
+        if (table === 'event_tentative_signups') return signupQuery
         throw new Error(`unexpected table: ${table}`)
       }),
       rpc,
@@ -388,6 +404,47 @@ describe('event tentative signup management permissions', () => {
       p_actor_discord_id: 'manager-1',
     })
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/events/event-1')
+    expect(mocks.after).toHaveBeenCalledOnce()
+    const notify = mocks.after.mock.calls[0]?.[0] as (() => Promise<void>) | undefined
+    await notify?.()
+    expect(mocks.sendTentativeSlotRecommendationNotification).toHaveBeenCalledWith({
+      guildId: 'guild-1',
+      eventId: 'event-1',
+      eventTitle: 'Reset day',
+      discordId: 'member-1',
+      slotId: 'slot-1',
+    })
+  })
+
+  it('does not rewrite or notify when the same recommendation is selected again', async () => {
+    const { query } = createEventQuery({
+      id: 'event-1',
+      title: 'Reset day',
+      created_by: 'owner-1',
+      status: 'published',
+    })
+    const { query: signupQuery } = createEventQuery({ recommended_slot_id: 'slot-1' })
+    const rpc = vi.fn()
+    mocks.getSession.mockResolvedValue({
+      discordId: 'manager-1',
+      username: 'Manager',
+      isAdmin: true,
+    })
+    mocks.sessionHas.mockReturnValue(true)
+    mocks.getSessionGuildId.mockResolvedValue('guild-1')
+    mocks.getAdminClient.mockReturnValue({
+      from: vi.fn((table: string) =>
+        table === 'events' ? query : signupQuery,
+      ),
+      rpc,
+    })
+
+    await expect(
+      setTentativeSlotRecommendation('event-1', 'member-1', 'slot-1'),
+    ).resolves.toEqual({})
+    expect(rpc).not.toHaveBeenCalled()
+    expect(mocks.after).not.toHaveBeenCalled()
+    expect(mocks.revalidatePath).not.toHaveBeenCalled()
   })
 
   it('blocks a non-manager from recommending a slot', async () => {

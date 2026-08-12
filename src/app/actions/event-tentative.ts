@@ -3,6 +3,7 @@
 
 import { publicActionError } from '@/lib/public-action-error'
 import { revalidatePath } from 'next/cache'
+import { after } from 'next/server'
 import { getTranslations } from 'next-intl/server'
 import { getSession, sessionHas } from '@/lib/session'
 import { requireCurrentMutationSession, requireLiveSession } from '@/lib/auth'
@@ -17,6 +18,7 @@ import {
   type TentativeSignupRow,
 } from '@/lib/event-tentative-signups'
 import { isAlbionMemberVerificationSubject } from '@/lib/member-albion-access'
+import { sendTentativeSlotRecommendationNotification } from '@/lib/event-tentative-notifications'
 export type { TentativeSignupRow } from '@/lib/event-tentative-signups'
 
 function recommendationActionError(
@@ -39,6 +41,7 @@ async function ensureEventBelongsToGuild(
       ok: true
       event: {
         id: string
+        title: string
         created_by: string | null
       }
     }
@@ -48,7 +51,7 @@ async function ensureEventBelongsToGuild(
   const db = getAdminClient()
   const { data, error } = await db
     .from('events')
-    .select('id, created_by, status')
+    .select('id, title, created_by, status')
     .eq('guild_id', guildId)
     .eq('id', eventId)
     .maybeSingle()
@@ -61,6 +64,7 @@ async function ensureEventBelongsToGuild(
     ok: true,
     event: {
       id: data.id,
+      title: data.title,
       created_by: data.created_by ?? null,
     },
   }
@@ -248,6 +252,24 @@ export async function setTentativeSlotRecommendation(
   if (!trimmedDiscordId) return { error: tAction('memberRequired') }
 
   const db = getAdminClient()
+  const { data: currentSignup, error: currentSignupError } = await db
+    .from('event_tentative_signups')
+    .select('recommended_slot_id')
+    .eq('guild_id', guildId)
+    .eq('event_id', eventId)
+    .eq('discord_id', trimmedDiscordId)
+    .maybeSingle()
+  if (currentSignupError) {
+    return {
+      error: await publicActionError(
+        currentSignupError,
+        'actions/event-tentative-recommendation-current',
+      ),
+    }
+  }
+  if (!currentSignup) return { error: tAction('signupNotFound') }
+  if ((currentSignup.recommended_slot_id ?? null) === slotId) return {}
+
   const { error } = await db.rpc('set_event_tentative_slot_recommendation', {
     p_guild_id: guildId,
     p_event_id: eventId,
@@ -266,6 +288,17 @@ export async function setTentativeSlotRecommendation(
 
   revalidatePath(`/events/${eventId}`)
   revalidatePath(`/admin/dashboard/events/${eventId}`)
+  if (slotId) {
+    after(() =>
+      sendTentativeSlotRecommendationNotification({
+        guildId,
+        eventId,
+        eventTitle: event.title,
+        discordId: trimmedDiscordId,
+        slotId,
+      }),
+    )
+  }
   return {}
 }
 

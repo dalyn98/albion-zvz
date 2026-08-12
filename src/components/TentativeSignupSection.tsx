@@ -23,6 +23,7 @@ import MemberAvatar from './MemberAvatar'
 import MemberLink from './MemberLink'
 import { useConfirm } from '@/components/ConfirmDialog'
 import { useToast } from './ToastProvider'
+import TentativeSlotRecommendationPicker from './TentativeSlotRecommendationPicker'
 
 interface DirectoryMember {
   discord_id: string
@@ -528,8 +529,6 @@ function RowItem({
 }) {
   const [pending, startTransition] = useTransition()
   const askConfirm = useConfirm()
-  const locale = useLocale() as Locale
-  const { getLocalizedItemName } = useItemNameResolver(locale)
   const matchingSlots = slotOptions.filter((slot) =>
     row.possible_roles.includes(slot.roleName),
   )
@@ -600,36 +599,13 @@ function RowItem({
       </div>
       <div className="flex flex-shrink-0 items-center justify-end gap-1.5">
         {canRecommend && (
-          <select
-            value={row.recommended_slot_id ?? ''}
-            onChange={(event) => recommend(event.target.value)}
+          <TentativeSlotRecommendationPicker
+            value={row.recommended_slot_id}
+            options={matchingSlots}
+            memberName={row.username}
             disabled={pending}
-            aria-label={t('recommendationSelectLabel', { name: row.username })}
-            className="h-10 min-w-0 flex-1 rounded-lg border border-violet-400/40 bg-gray-950 px-2 text-xs font-semibold tabular-nums text-gray-100 outline-none [color-scheme:dark] transition-colors hover:border-violet-300/60 focus:border-violet-300 focus:ring-2 focus:ring-violet-400/20 disabled:opacity-50 sm:max-w-56"
-          >
-            <option value="" className="bg-gray-950 text-gray-100">
-              {t('recommendationNone')}
-            </option>
-            {matchingSlots.length === 0 && (
-              <option value="" disabled className="bg-gray-950 text-gray-500">
-                {t('recommendationNoMatchingSlots')}
-              </option>
-            )}
-            {matchingSlots.map((slot) => (
-              <option
-                key={slot.id}
-                value={slot.id}
-                className="bg-gray-950 text-gray-100"
-              >
-                {recommendationOptionLabel(
-                  slot,
-                  tRole,
-                  locale,
-                  getLocalizedItemName,
-                )}
-              </option>
-            ))}
-          </select>
+            onChange={recommend}
+          />
         )}
         {canManage && (
           <button
