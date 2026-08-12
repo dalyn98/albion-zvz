@@ -1,9 +1,10 @@
 'use client'
 
 import { useMemo, useState, useTransition } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
-import { ClipboardList, Plus, Pencil, X, Check, LogIn, Loader2, Search, Sparkles, UserPlus } from 'lucide-react'
+import { BellOff, BellRing, ClipboardList, Plus, Pencil, X, Check, LogIn, Loader2, Search, Sparkles, UserPlus } from 'lucide-react'
 import {
   submitMyTentativeSignup,
   removeTentativeSignup,
@@ -51,6 +52,15 @@ interface Props {
   // 멤버 페이지에서는 비워서(빈 배열) 어드민 추가 폼이 안 뜨게 한다.
   memberDirectory?: DirectoryMember[]
   interactionMode?: 'live' | 'demo'
+  // 본인 행에만 전달한다. 관리자 화면에는 전달하지 않아 다른 멤버의 개인
+  // 알림 설정이 노출되지 않도록 한다.
+  currentViewerDmEnabled?: boolean | null
+  currentViewerDmLabels?: {
+    title: string
+    enabled: string
+    enable: string
+    settings: string
+  } | null
 }
 
 export default function TentativeSignupSection({
@@ -68,6 +78,8 @@ export default function TentativeSignupSection({
   recommendationClosed,
   memberDirectory = [],
   interactionMode = 'live',
+  currentViewerDmEnabled = null,
+  currentViewerDmLabels = null,
 }: Props) {
   const t = useTranslations('eventTentative')
   const tRole = useTranslations('slotRole')
@@ -120,6 +132,8 @@ export default function TentativeSignupSection({
         toast={toast}
         router={router}
         isDemo={isDemo}
+        currentViewerDmEnabled={currentViewerDmEnabled}
+        currentViewerDmLabels={currentViewerDmLabels}
       />
 
       {others.length > 0 && (
@@ -183,6 +197,8 @@ interface SelfRowProps {
   toast: ReturnType<typeof useToast>
   router: ReturnType<typeof useRouter>
   isDemo: boolean
+  currentViewerDmEnabled: boolean | null
+  currentViewerDmLabels: NonNullable<Props['currentViewerDmLabels']> | null
 }
 
 function SelfRow({
@@ -203,6 +219,8 @@ function SelfRow({
   toast,
   router,
   isDemo,
+  currentViewerDmEnabled,
+  currentViewerDmLabels,
 }: SelfRowProps) {
   const [editing, setEditing] = useState(false)
   const [pending, startTransition] = useTransition()
@@ -257,6 +275,8 @@ function SelfRow({
         slotOptions={slotOptions}
         t={t}
         tRole={tRole}
+        currentViewerDmEnabled={currentViewerDmEnabled}
+        currentViewerDmLabels={currentViewerDmLabels}
       />
     )
   }
@@ -339,6 +359,8 @@ function SelfRow({
           slotOptions={slotOptions}
           t={t}
           tRole={tRole}
+          currentViewerDmEnabled={currentViewerDmEnabled}
+          currentViewerDmLabels={currentViewerDmLabels}
         />
         <div className="flex items-center gap-1.5">
           <button
@@ -440,12 +462,16 @@ function SelfDisplay({
   slotOptions,
   t,
   tRole,
+  currentViewerDmEnabled,
+  currentViewerDmLabels,
 }: {
   myRow: TentativeSignupRow
   avatar: string | null
   slotOptions: TentativeSlotRecommendationOption[]
   t: ReturnType<typeof useTranslations<'eventTentative'>>
   tRole: ReturnType<typeof useTranslations<'slotRole'>>
+  currentViewerDmEnabled: boolean | null
+  currentViewerDmLabels: NonNullable<Props['currentViewerDmLabels']> | null
 }) {
   return (
     <div className="min-w-0 flex items-center gap-2 flex-wrap">
@@ -463,10 +489,42 @@ function SelfDisplay({
         t={t}
         tRole={tRole}
       />
+      {myRow.recommended_slot_id && currentViewerDmEnabled !== null && currentViewerDmLabels && (
+        <RecommendationNotificationShortcut
+          enabled={currentViewerDmEnabled}
+          labels={currentViewerDmLabels}
+        />
+      )}
       {myRow.notes && (
         <span className="text-[11px] text-gray-400 italic">&quot;{myRow.notes}&quot;</span>
       )}
     </div>
+  )
+}
+
+function RecommendationNotificationShortcut({
+  enabled,
+  labels,
+}: {
+  enabled: boolean
+  labels: NonNullable<Props['currentViewerDmLabels']>
+}) {
+  return (
+    <Link
+      href="/me/settings#discord-dm"
+      className={`inline-flex min-h-10 basis-full items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold transition-[background-color,border-color,color,transform] active:scale-[0.96] sm:basis-auto ${
+        enabled
+          ? 'border-emerald-500/35 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/15'
+          : 'border-amber-500/40 bg-amber-500/10 text-amber-100 hover:bg-amber-500/20'
+      }`}
+      aria-label={`${labels.title}: ${enabled ? labels.enabled : labels.enable}`}
+    >
+      {enabled ? <BellRing size={14} /> : <BellOff size={14} />}
+      <span>{enabled ? labels.enabled : labels.enable}</span>
+      <span className={enabled ? 'text-emerald-300/70' : 'text-amber-200/70'}>
+        · {labels.settings}
+      </span>
+    </Link>
   )
 }
 
@@ -476,12 +534,16 @@ function ReadOnlySelfRow({
   slotOptions,
   t,
   tRole,
+  currentViewerDmEnabled,
+  currentViewerDmLabels,
 }: {
   myRow: TentativeSignupRow
   avatar: string | null
   slotOptions: TentativeSlotRecommendationOption[]
   t: ReturnType<typeof useTranslations<'eventTentative'>>
   tRole: ReturnType<typeof useTranslations<'slotRole'>>
+  currentViewerDmEnabled: boolean | null
+  currentViewerDmLabels: NonNullable<Props['currentViewerDmLabels']> | null
 }) {
   return (
     <div className="bg-amber-500/5 border border-amber-500/30 rounded-lg px-3 py-2.5">
@@ -491,6 +553,8 @@ function ReadOnlySelfRow({
         slotOptions={slotOptions}
         t={t}
         tRole={tRole}
+        currentViewerDmEnabled={currentViewerDmEnabled}
+        currentViewerDmLabels={currentViewerDmLabels}
       />
     </div>
   )

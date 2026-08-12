@@ -5,6 +5,8 @@ const mocks = vi.hoisted(() => ({
   sendLocalizedDiscordDmToUser: vi.fn(),
   logError: vi.fn(),
   logWarn: vi.fn(),
+  getTenantDiscordConfig: vi.fn(),
+  tenantUrl: vi.fn(),
 }))
 
 vi.mock('@/lib/supabase-admin', () => ({
@@ -22,10 +24,20 @@ vi.mock('@/lib/log', () => ({
   },
 }))
 
+vi.mock('@/lib/tenant', () => ({
+  getTenantDiscordConfig: mocks.getTenantDiscordConfig,
+}))
+
+vi.mock('@/lib/tenant-resolver', () => ({
+  tenantUrl: mocks.tenantUrl,
+}))
+
 vi.mock('next-intl/server', () => ({
   getTranslations: vi.fn(async () => (key: string, values?: { slot?: string }) => {
     if (key === 'recommendationSaved') return '권장 슬롯을 전달했습니다.'
     if (key === 'recommendationBadge') return `권장 · ${values?.slot}`
+    if (key === 'events') return '이벤트'
+    if (key === 'settings') return '설정'
     return key
   }),
 }))
@@ -47,6 +59,12 @@ describe('tentative slot recommendation notifications', () => {
     mocks.sendLocalizedDiscordDmToUser.mockReset()
     mocks.logError.mockReset()
     mocks.logWarn.mockReset()
+    mocks.getTenantDiscordConfig.mockReset()
+    mocks.tenantUrl.mockReset()
+    mocks.getTenantDiscordConfig.mockResolvedValue({ slug: 'menhera' })
+    mocks.tenantUrl.mockImplementation((slug: string, path: string) => (
+      `https://${slug}.example${path}`
+    ))
   })
 
   it('sends a localized Discord DM with the event and human-readable slot label', async () => {
@@ -77,7 +95,16 @@ describe('tentative slot recommendation notifications', () => {
         expect(payload).toEqual({
           title: '권장 슬롯을 전달했습니다.',
           body: 'Reset day\n권장 · 1-7 (브림스톤 스태프)',
-          url: '/events/event-1',
+          actions: [
+            {
+              label: '이벤트',
+              url: 'https://menhera.example/events/event-1',
+            },
+            {
+              label: '설정',
+              url: 'https://menhera.example/me/settings#discord-dm',
+            },
+          ],
         })
         return { attempted: 1, succeeded: 1 }
       },
@@ -98,6 +125,7 @@ describe('tentative slot recommendation notifications', () => {
     )
     expect(query.eq).toHaveBeenCalledWith('guild_id', 'guild-1')
     expect(query.eq).toHaveBeenCalledWith('parties.event_id', 'event-1')
+    expect(mocks.tenantUrl).toHaveBeenCalledWith('menhera', '/me/settings#discord-dm')
   })
 
   it('does not attempt a DM when the selected slot can no longer be loaded', async () => {

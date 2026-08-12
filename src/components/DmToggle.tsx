@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Bell, BellOff, BellRing } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { useRouter } from 'next/navigation'
 import { getMyDmPreference, setMyDmPreference } from '@/app/actions/notifications'
 import { useToast } from './ToastProvider'
 
@@ -18,6 +19,7 @@ interface Props {
 export default function DmToggle({ initialEnabled }: Props) {
   const t = useTranslations('discordDm')
   const toast = useToast()
+  const router = useRouter()
   const [status, setStatus] = useState<Status>(initialEnabled ? 'on' : 'off')
 
   useEffect(() => {
@@ -43,10 +45,15 @@ export default function DmToggle({ initialEnabled }: Props) {
     } else {
       toast.info(t('disabledMessage'))
     }
+    // 카테고리·시간대 설정의 masterEnabled 도 즉시 같은 상태를 반영한다.
+    router.refresh()
   }
 
   return (
-    <section className="bg-gray-900 border border-gray-800 rounded-lg px-4 py-4 space-y-3">
+    <section
+      id="discord-dm"
+      className="scroll-mt-24 space-y-3 rounded-lg border border-gray-800 bg-gray-900 px-4 py-4 transition-[border-color,box-shadow] target:border-amber-400/60 target:ring-2 target:ring-amber-400/20"
+    >
       <div className="flex items-center gap-2">
         <Bell size={16} className="text-amber-400" />
         <h2 className="text-sm font-semibold text-white">{t('title')}</h2>
@@ -57,7 +64,7 @@ export default function DmToggle({ initialEnabled }: Props) {
         <button
           type="button"
           onClick={() => update(true)}
-          className="inline-flex items-center gap-2 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-200 text-xs font-semibold px-3 py-2 rounded-lg"
+          className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/20 px-3 py-2 text-xs font-semibold text-amber-200 transition-[background-color,transform] hover:bg-amber-500/30 active:scale-[0.96]"
         >
           <Bell size={13} />
           {t('enableButton')}
@@ -83,7 +90,7 @@ export default function DmToggle({ initialEnabled }: Props) {
           <button
             type="button"
             onClick={() => update(false)}
-            className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-rose-300 font-semibold"
+            className="inline-flex min-h-10 items-center gap-1 rounded-lg px-2 text-xs font-semibold text-gray-400 transition-[color,transform] hover:text-rose-300 active:scale-[0.96]"
           >
             <BellOff size={12} />
             {t('disableButton')}

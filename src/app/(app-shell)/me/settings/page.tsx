@@ -15,7 +15,7 @@ export const dynamic = 'force-dynamic'
 export default async function MySettingsPage() {
   const session = await getSession()
   if (!session) {
-    redirect('/login?returnTo=%2Fme%2Fsettings')
+    redirect('/login?returnTo=%2Fme%2Fsettings%23discord-dm')
   }
 
   const t = await getTranslations('mySettings')

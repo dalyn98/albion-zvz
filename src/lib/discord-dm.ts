@@ -52,9 +52,27 @@ export interface DiscordDmPayload {
   body: string
   // 상대 경로면 APP_URL 을 앞에 붙이고, 절대 URL 이면 그대로 사용.
   url?: string
+  // Discord 링크 버튼. 인증 토큰이 든 URL 은 embed URL 로 넣으면 unfurl 요청에
+  // 소비될 수 있으므로 actions 로 전달해 버튼으로만 노출한다.
+  actions?: DiscordDmAction[]
   // Stable logical-delivery nonce. Discord rejects a recent duplicate when
   // enforce_nonce is enabled, closing the worker-crash retry gap.
   deliveryNonce?: string
+}
+
+export interface DiscordDmAction {
+  label: string
+  url: string
+}
+
+export interface DiscordDmActionRow {
+  type: 1
+  components: Array<{
+    type: 2
+    style: 5
+    label: string
+    url: string
+  }>
 }
 
 function getBotToken(): string | null {
@@ -69,6 +87,31 @@ function getAppUrl(): string {
 
 export function isDiscordDmConfigured(): boolean {
   return !!process.env.DISCORD_BOT_TOKEN && !!process.env.APP_URL
+}
+
+function resolveDiscordDmUrl(rawUrl: string, appUrl: string): string | null {
+  try {
+    const url = new URL(rawUrl, `${appUrl.replace(/\/$/, '')}/`)
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') return null
+    return url.toString()
+  } catch {
+    return null
+  }
+}
+
+export function buildDiscordDmActionRows(
+  actions: readonly DiscordDmAction[] | undefined,
+  appUrl: string,
+): DiscordDmActionRow[] {
+  const buttons = (actions ?? [])
+    .flatMap((action) => {
+      const label = action.label.trim().slice(0, 80)
+      const url = resolveDiscordDmUrl(action.url, appUrl)
+      if (!label || !url) return []
+      return [{ type: 2 as const, style: 5 as const, label, url }]
+    })
+    .slice(0, 5)
+  return buttons.length > 0 ? [{ type: 1, components: buttons }] : []
 }
 
 // 입력받은 Discord ID 들 중 해당 tenant(guildId) 에서 discord_dm_enabled = true 인
@@ -147,11 +190,9 @@ async function postDmMessage(
   channelId: string,
   payload: DiscordDmPayload,
 ): Promise<boolean> {
-  const embedUrl = payload.url
-    ? payload.url.startsWith('http')
-      ? payload.url
-      : `${getAppUrl()}${payload.url}`
-    : undefined
+  const appUrl = payload.url || payload.actions?.length ? getAppUrl() : ''
+  const embedUrl = payload.url ? resolveDiscordDmUrl(payload.url, appUrl) ?? undefined : undefined
+  const components = buildDiscordDmActionRows(payload.actions, appUrl)
   const embed = {
     title: payload.title,
     description: payload.body,
@@ -168,6 +209,7 @@ async function postDmMessage(
     },
     body: JSON.stringify({
       embeds: [embed],
+      ...(components.length > 0 ? { components } : {}),
       ...(payload.deliveryNonce
         ? { nonce: payload.deliveryNonce, enforce_nonce: true }
         : {}),

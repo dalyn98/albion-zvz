@@ -8,6 +8,8 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { formatTentativeSlotRecommendationLabel } from '@/lib/event-tentative-recommendation'
 import type { TentativeSlotRecommendationOption } from '@/lib/event-tentative-signups'
+import { getTenantDiscordConfig } from '@/lib/tenant'
+import { tenantUrl } from '@/lib/tenant-resolver'
 
 interface RecommendationNotificationInput {
   guildId: string
@@ -85,8 +87,25 @@ export async function sendTentativeSlotRecommendationNotification({
   }
 
   try {
+    const tenant = await getTenantDiscordConfig(guildId)
+    if (!tenant) {
+      log.warn('[event-tentative] recommendation notification tenant missing', {
+        guild_id: guildId,
+        event_id: eventId,
+        discord_id: discordId,
+      })
+      return
+    }
+    // 알림은 늦게 열 수도 있으므로 5분짜리 one-time 로그인 URL 대신 만료되지
+    // 않는 tenant URL 을 쓴다. 미로그인 상태면 각 페이지의 기존 로그인 흐름이
+    // 원래 목적지로 돌려보낸다.
+    const eventUrl = tenantUrl(tenant.slug, `/events/${eventId}`)
+    const settingsUrl = tenantUrl(tenant.slug, '/me/settings#discord-dm')
     await sendLocalizedDiscordDmToUser(discordId, guildId, async (_tDm, locale) => {
-      const tEvent = await getTranslations({ locale, namespace: 'eventTentative' })
+      const [tEvent, tNav] = await Promise.all([
+        getTranslations({ locale, namespace: 'eventTentative' }),
+        getTranslations({ locale, namespace: 'nav' }),
+      ])
       const weaponName = stripLocalizedTierName(
         getLocalizedItemName(slot.weaponId, locale, slot.weaponName),
         locale,
@@ -95,7 +114,10 @@ export async function sendTentativeSlotRecommendationNotification({
       return {
         title: tEvent('recommendationSaved'),
         body: `${eventTitle}\n${tEvent('recommendationBadge', { slot: slotLabel })}`,
-        url: `/events/${eventId}`,
+        actions: [
+          { label: tNav('events'), url: eventUrl },
+          { label: tNav('settings'), url: settingsUrl },
+        ],
       }
     })
   } catch (error) {

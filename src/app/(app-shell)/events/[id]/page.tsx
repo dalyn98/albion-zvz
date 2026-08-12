@@ -768,6 +768,43 @@ export default async function EventDetailPage({
   const myTentative = interactionSession
     ? tentativeRows.find((row) => row.discord_id === interactionSession.discordId) ?? null
     : null
+  let currentViewerDmEnabled: boolean | null = null
+  let currentViewerDmLabels: {
+    title: string
+    enabled: string
+    enable: string
+    settings: string
+  } | null = null
+  if (
+    myTentative?.recommended_slot_id &&
+    interactionSession &&
+    !interactionSession.isGuest &&
+    interactionSession.isLocalGuildAccount !== true
+  ) {
+    const [
+      { data: ownDmPreference, error: ownDmPreferenceError },
+      tDm,
+      tNav,
+    ] = await Promise.all([
+      db
+        .from('guild_avatars')
+        .select('discord_dm_enabled')
+        .eq('guild_id', guildId)
+        .eq('discord_id', interactionSession.discordId)
+        .maybeSingle(),
+      getTranslations('discordDm'),
+      getTranslations('nav'),
+    ])
+    if (!ownDmPreferenceError && ownDmPreference) {
+      currentViewerDmEnabled = ownDmPreference.discord_dm_enabled ?? false
+      currentViewerDmLabels = {
+        title: tDm('title'),
+        enabled: tDm('enabledBadge'),
+        enable: tDm('enableButton'),
+        settings: tNav('settings'),
+      }
+    }
+  }
   const myTentativeRoleNames =
     myTentative?.possible_roles.map((role) => translateSlotRole(role, tRole)).filter(Boolean) ?? []
   const myStatusTone: EventMyStatusTone = !interactionSession
@@ -1048,6 +1085,8 @@ export default async function EventDetailPage({
             event.battle_started_at ||
             event.tentative_snapshot_version_id,
           )}
+          currentViewerDmEnabled={currentViewerDmEnabled}
+          currentViewerDmLabels={currentViewerDmLabels}
         />
 
         <BoardSurface id="event-slots" data-tour-id="member-tour-event-detail" className="scroll-mt-20 p-3 sm:p-4">
