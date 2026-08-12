@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   sendLocalizedDiscordDmToUser: vi.fn(),
   autoTrackSuffixesFromItemIds: vi.fn(),
   sendAdminNotification: vi.fn(),
+  getAdminNotificationTranslations: vi.fn(),
   syncDiscordAdminApprovalNotification: vi.fn(),
   resolveStableMemberOwnership: vi.fn(),
 }))
@@ -50,6 +51,7 @@ vi.mock('@/lib/inventory', () => ({
 
 vi.mock('@/lib/admin-notifications', () => ({
   sendAdminNotification: mocks.sendAdminNotification,
+  getAdminNotificationTranslations: mocks.getAdminNotificationTranslations,
 }))
 
 vi.mock('@/lib/discord-admin-approvals', () => ({

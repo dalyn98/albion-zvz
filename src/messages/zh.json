@@ -2354,6 +2354,8 @@
   "adminAdminNotifications": {
     "title": "管理员运营通知",
     "description": "仅运营者可见的内部通知，不会展示给普通成员。它与活动公告分离，只发送待审批和运营异常。",
+    "languageLabel": "公会运营语言",
+    "languageHint": "用于共享 Discord 运营通知、摘要和审批按钮，不会更改个人网站界面或私信语言。",
     "enabledLabel": "启用管理员通知",
     "enabledHint": "启用后，所选项目发生时会发送到管理员频道。",
     "channelLabel": "管理员通知频道",

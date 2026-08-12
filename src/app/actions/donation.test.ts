@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   validateImageUploadFile: vi.fn(),
   revalidatePath: vi.fn(),
   sendAdminNotification: vi.fn(),
+  getAdminNotificationTranslations: vi.fn(),
 }))
 
 vi.mock('@/lib/session', () => ({
@@ -36,6 +37,7 @@ vi.mock('@/lib/image-upload', () => ({
 
 vi.mock('@/lib/admin-notifications', () => ({
   sendAdminNotification: mocks.sendAdminNotification,
+  getAdminNotificationTranslations: mocks.getAdminNotificationTranslations,
 }))
 
 vi.mock('next/cache', () => ({

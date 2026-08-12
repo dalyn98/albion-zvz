@@ -10,7 +10,10 @@ import { requireCurrentMutationSession } from '@/lib/auth'
 import { getSessionGuildId } from '@/lib/tenant'
 import { requireAlbionVerified } from '@/lib/albion-identity'
 import { isLocalGuildAccountRestrictedFromResources } from '@/lib/local-guild-account'
-import { sendAdminNotification } from '@/lib/admin-notifications'
+import {
+  getAdminNotificationTranslations,
+  sendAdminNotification,
+} from '@/lib/admin-notifications'
 import { validateImageUploadFile } from '@/lib/image-upload'
 import { isPostgresPositiveInt } from '@/lib/postgres-int'
 import { parsePositiveSafeInt } from '@/lib/parse-bounded-int'
@@ -62,7 +65,6 @@ export async function requestDonation(
   formData: FormData,
 ): Promise<{ error?: string; id?: string }> {
   const tErr = await getTranslations('memberActionError')
-  const tAdminNotify = await getTranslations('adminNotificationMessages')
   const session = await requireCurrentMutationSession().catch(() => null)
   if (!session) return { error: tErr('loginRequired') }
   if (!session.isMember) return { error: tErr('memberOnly') }
@@ -123,6 +125,7 @@ export async function requestDonation(
   revalidatePath('/me')
   revalidatePath('/admin/dashboard/donations')
   revalidatePath('/', 'layout')
+  const { t: tAdminNotify } = await getAdminNotificationTranslations(guildId)
   void sendAdminNotification({
     guildId,
     topic: 'donation',

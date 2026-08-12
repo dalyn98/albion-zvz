@@ -48,7 +48,10 @@ import {
   isOverchargeVideoProofMissing,
   shouldListManualRegearEligibleEvent,
 } from '@/lib/regear-request-policy'
-import { sendAdminNotification } from '@/lib/admin-notifications'
+import {
+  getAdminNotificationTranslations,
+  sendAdminNotification,
+} from '@/lib/admin-notifications'
 import { validateImageUploadFile } from '@/lib/image-upload'
 import {
   buildManualRegearEligibilityRoleMap,
@@ -345,7 +348,6 @@ async function requestRegearInner(
   const tErr = await getTranslations('memberActionError')
   const tKillboard = await getTranslations('killboardVerify')
   const tRegear = await getTranslations('regear')
-  const tAdminNotify = await getTranslations('adminNotificationMessages')
   const session = await requireCurrentMutationSession().catch(() => null)
   if (!session) return { error: tErr('loginRequired') }
   const eventId = String(formData.get('eventId') ?? '')
@@ -923,6 +925,7 @@ async function requestRegearInner(
   revalidatePath('/admin/dashboard/regear')
   revalidatePath('/me')
   revalidatePath('/', 'layout')
+  const { t: tAdminNotify } = await getAdminNotificationTranslations(guildId)
   void sendAdminNotification({
     guildId,
     topic: 'regear',

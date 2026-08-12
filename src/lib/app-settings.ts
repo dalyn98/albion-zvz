@@ -324,6 +324,7 @@ export type AppSettingKey =
   | 'admin_notification_role_ids'
   | 'admin_notification_topics'
   | 'admin_notification_digest_minutes'
+  | 'admin_notification_locale'
   | 'last_admin_notification_digest_at'
   // Discord member guide dashboard-managed panel draft + last published
   // message. Draft channel/message are intentionally separate from last

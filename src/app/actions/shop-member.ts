@@ -14,7 +14,11 @@ import { computePointPrice, parseShopDiscountRate } from '@/lib/shop/price'
 import { getAppSetting } from '@/lib/app-settings'
 import { getMemberSpendablePointBalance } from '@/lib/point-ledger'
 import { isLocalGuildAccountRestrictedFromResources } from '@/lib/local-guild-account'
-import { sendAdminNotification } from '@/lib/admin-notifications'
+import {
+  getAdminNotificationTranslations,
+  sendAdminNotification,
+} from '@/lib/admin-notifications'
+import { getLocalizedItemName } from '@/lib/item-names'
 import { canonicalShopQuality } from '@/lib/shop/quality'
 import { revalidatePublicShopCache } from '@/lib/shop/cache'
 import {
@@ -394,7 +398,6 @@ export async function submitShopOrder(
   idempotencyKey?: string,
 ): Promise<SubmitOrderResult> {
   const tErr = await getTranslations('memberActionError')
-  const tAdminNotify = await getTranslations('adminNotificationMessages')
   try {
     const session = await requireCurrentMutationSession().catch(() => null)
     if (!session) return { ok: false, error: tErr('loginRequired') }
@@ -428,10 +431,17 @@ export async function submitShopOrder(
     revalidatePath('/me')
     revalidatePath('/admin/dashboard/approvals')
     revalidatePath('/', 'layout')
+    const { locale: notificationLocale, t: tAdminNotify } =
+      await getAdminNotificationTranslations(guildId)
     const visibleOrderLines = orderLines.slice(0, SHOP_ADMIN_NOTIFICATION_ITEM_LIMIT)
     const itemSummaryLines = visibleOrderLines.map((line) => {
+      const localizedName = getLocalizedItemName(
+        line.uniqueName,
+        notificationLocale,
+        line.nameKo,
+      ) ?? line.nameKo
       const item = compactText(
-        line.enchant > 0 ? `${line.nameKo} .${line.enchant}` : line.nameKo,
+        line.enchant > 0 ? `${localizedName} .${line.enchant}` : localizedName,
         SHOP_ADMIN_NOTIFICATION_ITEM_NAME_MAX,
       )
       return tAdminNotify('shopItemLine', {

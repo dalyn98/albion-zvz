@@ -34,6 +34,8 @@ import {
 } from '@/lib/discord-interactions'
 import type { AdminNotificationTopic } from '@/lib/admin-notification-topics'
 import { resolveSupportedLocale, type Locale } from '@/i18n/locales'
+import { getAppSetting } from '@/lib/app-settings'
+import { parseAdminNotificationLocale } from '@/lib/admin-notification-locale'
 
 const CUSTOM_ID_PREFIX = 'agm_admin:v1'
 const REJECT_NOTE_INPUT_ID = 'note'
@@ -512,7 +514,10 @@ export async function syncDiscordAdminApprovalNotification(input: {
   fallbackChannelId?: string
 }): Promise<void> {
   try {
-    const messages = await loadDiscordAdminApprovalMessages()
+    const locale = parseAdminNotificationLocale(
+      await getAppSetting('admin_notification_locale', 'ko', input.actor.guildId),
+    )
+    const messages = await loadDiscordAdminApprovalMessages(locale)
     const status = resolutionStatus(input.resolution, messages)
     const db = getAdminClient()
     const topic = KIND_TOPICS[input.kind]

@@ -18,7 +18,6 @@
 // 반려할 수도 있다.
 
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { getTranslations } from 'next-intl/server'
 import {
   fetchAodpPrices,
   loadAodpOptions,
@@ -43,7 +42,10 @@ import {
   type AlbionIdentityRelation,
   type AlbionIdentityTrustStatus,
 } from '@/lib/account-albion-identity'
-import { sendAdminNotification } from '@/lib/admin-notifications'
+import {
+  getAdminNotificationTranslations,
+  sendAdminNotification,
+} from '@/lib/admin-notifications'
 import { craftRegearSlots } from '@/lib/regear-craft-slots'
 import {
   parseRegearPolicySnapshot,
@@ -678,7 +680,7 @@ export async function processAutoRegear(
   let skippedNonCombat = 0
   let skippedRegearDisabled = 0
   let processed = 0
-  const tAdminNotify = await getTranslations({ locale: 'ko', namespace: 'adminNotificationMessages' })
+  const { t: tAdminNotify } = await getAdminNotificationTranslations(guildId)
 
   for (const event of eventRows) {
     try {

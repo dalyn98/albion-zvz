@@ -2354,6 +2354,8 @@
   "adminAdminNotifications": {
     "title": "Alertas de operaciones de administración",
     "description": "Alertas solo para operadores que no se muestran a los miembros del gremio. Mantienen las aprobaciones pendientes y los problemas operativos separados de los anuncios de eventos.",
+    "languageLabel": "Idioma operativo del gremio",
+    "languageHint": "Se usa en alertas operativas compartidas de Discord, resúmenes y botones de aprobación. No cambia el idioma personal del sitio ni de los mensajes directos.",
     "enabledLabel": "Habilitar alertas de administrador",
     "enabledHint": "Cuando están habilitados, los temas seleccionados se envían al canal de administración.",
     "channelLabel": "Canal de alerta de administrador",

@@ -11,7 +11,10 @@ import { getSessionGuildId } from '@/lib/tenant'
 import { requireAlbionVerified } from '@/lib/albion-identity'
 import { getMemberSpendablePointBalance } from '@/lib/point-ledger'
 import { isLocalGuildAccountRestrictedFromResources } from '@/lib/local-guild-account'
-import { sendAdminNotification } from '@/lib/admin-notifications'
+import {
+  getAdminNotificationTranslations,
+  sendAdminNotification,
+} from '@/lib/admin-notifications'
 import { isPostgresPositiveInt } from '@/lib/postgres-int'
 import {
   isSameStableMemberOwner,
@@ -32,7 +35,6 @@ export interface MyExchangeRequest {
 
 export async function requestExchange(silver: number): Promise<{ error?: string; id?: string }> {
   const tErr = await getTranslations('memberActionError')
-  const tAdminNotify = await getTranslations('adminNotificationMessages')
   const session = await requireCurrentMutationSession().catch(() => null)
   if (!session) return { error: tErr('loginRequired') }
   if (!session.isMember) return { error: tErr('memberOnly') }
@@ -82,6 +84,7 @@ export async function requestExchange(silver: number): Promise<{ error?: string;
   revalidatePath('/me')
   revalidatePath('/admin/dashboard/exchanges')
   revalidatePath('/', 'layout')
+  const { t: tAdminNotify } = await getAdminNotificationTranslations(guildId)
   void sendAdminNotification({
     guildId,
     topic: 'exchange',

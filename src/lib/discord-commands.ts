@@ -18,7 +18,10 @@ import {
   updateDiscordChannelMessage,
 } from '@/lib/discord'
 import { getAlbionOnboardingGateState } from '@/lib/albion-identity'
-import { sendAdminNotification } from '@/lib/admin-notifications'
+import {
+  getAdminNotificationTranslations,
+  sendAdminNotification,
+} from '@/lib/admin-notifications'
 import { tenantUrl } from '@/lib/tenant-resolver'
 import { isValidTenantSlug } from '@/lib/tenant-slug'
 import { type Locale } from '@/i18n/locales'
@@ -1109,15 +1112,16 @@ async function handleWithdrawRequest(
     return ephemeralReply(messages.handlerFailed)
   }
 
+  const { t: tAdminNotify } = await getAdminNotificationTranslations(tenant.id)
   void sendAdminNotification({
     guildId: tenant.id,
     topic: 'exchange',
     sourceTable: 'exchange_requests',
     sourceId: data as string,
-    title: messages.withdrawAdminNotifyTitle,
-    body: format(messages.withdrawAdminNotifyBody, {
+    title: tAdminNotify('exchangeTitle'),
+    body: tAdminNotify('exchangeBody', {
       user: loadedMember.member.username ?? getInvokerDisplayName(payload) ?? `<@${discordId}>`,
-      amount: formatPoints(amount),
+      silver: formatPoints(amount),
     }),
     url: '/admin/dashboard/approvals?tab=exchange',
   })

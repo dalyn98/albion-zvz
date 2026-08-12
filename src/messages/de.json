@@ -2354,6 +2354,8 @@
   "adminAdminNotifications": {
     "title": "Admin-Vorgänge Warnungen",
     "description": "Nur-Betreiber-Warnungen, die Gildenmitgliedern nicht angezeigt werden. Sie halten ausstehende Genehmigungen und betriebliche Probleme getrennt von Veranstaltungsankündigungen.",
+    "languageLabel": "Sprache für Gildenbetrieb",
+    "languageHint": "Wird für gemeinsame Discord-Betriebswarnungen, Zusammenfassungen und Genehmigungsschaltflächen verwendet. Persönliche Website- und DM-Sprache bleiben unverändert.",
     "enabledLabel": "Administratorwarnungen aktivieren",
     "enabledHint": "Wenn aktiviert, werden ausgewählte Themen an den Admin-Kanal gesendet.",
     "channelLabel": "Admin-Warnungskanal",

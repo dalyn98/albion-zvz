@@ -2354,6 +2354,8 @@
   "adminAdminNotifications": {
     "title": "管理者運営通知",
     "description": "ギルドメンバーには表示されない運営者専用通知です。イベント告知とは分けて、承認待ちと運営上の問題だけを送信します。",
+    "languageLabel": "ギルド運営言語",
+    "languageHint": "共有Discordの運営通知、ダイジェスト、承認ボタンに使用する言語です。個人画面やDMの言語には影響しません。",
     "enabledLabel": "管理者通知を使用",
     "enabledHint": "オンにすると、選択した項目が発生したとき管理者チャンネルへ通知します。",
     "channelLabel": "管理者通知チャンネル",

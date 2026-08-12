@@ -117,6 +117,7 @@ const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'admin_notification_role_ids',
   'admin_notification_topics',
   'admin_notification_digest_minutes',
+  'admin_notification_locale',
   'tactics_experimental_enabled',
 ] as const
 
@@ -150,7 +151,8 @@ function settingCaps(key: AppSettingKey): readonly bigint[] {
     key === 'admin_notification_channel_id' ||
     key === 'admin_notification_role_ids' ||
     key === 'admin_notification_topics' ||
-    key === 'admin_notification_digest_minutes'
+    key === 'admin_notification_digest_minutes' ||
+    key === 'admin_notification_locale'
   ) {
     return [CAP.SETTINGS_PERMISSIONS]
   }
@@ -356,6 +358,7 @@ const ENUM_VALUES: Partial<Record<AppSettingKey, readonly string[]>> = {
   guild_profile_server: ['', 'east', 'west', 'europe'] as const,
   shop_delivery_notice_image_size: NOTICE_IMAGE_SIZE_VALUES,
   siphon_accounting_mode: ['record', 'personal_custody'] as const,
+  admin_notification_locale: SUPPORTED_LOCALES,
 }
 
 // csv 직렬화 키. 콤마로 split 한 각 토큰이 화이트리스트에 들어 있어야 한다.
@@ -667,7 +670,8 @@ export async function updateAppSetting(
       key === 'admin_notification_channel_id' ||
       key === 'admin_notification_role_ids' ||
       key === 'admin_notification_topics' ||
-      key === 'admin_notification_digest_minutes'
+      key === 'admin_notification_digest_minutes' ||
+      key === 'admin_notification_locale'
     ) {
       revalidatePath('/admin/dashboard/permissions')
       revalidatePath('/admin/dashboard/settings')

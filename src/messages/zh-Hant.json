@@ -2354,6 +2354,8 @@
   "adminAdminNotifications": {
     "title": "管理員操作警報",
     "description": "不向公會成員顯示的僅限營運商的警報。 他們將待定的批准和營運問題與事件公告分開。",
+    "languageLabel": "公會營運語言",
+    "languageHint": "用於共用 Discord 營運通知、摘要與核准按鈕，不會變更個人網站介面或私訊語言。",
     "enabledLabel": "啟用管理員警報",
     "enabledHint": "啟用後，選定的主題會發送到管理員頻道。",
     "channelLabel": "管理員警報通道",

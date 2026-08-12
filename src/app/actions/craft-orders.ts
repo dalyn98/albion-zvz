@@ -16,7 +16,10 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import { sendLocalizedDiscordDmToUser } from '@/lib/discord-dm-localized'
 import { autoTrackSuffixesFromItemIds } from '@/lib/inventory'
 import { CAP } from '@/lib/permissions'
-import { sendAdminNotification } from '@/lib/admin-notifications'
+import {
+  getAdminNotificationTranslations,
+  sendAdminNotification,
+} from '@/lib/admin-notifications'
 import { syncDiscordAdminApprovalNotification } from '@/lib/discord-admin-approvals'
 import {
   isSameStableMemberOwner,
@@ -789,7 +792,6 @@ export async function deliverCraftOrderTask(
   input: DeliverCraftOrderInput,
 ): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
-  const tAdminNotify = await getTranslations('adminNotificationMessages')
   try {
     const session = await requireCurrentMutationSession().catch(() => null)
     if (!session) return { error: tErr('unauthorized') }
@@ -849,6 +851,7 @@ export async function deliverCraftOrderTask(
     const order = task?.craft_orders
       ? Array.isArray(task.craft_orders) ? task.craft_orders[0] : task.craft_orders
       : null
+    const { t: tAdminNotify } = await getAdminNotificationTranslations(guildId)
     void sendAdminNotification({
       guildId,
       topic: 'craft',

@@ -2354,6 +2354,8 @@
   "adminAdminNotifications": {
     "title": "Alertes d'opérations d'administration",
     "description": "Alertes réservées à l'opérateur qui ne sont pas affichées aux membres de la guilde. Ils gardent les approbations en attente et les problèmes opérationnels séparés des annonces d'événements.",
+    "languageLabel": "Langue des opérations de guilde",
+    "languageHint": "Utilisée pour les alertes Discord partagées, les récapitulatifs et les boutons d'approbation. Elle ne modifie pas la langue du site personnel ni des messages privés.",
     "enabledLabel": "Activer les alertes d'administrateur",
     "enabledHint": "Lorsqu'il est activé, les sujets sélectionnés sont envoyés au canal d'administration.",
     "channelLabel": "Canal d'alerte d'administrateur",

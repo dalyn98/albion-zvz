@@ -2354,6 +2354,8 @@
   "adminAdminNotifications": {
     "title": "Powiadomienia o operacjach administratora",
     "description": "Alerty tylko dla operatora, które nie są wyświetlane członkom gildii. Oddzielają oczekujące zatwierdzenia i kwestie operacyjne od ogłoszeń o wydarzeniach.",
+    "languageLabel": "Język operacyjny gildii",
+    "languageHint": "Używany we wspólnych alertach operacyjnych Discord, podsumowaniach i przyciskach zatwierdzania. Nie zmienia języka osobistej strony ani wiadomości prywatnych.",
     "enabledLabel": "Włącz alerty administratora",
     "enabledHint": "Po włączeniu wybrane tematy są wysyłane do kanału administracyjnego.",
     "channelLabel": "Kanał alertów administratora",

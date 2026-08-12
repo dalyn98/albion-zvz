@@ -130,6 +130,11 @@ const mocks = vi.hoisted(() => {
     resourceTrusted: true,
   }))
   const sendAdminNotification = vi.fn(async () => ({ sent: true }))
+  const getAdminNotificationTranslations = vi.fn(async () => ({
+    locale: 'ko',
+    t: (key: string, values?: Record<string, unknown>) =>
+      values ? `${key}:${JSON.stringify(values)}` : key,
+  }))
   const parseDiscordAppLoginCustomId = vi.fn()
   const approveDiscordBrowserAuthAttempt = vi.fn(async () => true)
   const createDiscordAppLoginLink = vi.fn(async (input: {
@@ -209,6 +214,7 @@ const mocks = vi.hoisted(() => {
     roleRewardsUpsert,
     rpc,
     sendAdminNotification,
+    getAdminNotificationTranslations,
     tenantAnyMaybeSingle,
     tenantEqGuild,
     tenantEqStatus,
@@ -263,6 +269,7 @@ vi.mock('@/lib/albion-identity', () => ({
 
 vi.mock('@/lib/admin-notifications', () => ({
   sendAdminNotification: mocks.sendAdminNotification,
+  getAdminNotificationTranslations: mocks.getAdminNotificationTranslations,
 }))
 
 vi.mock('@/lib/guild-features-server', () => ({

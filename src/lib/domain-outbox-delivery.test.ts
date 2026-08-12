@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   rpc: vi.fn(),
   from: vi.fn(),
   sendAdminNotification: vi.fn(),
+  getAdminNotificationTranslations: vi.fn(),
   sendDiscordDmToUser: vi.fn(),
   isDiscordDmConfigured: vi.fn(),
   loadDiscordDmLocale: vi.fn(),
@@ -17,6 +18,7 @@ vi.mock('@/lib/supabase-admin', () => ({
 
 vi.mock('@/lib/admin-notifications', () => ({
   sendAdminNotification: mocks.sendAdminNotification,
+  getAdminNotificationTranslations: mocks.getAdminNotificationTranslations,
 }))
 
 vi.mock('@/lib/discord-dm', () => ({

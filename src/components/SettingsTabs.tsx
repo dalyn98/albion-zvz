@@ -50,6 +50,7 @@ import {
   type GuildFeatureSnapshot,
 } from '@/lib/guild-features'
 import { resolveDiscordQuickStarterDestinations } from '@/lib/discord-quick-starter-availability'
+import type { Locale } from '@/i18n/locales'
 
 interface TabDef {
   key: SettingsTabKey
@@ -121,6 +122,7 @@ interface Props {
   adminNotificationRoleIds: string[]
   adminNotificationTopics: AdminNotificationTopic[]
   adminNotificationDigestMinutes: number
+  adminNotificationLocale: Locale
   tenantTimezone: string
   logStartShopChestAt: string
   logStartSiphonAt: string
@@ -203,6 +205,7 @@ export default function SettingsTabs({
   adminNotificationRoleIds,
   adminNotificationTopics,
   adminNotificationDigestMinutes,
+  adminNotificationLocale,
   tenantTimezone,
   logStartShopChestAt,
   logStartSiphonAt,
@@ -398,6 +401,7 @@ export default function SettingsTabs({
               initialRoleIds={adminNotificationRoleIds}
               initialTopics={adminNotificationTopics}
               initialDigestMinutes={adminNotificationDigestMinutes}
+              initialLocale={adminNotificationLocale}
             />
           </SettingsGroup>
         )}

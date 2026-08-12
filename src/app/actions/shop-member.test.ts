@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   getMemberSpendablePointBalance: vi.fn(),
   isLocalGuildAccountRestrictedFromResources: vi.fn(),
   sendAdminNotification: vi.fn(),
+  getAdminNotificationTranslations: vi.fn(),
   loadApplicationCommandReceipt: vi.fn(),
   executeApplicationCommand: vi.fn(),
   resolveStableMemberOwnership: vi.fn(),
@@ -56,6 +57,7 @@ vi.mock('@/lib/local-guild-account', () => ({
 
 vi.mock('@/lib/admin-notifications', () => ({
   sendAdminNotification: mocks.sendAdminNotification,
+  getAdminNotificationTranslations: mocks.getAdminNotificationTranslations,
 }))
 
 vi.mock('@/lib/application-command', async (importOriginal) => ({
@@ -150,14 +152,15 @@ describe('submitShopOrder', () => {
     mocks.getMemberSpendablePointBalance.mockReset()
     mocks.isLocalGuildAccountRestrictedFromResources.mockReset()
     mocks.sendAdminNotification.mockReset()
+    mocks.getAdminNotificationTranslations.mockReset()
     mocks.loadApplicationCommandReceipt.mockReset()
     mocks.executeApplicationCommand.mockReset()
     mocks.resolveStableMemberOwnership.mockReset()
 
-    mocks.getTranslations.mockResolvedValue(
-      (key: string, values?: Record<string, unknown>) =>
-        values ? `${key}:${JSON.stringify(values)}` : key,
-    )
+    const t = (key: string, values?: Record<string, unknown>) =>
+      values ? `${key}:${JSON.stringify(values)}` : key
+    mocks.getTranslations.mockResolvedValue(t)
+    mocks.getAdminNotificationTranslations.mockResolvedValue({ locale: 'ko', t })
     mocks.getSession.mockResolvedValue({
       discordId: 'member-1',
       username: 'MemberOne',

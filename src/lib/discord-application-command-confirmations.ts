@@ -50,7 +50,12 @@ import {
 } from '@/lib/event-start-application-command'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { markPublicShopCacheStale } from '@/lib/shop/cache'
-import { sendAdminNotification } from '@/lib/admin-notifications'
+import {
+  getAdminNotificationTranslations,
+  sendAdminNotification,
+} from '@/lib/admin-notifications'
+import { getLocalizedItemName } from '@/lib/item-names'
+import type { Locale } from '@/i18n/locales'
 import { log } from '@/lib/log'
 import { resolveGuildFeatureForApplicationCommand } from '@/lib/guild-features'
 import { checkGuildFeatureUse } from '@/lib/guild-features-server'
@@ -346,11 +351,20 @@ function eventInput(payload: Record<string, unknown>): EventStartCommandInput | 
 }
 
 function shopItemSummary(
-  lines: readonly { nameKo: string; enchant: number; quantity: number }[],
+  lines: readonly {
+    uniqueName: string
+    nameKo: string
+    enchant: number
+    quantity: number
+  }[],
+  locale?: Locale,
 ): string {
-  const visible = lines.slice(0, 3).map((line) =>
-    `${line.nameKo}${line.enchant > 0 ? ` .${line.enchant}` : ''} × ${formatNumber(line.quantity)}`
-  )
+  const visible = lines.slice(0, 3).map((line) => {
+    const name = locale
+      ? getLocalizedItemName(line.uniqueName, locale, line.nameKo) ?? line.nameKo
+      : line.nameKo
+    return `${name}${line.enchant > 0 ? ` .${line.enchant}` : ''} × ${formatNumber(line.quantity)}`
+  })
   const hidden = lines.length - visible.length
   return `${visible.join(', ')}${hidden > 0 ? ` +${hidden}` : ''}`
 }
@@ -394,7 +408,11 @@ async function executeConfirmedCommand(input: {
     const request = shopInput(input.row.request_payload)
     if (!request) throw new ApplicationCommandError('application_command_confirmation_invalid')
     const result = await executeShopOrderApplicationCommand(context, request)
+    const { locale: adminLocale, t: tAdmin } =
+      await getAdminNotificationTranslations(input.tenant.id)
     const items = shopItemSummary(result.orderLines)
+    const adminItems = shopItemSummary(result.orderLines, adminLocale)
+    const totalQuantity = result.orderLines.reduce((sum, line) => sum + line.quantity, 0)
     const stock = result.orderLines
       .map((line) =>
         `${line.nameKo} ${formatNumber(result.stockAfterByInventoryId[line.inventoryId] ?? 0)}`
@@ -411,13 +429,22 @@ async function executeConfirmedCommand(input: {
         topic: 'shop',
         sourceTable: 'shop_orders',
         sourceId: result.orderId,
-        title: input.messages.shopOrderAdminTitle,
-        body: formatDiscordCommandMessage(input.messages.shopOrderAdminBody, {
-          member: input.actor.username,
-          item: items,
-          quantity: result.orderLines.reduce((sum, line) => sum + line.quantity, 0),
+        title: tAdmin('shopTitle'),
+        body: tAdmin('shopBody', {
+          user: input.actor.username,
           points: formatNumber(result.total),
         }),
+        fields: [
+          { name: tAdmin('shopItemsField'), value: adminItems },
+          {
+            name: tAdmin('shopSummaryField'),
+            value: tAdmin('shopSummaryValue', {
+              points: formatNumber(result.total),
+              types: result.orderLines.length,
+              quantity: formatNumber(totalQuantity),
+            }),
+          },
+        ],
         url: `/admin/dashboard/approvals?tab=shop&order=${encodeURIComponent(result.orderId)}#shop-order-${encodeURIComponent(result.orderId)}`,
       })
     }

@@ -1,7 +1,9 @@
 import 'server-only'
 
-import { getTranslations } from 'next-intl/server'
-import { sendAdminNotification } from '@/lib/admin-notifications'
+import {
+  getAdminNotificationTranslations,
+  sendAdminNotification,
+} from '@/lib/admin-notifications'
 import { discordDeliveryNonce } from '@/lib/discord-delivery-id'
 import { isDiscordDmConfigured, sendDiscordDmToUser } from '@/lib/discord-dm'
 import {
@@ -117,7 +119,7 @@ async function deliverMember(row: ClaimedDomainOutboxRow): Promise<'sent' | 'fai
 
 async function deliverAdmin(row: ClaimedDomainOutboxRow): Promise<'sent' | 'failed' | 'cancelled'> {
   if (row.topic !== 'craft.pickup_collected') return 'cancelled'
-  const t = await getTranslations({ locale: 'ko', namespace: 'adminNotificationMessages' })
+  const { t } = await getAdminNotificationTranslations(row.guild_id)
   const result = await sendAdminNotification({
     guildId: row.guild_id,
     topic: 'craft',

@@ -2354,6 +2354,8 @@
   "adminAdminNotifications": {
     "title": "Avvisi sulle operazioni di amministrazione",
     "description": "Avvisi solo per operatori che non vengono mostrati ai membri della gilda. Hanno separato le approvazioni in sospeso e i problemi operativi dagli annunci degli eventi.",
+    "languageLabel": "Lingua operativa della gilda",
+    "languageHint": "Usata per gli avvisi operativi Discord condivisi, i riepiloghi e i pulsanti di approvazione. Non modifica la lingua personale del sito o dei messaggi diretti.",
     "enabledLabel": "Abilita avvisi amministratore",
     "enabledHint": "Quando abilitato, gli argomenti selezionati vengono inviati al canale di amministrazione.",
     "channelLabel": "Canale di avviso amministratore",

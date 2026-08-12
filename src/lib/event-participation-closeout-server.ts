@@ -12,8 +12,10 @@ import { sendLocalizedDiscordDmToUser } from '@/lib/discord-dm-localized'
 import { formatSilver } from '@/lib/silver'
 import { log } from '@/lib/log'
 import { isDiscordId } from '@/lib/discord-id'
-import { sendAdminNotification } from '@/lib/admin-notifications'
-import { getTranslations } from 'next-intl/server'
+import {
+  getAdminNotificationTranslations,
+  sendAdminNotification,
+} from '@/lib/admin-notifications'
 import { normalizeEventParticipationAutoCloseoutHours } from '@/lib/event-participation-auto-closeout'
 
 export interface EventParticipationAutoCloseoutState {
@@ -408,10 +410,10 @@ export async function processEventParticipationAutoCloseoutNotices(options?: {
       (row) => `${String(row.guild_id)}:${String(row.event_id)}`,
     ),
   )
-  const tAdmin = await getTranslations({
-    locale: 'ko',
-    namespace: 'adminNotificationMessages',
-  })
+  const translatorByGuildId = new Map<
+    string,
+    Awaited<ReturnType<typeof getAdminNotificationTranslations>>['t']
+  >()
   const result: ProcessEventParticipationAutoCloseoutNoticeResult = {
     scanned: candidates.length,
     notified: 0,
@@ -425,6 +427,11 @@ export async function processEventParticipationAutoCloseoutNotices(options?: {
       continue
     }
     try {
+      let tAdmin = translatorByGuildId.get(event.guild_id)
+      if (!tAdmin) {
+        tAdmin = (await getAdminNotificationTranslations(event.guild_id)).t
+        translatorByGuildId.set(event.guild_id, tAdmin)
+      }
       const admin = await sendAdminNotification({
         guildId: event.guild_id,
         topic: 'event_payout',

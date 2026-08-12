@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   getRegearEligibilityDays: vi.fn(),
   requireManualRegearAllowed: vi.fn(),
   sendAdminNotification: vi.fn(),
+  getAdminNotificationTranslations: vi.fn(),
   validateImageUploadFile: vi.fn(),
   revalidatePath: vi.fn(),
   isRegearSupported: vi.fn(),
@@ -64,6 +65,7 @@ vi.mock('@/lib/albion-identity', () => ({
 
 vi.mock('@/lib/admin-notifications', () => ({
   sendAdminNotification: mocks.sendAdminNotification,
+  getAdminNotificationTranslations: mocks.getAdminNotificationTranslations,
 }))
 
 vi.mock('@/lib/image-upload', () => ({

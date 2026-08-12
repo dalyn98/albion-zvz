@@ -17,6 +17,11 @@ import {
   type AdminNotificationTopic,
 } from '@/lib/admin-notification-topics'
 import { useReportDirty } from './UnsavedChangesProvider'
+import {
+  LOCALE_LABELS,
+  SUPPORTED_LOCALES,
+  type Locale,
+} from '@/i18n/locales'
 
 interface Props {
   initialEnabled: boolean
@@ -24,6 +29,7 @@ interface Props {
   initialRoleIds: string[]
   initialTopics: AdminNotificationTopic[]
   initialDigestMinutes: number
+  initialLocale: Locale
   embedded?: boolean
 }
 
@@ -41,6 +47,7 @@ export default function AdminNotificationSettingsForm({
   initialRoleIds,
   initialTopics,
   initialDigestMinutes,
+  initialLocale,
   embedded = false,
 }: Props) {
   const t = useTranslations('adminAdminNotifications')
@@ -58,6 +65,7 @@ export default function AdminNotificationSettingsForm({
   const [digestMinutes, setDigestMinutes] = useState(
     isDigestValue(initialDigestMinutes) ? initialDigestMinutes : 0,
   )
+  const [notificationLocale, setNotificationLocale] = useState(initialLocale)
   const [roleOpen, setRoleOpen] = useState(false)
   const [roleSearch, setRoleSearch] = useState('')
   const [saving, setSaving] = useState(false)
@@ -107,6 +115,7 @@ export default function AdminNotificationSettingsForm({
     sortedKey(initialRoleIds),
     sortedKey(initialTopics),
     String(isDigestValue(initialDigestMinutes) ? initialDigestMinutes : 0),
+    initialLocale,
   ].join('|')
   const currentKey = [
     String(enabled),
@@ -114,6 +123,7 @@ export default function AdminNotificationSettingsForm({
     sortedKey(roleIds),
     sortedKey(topics),
     String(digestMinutes),
+    notificationLocale,
   ].join('|')
   const dirty = (savedKey ?? initialKey) !== currentKey
   useReportDirty('admin-notification-settings', dirty)
@@ -167,6 +177,7 @@ export default function AdminNotificationSettingsForm({
         ['admin_notification_role_ids', JSON.stringify([...roleIds])],
         ['admin_notification_topics', JSON.stringify([...topics])],
         ['admin_notification_digest_minutes', String(digestMinutes)],
+        ['admin_notification_locale', notificationLocale],
       ]
       for (const [key, value] of updates) {
         const result = await updateAppSetting(key, value)
@@ -290,6 +301,24 @@ export default function AdminNotificationSettingsForm({
           </select>
           <p className="mt-1.5 text-xs text-gray-500">{t('digestHint')}</p>
         </div>
+      </div>
+
+      <div>
+        <label className="mb-1 block text-xs text-gray-400">{t('languageLabel')}</label>
+        <select
+          value={notificationLocale}
+          onChange={(e) => {
+            setNotificationLocale(e.target.value as Locale)
+            setSaved(false)
+          }}
+          disabled={saving}
+          className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2.5 text-sm text-white focus:border-amber-500 focus:outline-none disabled:opacity-50"
+        >
+          {SUPPORTED_LOCALES.map((locale) => (
+            <option key={locale} value={locale}>{LOCALE_LABELS[locale]}</option>
+          ))}
+        </select>
+        <p className="mt-1.5 text-xs text-gray-500">{t('languageHint')}</p>
       </div>
 
       <div>

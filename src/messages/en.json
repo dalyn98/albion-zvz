@@ -2354,6 +2354,8 @@
   "adminAdminNotifications": {
     "title": "Admin operations alerts",
     "description": "Operator-only alerts that are not shown to guild members. They keep pending approvals and operational issues separate from event announcements.",
+    "languageLabel": "Guild operations language",
+    "languageHint": "Used for shared Discord operations alerts, digests, and approval buttons. It does not change personal site or DM language.",
     "enabledLabel": "Enable admin alerts",
     "enabledHint": "When enabled, selected topics are sent to the admin channel.",
     "channelLabel": "Admin alert channel",

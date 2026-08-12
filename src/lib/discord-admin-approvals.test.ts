@@ -24,6 +24,10 @@ vi.mock('@/lib/admin-approval-service', () => ({
   approveExchangeRequestForActor: vi.fn(),
 }))
 
+vi.mock('@/lib/app-settings', () => ({
+  getAppSetting: vi.fn(async () => 'ko'),
+}))
+
 const deliveryMocks = vi.hoisted(() => ({
   eq: vi.fn(),
   select: vi.fn(),

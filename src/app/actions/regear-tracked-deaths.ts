@@ -37,7 +37,10 @@ import { requireManualRegearAllowed } from '@/lib/albion-identity'
 import type { AlbionIdentityRelation } from '@/lib/account-albion-identity'
 import { REGEAR_VERIFICATION_ERROR_PREFIX } from '@/lib/regear-verification'
 import type { BuildSnapshot } from '@/types'
-import { sendAdminNotification } from '@/lib/admin-notifications'
+import {
+  getAdminNotificationTranslations,
+  sendAdminNotification,
+} from '@/lib/admin-notifications'
 import { validateImageUploadFile } from '@/lib/image-upload'
 import { parseNonNegativeSafeInt, parsePositiveSafeInt } from '@/lib/parse-bounded-int'
 import {
@@ -272,7 +275,6 @@ export async function submitTrackedAdHocRegear(
 }> {
   const tErr = await getTranslations('memberActionError')
   const tRegear = await getTranslations('regear')
-  const tAdminNotify = await getTranslations('adminNotificationMessages')
   const session = await requireCurrentMutationSession().catch(() => null)
   if (!session) return { error: tErr('loginRequired') }
   if (!session.isMember) return { error: tErr('memberOnly') }
@@ -507,6 +509,7 @@ export async function submitTrackedAdHocRegear(
   revalidatePath('/me')
   revalidatePath('/admin/dashboard/regear')
   revalidatePath('/', 'layout')
+  const { t: tAdminNotify } = await getAdminNotificationTranslations(guildId)
   void sendAdminNotification({
     guildId,
     topic: 'regear',

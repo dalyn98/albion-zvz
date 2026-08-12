@@ -28,6 +28,8 @@ import {
   checkGuildFeatureUse,
   loadGuildFeatureSnapshot,
 } from '@/lib/guild-features-server'
+import { parseAdminNotificationLocale } from '@/lib/admin-notification-locale'
+import type { Locale } from '@/i18n/locales'
 
 const DISCORD_API = 'https://discord.com/api/v10'
 const DISCORD_ID_RE = /^\d{5,30}$/
@@ -42,6 +44,7 @@ interface AdminNotificationSettings {
   topics: AdminNotificationTopic[]
   digestMinutes: number
   tenantSlug: string | null
+  locale: Locale
 }
 
 interface SendAdminNotificationInput {
@@ -94,12 +97,13 @@ export async function loadAdminNotificationSettings(
   guildId: string,
   tenantConfig?: TenantDiscordConfig | null,
 ): Promise<AdminNotificationSettings> {
-  const [enabledRaw, channelRaw, roleIdsRaw, topicsRaw, digestRaw, config] = await Promise.all([
+  const [enabledRaw, channelRaw, roleIdsRaw, topicsRaw, digestRaw, localeRaw, config] = await Promise.all([
     getAppSetting('admin_notifications_enabled', 'false', guildId),
     getAppSetting('admin_notification_channel_id', '', guildId),
     getAppSetting('admin_notification_role_ids', '[]', guildId),
     getAppSetting('admin_notification_topics', JSON.stringify(DEFAULT_ADMIN_NOTIFICATION_TOPICS), guildId),
     getAppSetting('admin_notification_digest_minutes', String(DEFAULT_DIGEST_MINUTES), guildId),
+    getAppSetting('admin_notification_locale', 'ko', guildId),
     tenantConfig === undefined ? getTenantDiscordConfig(guildId) : Promise.resolve(tenantConfig),
   ])
 
@@ -111,6 +115,17 @@ export async function loadAdminNotificationSettings(
     topics: parseAdminNotificationTopics(topicsRaw),
     digestMinutes: parseDigestMinutes(digestRaw),
     tenantSlug: config?.slug ?? null,
+    locale: parseAdminNotificationLocale(localeRaw),
+  }
+}
+
+export async function getAdminNotificationTranslations(guildId: string) {
+  const locale = parseAdminNotificationLocale(
+    await getAppSetting('admin_notification_locale', 'ko', guildId),
+  )
+  return {
+    locale,
+    t: await getTranslations({ locale, namespace: 'adminNotificationMessages' }),
   }
 }
 
@@ -193,7 +208,9 @@ async function postChannelMessage(
           sourceTable: input.sourceTable,
           sourceId: input.sourceId,
         })
-  const approvalMessages = approvalKind ? await loadDiscordAdminApprovalMessages() : null
+  const approvalMessages = approvalKind
+    ? await loadDiscordAdminApprovalMessages(settings.locale)
+    : null
   const components =
     approvalKind && approvalMessages
       ? buildAdminApprovalMessageComponents({
@@ -384,7 +401,7 @@ export async function sendAdminNotificationDigest(
   const [badges, unverifiedMembers, t, featureSnapshot] = await Promise.all([
     getAdminBadgeCounts(tenant.id),
     settings.topics.includes('members') ? countUnverifiedMembers(tenant.id) : Promise.resolve(0),
-    getTranslations({ locale: 'ko', namespace: 'adminNotificationMessages' }),
+    getTranslations({ locale: settings.locale, namespace: 'adminNotificationMessages' }),
     loadGuildFeatureSnapshot(tenant.id),
   ])
 

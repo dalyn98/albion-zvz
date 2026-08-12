@@ -39,6 +39,7 @@ import {
 } from '@/lib/tenant-lifecycle'
 import { loadGuildFeatureSnapshot } from '@/lib/guild-features-server'
 import { normalizeEventParticipationAutoCloseoutHours } from '@/lib/event-participation-auto-closeout'
+import { parseAdminNotificationLocale } from '@/lib/admin-notification-locale'
 
 // 알림 메시지의 기본값은 빈 문자열 — 폼은 초기값이 비어 있으면 locale 별
 // `messagePlaceholder` 를 노출하므로, 관리자는 자신이 사용하는 언어의 예시를
@@ -130,6 +131,7 @@ export default async function SettingsPage() {
     adminNotificationRoleIdsRaw,
     adminNotificationTopicsRaw,
     adminNotificationDigestMinutesRaw,
+    adminNotificationLocaleRaw,
     quickStarterPanelLegacyMessage,
     quickStarterPanelTitle,
     quickStarterPanelDescription,
@@ -264,6 +266,9 @@ export default async function SettingsPage() {
     settingsAccess.notifications
       ? getAppSetting('admin_notification_digest_minutes', '0', tenantId)
       : Promise.resolve('0'),
+    settingsAccess.notifications
+      ? getAppSetting('admin_notification_locale', 'ko', tenantId)
+      : Promise.resolve('ko'),
     settingsAccess.general
       ? getAppSetting('quick_starter_panel_message', '', tenantId)
       : Promise.resolve(''),
@@ -426,6 +431,7 @@ export default async function SettingsPage() {
     [0, 30, 60, 180, 1440].includes(parsedAdminDigest)
       ? parsedAdminDigest
       : 0
+  const adminNotificationLocale = parseAdminNotificationLocale(adminNotificationLocaleRaw)
   // 손상된 IANA 가 박혀 있어도 화면이 깨지진 않도록 기본값으로 정규화.
   const tenantTimezone = isValidTenantTimezone(tenantTimezoneRaw)
     ? tenantTimezoneRaw
@@ -547,6 +553,7 @@ export default async function SettingsPage() {
         adminNotificationRoleIds={adminNotificationRoleIds}
         adminNotificationTopics={adminNotificationTopics}
         adminNotificationDigestMinutes={adminNotificationDigestMinutes}
+        adminNotificationLocale={adminNotificationLocale}
         tenantTimezone={tenantTimezone}
         logStartShopChestAt={logStartShopChestAt}
         logStartSiphonAt={logStartSiphonAt}

@@ -2354,6 +2354,8 @@
   "adminAdminNotifications": {
     "title": "Yönetici operasyonları uyarıları",
     "description": "Lonca üyelerine gösterilmeyen yalnızca operatör uyarıları. Bekleyen onayları ve operasyonel sorunları etkinlik duyurularından ayrı tutarlar.",
+    "languageLabel": "Lonca operasyon dili",
+    "languageHint": "Paylaşılan Discord operasyon uyarıları, özetler ve onay düğmeleri için kullanılır. Kişisel site veya DM dilini değiştirmez.",
     "enabledLabel": "Yönetici uyarılarını etkinleştir",
     "enabledHint": "Etkinleştirildiğinde, seçilen konular yönetici kanalına gönderilir.",
     "channelLabel": "Yönetici uyarı kanalı",

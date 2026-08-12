@@ -2354,6 +2354,8 @@
   "adminAdminNotifications": {
     "title": "Peringatan operasi admin",
     "description": "Peringatan khusus operator yang tidak ditampilkan kepada anggota guild. Mereka terus menunda persetujuan dan masalah operasional terpisah dari pengumuman acara.",
+    "languageLabel": "Bahasa operasional guild",
+    "languageHint": "Digunakan untuk peringatan operasi Discord bersama, ringkasan, dan tombol persetujuan. Tidak mengubah bahasa situs pribadi atau DM.",
     "enabledLabel": "Aktifkan peringatan admin",
     "enabledHint": "Ketika diaktifkan, topik yang dipilih dikirim ke saluran admin.",
     "channelLabel": "Saluran peringatan admin",
