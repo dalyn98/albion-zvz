@@ -4,6 +4,8 @@ import {
   ArrowRight,
   CalendarDays,
   CheckCircle2,
+  ClipboardCheck,
+  Clock3,
   Megaphone,
   ShieldCheck,
   Skull,
@@ -26,6 +28,7 @@ import type {
 } from '@/lib/admin-operations-model'
 import { getLocale } from '@/lib/locale'
 import { getTenantTimezone } from '@/lib/timezone-server'
+import InlineBattleStartButton from '@/components/InlineBattleStartButton'
 import {
   EmptyState,
   balancedHeadingClass,
@@ -39,8 +42,10 @@ interface Props {
 }
 
 export default async function AdminOperationsPanel({ guildId }: Props) {
-  const [t, snapshot, locale, tenantTimezone] = await Promise.all([
+  const [t, tDashboard, tEvent, snapshot, locale, tenantTimezone] = await Promise.all([
     getTranslations('adminOperations'),
+    getTranslations('adminDashboard'),
+    getTranslations('event'),
     loadAdminOperationsSnapshot(guildId),
     getLocale(),
     getTenantTimezone(guildId),
@@ -108,8 +113,8 @@ export default async function AdminOperationsPanel({ guildId }: Props) {
           locale={locale}
           tenantTimezone={tenantTimezone}
           labels={{
-            title: t('eventsTitle'),
-            description: t('eventsDescription'),
+            title: tDashboard('eventWorkspaceTitle'),
+            description: tDashboard('eventWorkspaceDescription'),
             drafts: t('eventDrafts', { count: snapshot.draftEvents }),
             emptyTitle: t('eventsEmptyTitle'),
             emptyBody: t('eventsEmptyBody'),
@@ -120,6 +125,9 @@ export default async function AdminOperationsPanel({ guildId }: Props) {
             openSlots: (count) => t('eventOpenSlots', { count }),
             full: t('eventFull'),
             unconfigured: t('eventUnconfigured'),
+            active: tDashboard('badgeBattleActive'),
+            closeout: tDashboard('badgeEnded'),
+            closeoutAction: tEvent('viewReport'),
           }}
         />
       </div>
@@ -422,6 +430,9 @@ function UpcomingEvents({
     openSlots: (count: number) => string
     full: string
     unconfigured: string
+    active: string
+    closeout: string
+    closeoutAction: string
   }
 }) {
   return (
@@ -479,20 +490,39 @@ function UpcomingEvents({
         </div>
       ) : (
         <ul className="divide-y divide-border">
-          {events.map((event) => (
-            <li key={event.id}>
-              <Link
-                href={`/admin/dashboard/events/${event.id}`}
-                className={cx(
-                  'group block min-h-20 px-4 py-3 transition-[background-color,box-shadow,transform] duration-150 ease-out hover:bg-surface-2/75 sm:px-5',
-                  pressScaleClass,
-                )}
-              >
+          {events.map((event) => {
+            const detailHref = event.lifecycleState === 'upcoming'
+              ? `/admin/dashboard/events/${event.id}`
+              : `/events/${event.id}`
+            return (
+              <li key={event.id} className="px-4 py-3 sm:px-5">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-foreground">
-                      {event.title}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <Link
+                        href={detailHref}
+                        className="truncate text-sm font-semibold text-foreground transition-colors hover:text-accent"
+                      >
+                        {event.title}
+                      </Link>
+                      {event.lifecycleState !== 'upcoming' && (
+                        <span className={cx(
+                          'inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold',
+                          event.lifecycleState === 'closeout'
+                            ? 'bg-warning-soft text-warning-soft-foreground'
+                            : 'bg-danger-soft text-danger-soft-foreground',
+                        )}>
+                          {event.lifecycleState === 'closeout' ? (
+                            <ClipboardCheck size={10} aria-hidden="true" />
+                          ) : (
+                            <Clock3 size={10} aria-hidden="true" />
+                          )}
+                          {event.lifecycleState === 'closeout'
+                            ? labels.closeout
+                            : labels.active}
+                        </span>
+                      )}
+                    </div>
                     <p className="mt-1 text-xs tabular-nums text-muted">
                       {formatEventDate(
                         event.gatherAt,
@@ -501,48 +531,71 @@ function UpcomingEvents({
                       )}
                     </p>
                   </div>
-                  <ArrowRight
-                    size={14}
-                    aria-label={labels.open}
-                    className="mt-0.5 shrink-0 text-subtle transition-[color,transform] duration-150 group-hover:translate-x-0.5 group-hover:text-accent"
-                  />
+                  {event.lifecycleState === 'upcoming' ? (
+                    <InlineBattleStartButton
+                      eventId={event.id}
+                      battleStartedAt={event.battleStartedAt}
+                    />
+                  ) : (
+                    <Link
+                      href={event.lifecycleState === 'closeout'
+                        ? `/events/${event.id}/report`
+                        : detailHref}
+                      className={cx(
+                        'inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-[background-color,box-shadow,transform] duration-150 ease-out',
+                        pressScaleClass,
+                        event.lifecycleState === 'closeout'
+                          ? 'bg-accent text-accent-foreground shadow-card hover:bg-accent-hover'
+                          : 'border border-border bg-surface-2 text-foreground hover:border-accent/50',
+                      )}
+                    >
+                      {event.lifecycleState === 'closeout'
+                        ? labels.closeoutAction
+                        : labels.open}
+                      <ArrowRight size={12} aria-hidden="true" />
+                    </Link>
+                  )}
                 </div>
 
-                <div className="mt-3 flex items-center gap-3">
-                  <div
-                    className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-surface-3"
-                    role="progressbar"
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-valuenow={event.readiness.fillPercent}
-                  >
-                    <div
-                      className={cx(
-                        'h-full rounded-full',
-                        event.readiness.status === 'full'
-                          ? 'bg-success'
-                          : 'bg-accent',
-                      )}
-                      style={{ width: `${event.readiness.fillPercent}%` }}
-                    />
-                  </div>
-                  <span className="shrink-0 font-mono text-xs font-semibold tabular-nums text-foreground">
-                    {labels.slots(
-                      event.readiness.assignedSlots,
-                      event.readiness.totalSlots,
-                    )}
-                  </span>
-                </div>
-                <p className="mt-1.5 text-[11px] text-muted">
-                  {event.readiness.status === 'unconfigured'
-                    ? labels.unconfigured
-                    : event.readiness.status === 'full'
-                      ? labels.full
-                      : labels.openSlots(event.readiness.openSlots)}
-                </p>
-              </Link>
-            </li>
-          ))}
+                {event.lifecycleState === 'upcoming' && (
+                  <>
+                    <div className="mt-3 flex items-center gap-3">
+                      <div
+                        className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-surface-3"
+                        role="progressbar"
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-valuenow={event.readiness.fillPercent}
+                      >
+                        <div
+                          className={cx(
+                            'h-full rounded-full',
+                            event.readiness.status === 'full'
+                              ? 'bg-success'
+                              : 'bg-accent',
+                          )}
+                          style={{ width: `${event.readiness.fillPercent}%` }}
+                        />
+                      </div>
+                      <span className="shrink-0 font-mono text-xs font-semibold tabular-nums text-foreground">
+                        {labels.slots(
+                          event.readiness.assignedSlots,
+                          event.readiness.totalSlots,
+                        )}
+                      </span>
+                    </div>
+                    <p className="mt-1.5 text-[11px] text-muted">
+                      {event.readiness.status === 'unconfigured'
+                        ? labels.unconfigured
+                        : event.readiness.status === 'full'
+                          ? labels.full
+                          : labels.openSlots(event.readiness.openSlots)}
+                    </p>
+                  </>
+                )}
+              </li>
+            )
+          })}
         </ul>
       )}
     </section>

@@ -76,6 +76,59 @@ export interface EventReadinessSummary {
   status: EventReadinessStatus
 }
 
+export type AdminEventLifecycleState = 'upcoming' | 'active' | 'closeout'
+
+export interface AdminEventLifecycleCandidate {
+  id: string
+  gatherAt: string | null
+  battleStartedAt: string | null
+  operationalEndedAt: string | null
+}
+
+export function resolveAdminEventLifecycleState(
+  event: AdminEventLifecycleCandidate,
+  nowMs: number,
+): AdminEventLifecycleState {
+  if (!event.battleStartedAt) return 'upcoming'
+  const endedAtMs = event.operationalEndedAt
+    ? Date.parse(event.operationalEndedAt)
+    : Date.parse(event.battleStartedAt) + 60 * 60 * 1000
+  return Number.isFinite(endedAtMs) && endedAtMs <= nowMs
+    ? 'closeout'
+    : 'active'
+}
+
+export function selectAdminEventLifecycleCandidates<
+  T extends AdminEventLifecycleCandidate,
+>(events: readonly T[], nowMs: number, limit: number): T[] {
+  const priority: Record<AdminEventLifecycleState, number> = {
+    closeout: 0,
+    active: 1,
+    upcoming: 2,
+  }
+  const timestamp = (event: T): number => {
+    const state = resolveAdminEventLifecycleState(event, nowMs)
+    const raw = state === 'upcoming'
+      ? event.gatherAt
+      : state === 'active'
+        ? event.battleStartedAt
+        : event.operationalEndedAt
+    const parsed = raw ? Date.parse(raw) : Number.NaN
+    return Number.isFinite(parsed) ? parsed : Number.MAX_SAFE_INTEGER
+  }
+
+  return [...events]
+    .sort((left, right) => {
+      const leftState = resolveAdminEventLifecycleState(left, nowMs)
+      const rightState = resolveAdminEventLifecycleState(right, nowMs)
+      const stateOrder = priority[leftState] - priority[rightState]
+      if (stateOrder !== 0) return stateOrder
+      const timeOrder = timestamp(left) - timestamp(right)
+      return leftState === 'closeout' ? -timeOrder : timeOrder
+    })
+    .slice(0, Math.max(0, limit))
+}
+
 export function summarizeEventReadiness({
   totalSlots,
   assignedSlots,

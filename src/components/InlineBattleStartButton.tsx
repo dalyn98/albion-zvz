@@ -44,7 +44,7 @@ export default function InlineBattleStartButton({ eventId, battleStartedAt, disa
         disabled
         title={disabledReason}
         aria-label={disabledReason}
-        className="flex items-center gap-1 text-xs bg-gray-800/70 border border-gray-700 text-gray-500 font-semibold px-3 py-1.5 rounded-lg cursor-not-allowed"
+        className="flex min-h-10 items-center gap-1.5 rounded-lg border border-gray-700 bg-gray-800/70 px-3 py-2 text-xs font-semibold text-gray-500 cursor-not-allowed"
       >
         <Swords size={13} />
         {t('battleStart')}
@@ -60,7 +60,7 @@ export default function InlineBattleStartButton({ eventId, battleStartedAt, disa
         type="button"
         onClick={start}
         disabled={pending}
-        className="flex items-center gap-1 text-xs bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-200 font-semibold px-3 py-1.5 rounded-lg disabled:opacity-50"
+        className="flex min-h-10 items-center gap-1.5 rounded-lg border border-rose-500/40 bg-rose-500/20 px-3 py-2 text-xs font-semibold text-rose-200 transition-[background-color,transform] duration-150 ease-out hover:bg-rose-500/30 active:scale-[0.96] disabled:opacity-50 disabled:active:scale-100"
       >
         {pending ? <Loader2 size={13} className="animate-spin" /> : <Swords size={13} />}
         {t('battleStart')}

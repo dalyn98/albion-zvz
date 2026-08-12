@@ -93,9 +93,10 @@ async function EventsSection() {
   const session = await getSession()
   if (!session) throw new Error('Unauthorized')
   const guildId = await getSessionGuildId(session)
-  const [events, t, tenantTimezone] = await Promise.all([
+  const [events, t, tEvent, tenantTimezone] = await Promise.all([
     getEvents(guildId),
     getTranslations('adminDashboard'),
+    getTranslations('event'),
     getTenantTimezone(guildId),
   ])
   const readinessByEventId = await loadAdminEventReadinessMap(
@@ -120,6 +121,7 @@ async function EventsSection() {
     <DashboardEventList
       events={events}
       timezone={tenantTimezone}
+      closeoutActionLabel={tEvent('viewReport')}
       readinessByEventId={readinessByEventId}
     />
   )

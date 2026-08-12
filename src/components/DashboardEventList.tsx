@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
-import { Eye, Pencil, Swords, Flame, Archive, Activity } from 'lucide-react'
+import { Eye, Pencil, Swords, Flame, Archive, Activity, ClipboardCheck } from 'lucide-react'
 import DeleteEventButton from './DeleteEventButton'
 import DuplicateEventButton from './DuplicateEventButton'
 import InlineBattleStartButton from './InlineBattleStartButton'
@@ -35,6 +35,7 @@ function isEventEnded(event: Event): boolean {
 interface DashboardEventListProps {
   events: Event[]
   timezone: string
+  closeoutActionLabel?: string
   detailHrefPrefix?: string
   interactionMode?: 'live' | 'demo'
   readinessByEventId?: Record<string, EventReadinessSummary>
@@ -43,6 +44,7 @@ interface DashboardEventListProps {
 export default function DashboardEventList({
   events,
   timezone,
+  closeoutActionLabel,
   detailHrefPrefix = '/admin/dashboard/events',
   interactionMode = 'live',
   readinessByEventId = {},
@@ -150,6 +152,10 @@ export default function DashboardEventList({
           <div className="divide-y divide-border border-y border-border">
             {filtered.map((event) => {
               const isDraft = event.status === 'draft'
+              const eventEnded = Boolean(
+                event.battle_started_at &&
+                isEnded(event.battle_started_at, event.operational_ended_at),
+              )
               const draftDisabledReason = isDraft ? t('draftActionsDisabled') : undefined
               const readiness = readinessByEventId[event.id]
               return (
@@ -174,8 +180,7 @@ export default function DashboardEventList({
                         <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-200 border border-sky-500/35">
                           {t('badgeDraft')}
                         </span>
-                      ) : event.battle_started_at &&
-                        isEnded(event.battle_started_at, event.operational_ended_at) ? (
+                      ) : eventEnded ? (
                         <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-700 text-gray-300">
                           <Archive size={10} />
                           {t('badgeEnded')}
@@ -240,6 +245,15 @@ export default function DashboardEventList({
                   <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap sm:flex-shrink-0">
                     {interactionMode === 'live' && (
                       <>
+                        {eventEnded && (
+                          <Link
+                            href={`/events/${event.id}/report`}
+                            className="inline-flex min-h-10 items-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-xs font-semibold text-accent-foreground shadow-card transition-[background-color,box-shadow,transform] duration-150 ease-out hover:bg-accent-hover active:scale-[0.96]"
+                          >
+                            <ClipboardCheck size={13} aria-hidden="true" />
+                            {closeoutActionLabel ?? t('badgeEnded')}
+                          </Link>
+                        )}
                         <InlineBattleStartButton
                           eventId={event.id}
                           battleStartedAt={event.battle_started_at}
@@ -258,7 +272,7 @@ export default function DashboardEventList({
                           ? `/events/${event.id}`
                           : `${detailHrefPrefix}/${event.id}`
                       }
-                      className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
+                      className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-700 hover:text-white"
                       aria-label={
                         event.battle_started_at
                           ? tCommon('view')

@@ -2,8 +2,11 @@ import 'server-only'
 
 import {
   buildOperationsQueueRows,
+  resolveAdminEventLifecycleState,
+  selectAdminEventLifecycleCandidates,
   summarizeRecruitmentReadiness,
   summarizeEventReadiness,
+  type AdminEventLifecycleState,
   type EventReadinessSummary,
   type OperationsQueueRow,
   type RecruitmentReadinessSummary,
@@ -34,6 +37,7 @@ const SETTINGS_KEYS = [
 
 const PAGE_SIZE = 1000
 const UPCOMING_EVENT_LIMIT = 3
+const EVENT_CLOSEOUT_LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000
 
 interface ActiveMemberIdentityRow {
   discord_id: string
@@ -50,6 +54,9 @@ interface UpcomingEventRow {
   id: string
   title: string
   gather_at: string | null
+  battle_started_at: string | null
+  operational_ended_at: string | null
+  participation_closeout_required: boolean
 }
 
 interface EventPartyRow {
@@ -67,6 +74,9 @@ export interface AdminEventReadinessSnapshot {
   id: string
   title: string
   gatherAt: string | null
+  battleStartedAt: string | null
+  operationalEndedAt: string | null
+  lifecycleState: AdminEventLifecycleState
   readiness: EventReadinessSummary
 }
 
@@ -177,6 +187,7 @@ async function buildUpcomingEventSnapshots(
   db: ReturnType<typeof getAdminClient>,
   guildId: string,
   events: UpcomingEventRow[],
+  nowMs: number,
 ): Promise<AdminEventReadinessSnapshot[]> {
   if (events.length === 0) return []
 
@@ -191,6 +202,14 @@ async function buildUpcomingEventSnapshots(
     id: event.id,
     title: event.title,
     gatherAt: event.gather_at,
+    battleStartedAt: event.battle_started_at,
+    operationalEndedAt: event.operational_ended_at,
+    lifecycleState: resolveAdminEventLifecycleState({
+      id: event.id,
+      gatherAt: event.gather_at,
+      battleStartedAt: event.battle_started_at,
+      operationalEndedAt: event.operational_ended_at,
+    }, nowMs),
     readiness:
       readinessByEventId[event.id] ??
       summarizeEventReadiness({ totalSlots: 0, assignedSlots: 0 }),
@@ -258,11 +277,15 @@ export async function loadAdminOperationsSnapshot(
   const db = getAdminClient()
   const nowMs = Date.now()
   const nowIso = new Date(nowMs).toISOString()
+  const recentOperationalCutoffIso = new Date(
+    nowMs - EVENT_CLOSEOUT_LOOKBACK_MS,
+  ).toISOString()
 
   const [
     workQueueSnapshot,
     settingsResult,
     upcomingEventsResult,
+    operationalEventsResult,
     draftEventsResult,
     activeMembers,
     identityLinks,
@@ -276,12 +299,22 @@ export async function loadAdminOperationsSnapshot(
       .in('key', [...SETTINGS_KEYS]),
     db
       .from('events')
-      .select('id, title, gather_at')
+      .select('id, title, gather_at, battle_started_at, operational_ended_at, participation_closeout_required')
       .eq('guild_id', guildId)
       .eq('status', 'published')
+      .is('battle_started_at', null)
       .gte('gather_at', nowIso)
       .order('gather_at', { ascending: true })
       .limit(UPCOMING_EVENT_LIMIT),
+    db
+      .from('events')
+      .select('id, title, gather_at, battle_started_at, operational_ended_at, participation_closeout_required')
+      .eq('guild_id', guildId)
+      .eq('status', 'published')
+      .not('battle_started_at', 'is', null)
+      .gte('operational_ended_at', recentOperationalCutoffIso)
+      .order('operational_ended_at', { ascending: false })
+      .limit(UPCOMING_EVENT_LIMIT * 2),
     db
       .from('events')
       .select('id', { count: 'exact', head: true })
@@ -302,18 +335,69 @@ export async function loadAdminOperationsSnapshot(
       guildId,
     })
   }
+  if (operationalEventsResult.error) {
+    log.error('[admin-operations] operational event lookup failed', operationalEventsResult.error, {
+      guildId,
+    })
+  }
   if (draftEventsResult.error) {
     log.error('[admin-operations] draft event lookup failed', draftEventsResult.error, {
       guildId,
     })
   }
 
-  const upcomingEvents = (upcomingEventsResult.data ?? []) as UpcomingEventRow[]
+  const operationalEvents = (operationalEventsResult.data ?? []) as UpcomingEventRow[]
+  const closeoutRequiredEndedIds = operationalEvents
+    .filter((event) =>
+      event.participation_closeout_required === true &&
+      resolveAdminEventLifecycleState({
+        id: event.id,
+        gatherAt: event.gather_at,
+        battleStartedAt: event.battle_started_at,
+        operationalEndedAt: event.operational_ended_at,
+      }, nowMs) === 'closeout')
+    .map((event) => event.id)
+  const finalizedCloseoutEventIds = new Set<string>()
+  if (closeoutRequiredEndedIds.length > 0) {
+    const { data: closeouts, error: closeoutsError } = await db
+      .from('event_participation_closeouts')
+      .select('event_id')
+      .eq('guild_id', guildId)
+      .in('event_id', closeoutRequiredEndedIds)
+    if (closeoutsError) {
+      log.error('[admin-operations] event closeout lookup failed', closeoutsError, {
+        guildId,
+        eventCount: closeoutRequiredEndedIds.length,
+      })
+    }
+    for (const closeout of closeouts ?? []) {
+      finalizedCloseoutEventIds.add(closeout.event_id as string)
+    }
+  }
+
+  const eventCandidatesById = new Map<string, UpcomingEventRow>()
+  for (const event of [
+    ...operationalEvents.filter((event) => !finalizedCloseoutEventIds.has(event.id)),
+    ...((upcomingEventsResult.data ?? []) as UpcomingEventRow[]),
+  ]) {
+    eventCandidatesById.set(event.id, event)
+  }
+  const upcomingEvents = selectAdminEventLifecycleCandidates(
+    [...eventCandidatesById.values()].map((event) => ({
+      ...event,
+      gatherAt: event.gather_at,
+      battleStartedAt: event.battle_started_at,
+      operationalEndedAt: event.operational_ended_at,
+    })),
+    nowMs,
+    UPCOMING_EVENT_LIMIT,
+  )
   const queueRows = buildQueueRows(workQueueSnapshot, nowMs)
   const upcomingEventSnapshots = await buildUpcomingEventSnapshots(
     db,
     guildId,
     upcomingEvents,
+    nowMs,
   )
 
   const settingMap = new Map(

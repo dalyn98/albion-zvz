@@ -1,11 +1,41 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildOperationsQueueRows,
+  resolveAdminEventLifecycleState,
+  selectAdminEventLifecycleCandidates,
   summarizeRecruitmentReadiness,
   summarizeEventReadiness,
 } from './admin-operations-model'
 
 describe('admin operations model', () => {
+  it('prioritizes closeout and active events before upcoming events', () => {
+    const nowMs = Date.parse('2026-08-12T12:00:00.000Z')
+    const events = [
+      {
+        id: 'upcoming',
+        gatherAt: '2026-08-12T14:00:00.000Z',
+        battleStartedAt: null,
+        operationalEndedAt: null,
+      },
+      {
+        id: 'active',
+        gatherAt: '2026-08-12T11:30:00.000Z',
+        battleStartedAt: '2026-08-12T11:30:00.000Z',
+        operationalEndedAt: '2026-08-12T12:30:00.000Z',
+      },
+      {
+        id: 'closeout',
+        gatherAt: '2026-08-12T10:00:00.000Z',
+        battleStartedAt: '2026-08-12T10:00:00.000Z',
+        operationalEndedAt: '2026-08-12T11:00:00.000Z',
+      },
+    ]
+
+    expect(resolveAdminEventLifecycleState(events[1], nowMs)).toBe('active')
+    expect(selectAdminEventLifecycleCandidates(events, nowMs, 3).map((event) => event.id))
+      .toEqual(['closeout', 'active', 'upcoming'])
+  })
+
   it('prioritizes overdue work by oldest request and removes empty queues', () => {
     const nowMs = Date.parse('2026-07-15T12:00:00.000Z')
 
