@@ -9,9 +9,12 @@ vi.mock('@/lib/supabase-admin', () => ({
 }))
 
 import {
+  buildTentativeSlotRecommendationOptions,
   listTentativeSignupsForGuild,
   sanitizeTentativeRoles,
 } from './event-tentative-signups'
+import { formatTentativeSlotRecommendationLabel } from './event-tentative-recommendation'
+import type { PartyWithSlots } from '@/types'
 
 interface QueryCall {
   method: string
@@ -66,6 +69,40 @@ describe('event tentative signup reads', () => {
       'EngageDps',
       'BrawlerDps',
     ])
+  })
+
+  it('builds recommendation labels from the party-slot number and weapon name', () => {
+    const parties = [
+      {
+        party_number: 1,
+        is_bomb_squad: false,
+        name: null,
+        slots: [
+          {
+            id: 'slot-7',
+            slot_number: 7,
+            role_name: 'EngageDps',
+            weapon_id: 'T8_2H_FIRESTAFF_HELL',
+            weapon_name: 'Brimstone Staff',
+            is_hidden: false,
+            assigned_discord_id: null,
+            requested_discord_id: null,
+          },
+        ],
+      },
+    ] as PartyWithSlots[]
+
+    const [option] = buildTentativeSlotRecommendationOptions(parties)
+
+    expect(option).toMatchObject({
+      partyNumber: 1,
+      slotNumber: 7,
+      weaponId: 'T8_2H_FIRESTAFF_HELL',
+      weaponName: 'Brimstone Staff',
+    })
+    expect(formatTentativeSlotRecommendationLabel(option, '브림스톤 스태프')).toBe(
+      '1-7 (브림스톤 스태프)',
+    )
   })
 
   it('lists rows by explicit guild scope instead of session-derived scope', async () => {

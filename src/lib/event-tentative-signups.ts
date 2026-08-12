@@ -23,6 +23,8 @@ export interface TentativeSlotRecommendationOption {
   partyName: string | null
   slotNumber: number
   roleName: SlotRole
+  weaponId: string | null
+  weaponName: string | null
 }
 
 export function buildTentativeSlotRecommendationOptions(
@@ -46,6 +48,8 @@ export function buildTentativeSlotRecommendationOptions(
         partyName: party.is_bomb_squad ? party.name?.trim() || null : null,
         slotNumber: slot.slot_number,
         roleName: slot.role_name as SlotRole,
+        weaponId: slot.weapon_id,
+        weaponName: slot.weapon_name,
       })
     }
   }

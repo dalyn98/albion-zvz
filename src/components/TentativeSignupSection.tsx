@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { ClipboardList, Plus, Pencil, X, Check, LogIn, Loader2, Search, Sparkles, UserPlus } from 'lucide-react'
 import {
   submitMyTentativeSignup,
@@ -12,8 +12,12 @@ import {
   type TentativeSignupRow,
 } from '@/app/actions/event-tentative'
 import type { TentativeSlotRecommendationOption } from '@/lib/event-tentative-signups'
+import { formatTentativeSlotRecommendationLabel } from '@/lib/event-tentative-recommendation'
 import { SLOT_ROLES, type SlotRole, getRoleStyle } from '@/types'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
+import { useItemNameResolver, type ItemNameResolver } from '@/lib/item-names-client'
+import { stripTierPrefix } from '@/lib/weapon-display'
+import type { Locale } from '@/i18n/locales'
 import { filterAssignableMembers, type AssignableMember } from '@/lib/member-assign-search'
 import MemberAvatar from './MemberAvatar'
 import MemberLink from './MemberLink'
@@ -524,6 +528,8 @@ function RowItem({
 }) {
   const [pending, startTransition] = useTransition()
   const askConfirm = useConfirm()
+  const locale = useLocale() as Locale
+  const { getLocalizedItemName } = useItemNameResolver(locale)
   const matchingSlots = slotOptions.filter((slot) =>
     row.possible_roles.includes(slot.roleName),
   )
@@ -599,15 +605,28 @@ function RowItem({
             onChange={(event) => recommend(event.target.value)}
             disabled={pending}
             aria-label={t('recommendationSelectLabel', { name: row.username })}
-            className="h-10 min-w-0 flex-1 rounded-lg border border-violet-500/30 bg-violet-500/10 px-2 text-xs font-semibold text-violet-100 outline-none transition-colors hover:border-violet-400/50 focus:border-violet-400 disabled:opacity-50 sm:max-w-52"
+            className="h-10 min-w-0 flex-1 rounded-lg border border-violet-400/40 bg-gray-950 px-2 text-xs font-semibold tabular-nums text-gray-100 outline-none [color-scheme:dark] transition-colors hover:border-violet-300/60 focus:border-violet-300 focus:ring-2 focus:ring-violet-400/20 disabled:opacity-50 sm:max-w-56"
           >
-            <option value="">{t('recommendationNone')}</option>
+            <option value="" className="bg-gray-950 text-gray-100">
+              {t('recommendationNone')}
+            </option>
             {matchingSlots.length === 0 && (
-              <option value="" disabled>{t('recommendationNoMatchingSlots')}</option>
+              <option value="" disabled className="bg-gray-950 text-gray-500">
+                {t('recommendationNoMatchingSlots')}
+              </option>
             )}
             {matchingSlots.map((slot) => (
-              <option key={slot.id} value={slot.id}>
-                {recommendationOptionLabel(slot, t, tRole)}
+              <option
+                key={slot.id}
+                value={slot.id}
+                className="bg-gray-950 text-gray-100"
+              >
+                {recommendationOptionLabel(
+                  slot,
+                  tRole,
+                  locale,
+                  getLocalizedItemName,
+                )}
               </option>
             ))}
           </select>
@@ -630,15 +649,14 @@ function RowItem({
 
 function recommendationOptionLabel(
   slot: TentativeSlotRecommendationOption,
-  t: ReturnType<typeof useTranslations<'eventTentative'>>,
   tRole: ReturnType<typeof useTranslations<'slotRole'>>,
+  locale: Locale,
+  getLocalizedItemName: ItemNameResolver,
 ): string {
-  const party = slot.partyName || t('recommendationParty', { number: slot.partyNumber })
-  return t('recommendationSlotOption', {
-    party,
-    slot: slot.slotNumber,
-    role: translateSlotRole(slot.roleName, tRole),
-  })
+  const weaponName = stripTierPrefix(
+    getLocalizedItemName(slot.weaponId, locale, slot.weaponName),
+  ) || translateSlotRole(slot.roleName, tRole)
+  return formatTentativeSlotRecommendationLabel(slot, weaponName)
 }
 
 function RecommendationBadge({
@@ -652,13 +670,20 @@ function RecommendationBadge({
   t: ReturnType<typeof useTranslations<'eventTentative'>>
   tRole: ReturnType<typeof useTranslations<'slotRole'>>
 }) {
+  const locale = useLocale() as Locale
+  const { getLocalizedItemName } = useItemNameResolver(locale)
   const slot = slotOptions.find((option) => option.id === slotId)
   if (!slot) return null
   return (
-    <span className="inline-flex items-center gap-1 rounded-full border border-violet-400/30 bg-violet-500/10 px-2 py-1 text-[10px] font-semibold text-violet-200">
+    <span className="inline-flex items-center gap-1 rounded-full border border-violet-400/40 bg-violet-950/90 px-2 py-1 text-[10px] font-semibold tabular-nums text-violet-100">
       <Sparkles size={10} aria-hidden="true" />
       {t('recommendationBadge', {
-        slot: recommendationOptionLabel(slot, t, tRole),
+        slot: recommendationOptionLabel(
+          slot,
+          tRole,
+          locale,
+          getLocalizedItemName,
+        ),
       })}
     </span>
   )
