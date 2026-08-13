@@ -6,6 +6,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -22,6 +23,7 @@ import type { Locale } from '@/i18n/locales'
 import { getRoleStyle } from '@/types'
 import ItemImage from './ItemImage'
 import { useBodyScrollLock } from './useBodyScrollLock'
+import { resolveTentativeSlotPickerPosition } from '@/lib/tentative-slot-picker-position'
 
 interface Props {
   value: string | null
@@ -55,13 +57,15 @@ export default function TentativeSlotRecommendationPicker({
   const triggerRef = useRef<HTMLButtonElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   const optionRefs = useRef<Array<HTMLButtonElement | null>>([])
+  const initialFocusIndexRef = useRef(-1)
   const [open, setOpen] = useState(false)
+  const [isMobileSheet, setIsMobileSheet] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
   const [position, setPosition] = useState<PickerPosition>({
     '--picker-left': `${VIEWPORT_GAP}px`,
     '--picker-top': `${VIEWPORT_GAP}px`,
   })
-  useBodyScrollLock(open)
+  useBodyScrollLock(open && isMobileSheet)
 
   const { groups, optionById, optionIndexById } = useMemo(() => {
     const grouped = new Map<number, TentativeSlotRecommendationOption[]>()
@@ -81,6 +85,7 @@ export default function TentativeSlotRecommendationPicker({
     }
   }, [options])
   const selected = value ? optionById.get(value) ?? null : null
+  const unavailable = options.length === 0 && !selected
 
   const labelFor = (slot: TentativeSlotRecommendationOption): string => {
     const weaponName = stripTierPrefix(
@@ -92,20 +97,30 @@ export default function TentativeSlotRecommendationPicker({
   const placePanel = useCallback(() => {
     const rect = triggerRef.current?.getBoundingClientRect()
     if (!rect) return
-    const left = Math.min(
-      Math.max(VIEWPORT_GAP, rect.right - PANEL_WIDTH),
-      Math.max(VIEWPORT_GAP, window.innerWidth - PANEL_WIDTH - VIEWPORT_GAP),
-    )
-    const estimatedHeight = Math.min(420, 112 + options.length * 56)
-    const fitsBelow = rect.bottom + TRIGGER_GAP + estimatedHeight <= window.innerHeight
-    const top = fitsBelow
-      ? rect.bottom + TRIGGER_GAP
-      : Math.max(VIEWPORT_GAP, rect.top - estimatedHeight - TRIGGER_GAP)
+    const panelHeight = panelRef.current?.getBoundingClientRect().height
+      ?? Math.min(416, 112 + options.length * 64)
+    const { left, top } = resolveTentativeSlotPickerPosition({
+      trigger: rect,
+      panelWidth: PANEL_WIDTH,
+      panelHeight,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+      viewportGap: VIEWPORT_GAP,
+      triggerGap: TRIGGER_GAP,
+    })
     setPosition({
       '--picker-left': `${left}px`,
       '--picker-top': `${top}px`,
     })
   }, [options.length])
+
+  useEffect(() => {
+    const query = window.matchMedia('(max-width: 639px)')
+    const sync = () => setIsMobileSheet(query.matches)
+    sync()
+    query.addEventListener('change', sync)
+    return () => query.removeEventListener('change', sync)
+  }, [])
 
   const close = (restoreFocus = true) => {
     setOpen(false)
@@ -113,23 +128,30 @@ export default function TentativeSlotRecommendationPicker({
   }
 
   const openPicker = (preferredIndex?: number) => {
-    if (disabled) return
+    if (disabled || unavailable) return
     placePanel()
     const selectedIndex = value ? optionIndexById.get(value) ?? -1 : -1
-    setActiveIndex(
-      preferredIndex ?? (selectedIndex >= 0 ? selectedIndex : options.length > 0 ? 0 : -1),
-    )
+    const nextIndex = preferredIndex
+      ?? (selectedIndex >= 0 ? selectedIndex : options.length > 0 ? 0 : -1)
+    initialFocusIndexRef.current = nextIndex
+    setActiveIndex(nextIndex)
     setOpen(true)
   }
 
   useEffect(() => {
     if (!open) return
     const focusFrame = requestAnimationFrame(() => {
-      if (activeIndex >= 0) optionRefs.current[activeIndex]?.focus()
+      const initialIndex = initialFocusIndexRef.current
+      if (initialIndex >= 0) optionRefs.current[initialIndex]?.focus()
       else panelRef.current?.focus()
     })
     return () => cancelAnimationFrame(focusFrame)
-  }, [activeIndex, open])
+  }, [open])
+
+  useLayoutEffect(() => {
+    if (!open || isMobileSheet) return
+    placePanel()
+  }, [isMobileSheet, open, placePanel])
 
   useEffect(() => {
     if (!open) return
@@ -200,7 +222,7 @@ export default function TentativeSlotRecommendationPicker({
             ref={panelRef}
             id={dialogId}
             role="dialog"
-            aria-modal="true"
+            aria-modal={isMobileSheet ? true : undefined}
             aria-label={t('recommendationSelectLabel', { name: memberName })}
             tabIndex={-1}
             onKeyDown={handlePanelKeyDown}
@@ -327,16 +349,20 @@ export default function TentativeSlotRecommendationPicker({
             openPicker(event.key === 'ArrowUp' ? options.length - 1 : undefined)
           }
         }}
-        disabled={disabled}
+        disabled={disabled || unavailable}
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-controls={open ? dialogId : undefined}
         aria-label={t('recommendationSelectLabel', { name: memberName })}
-        className="group flex h-11 min-w-0 flex-1 items-center gap-2 rounded-xl bg-gray-950 pl-3 pr-2 text-left text-xs font-semibold text-gray-100 shadow-[inset_0_0_0_1px_rgba(167,139,250,0.34),0_1px_2px_rgba(0,0,0,0.22)] transition-[background-color,box-shadow,scale] duration-150 hover:bg-gray-900 hover:shadow-[inset_0_0_0_1px_rgba(196,181,253,0.58),0_2px_5px_rgba(0,0,0,0.28)] active:scale-[0.96] disabled:pointer-events-none disabled:opacity-50 sm:w-60 sm:flex-none"
+        className="group flex h-11 min-w-0 flex-1 items-center gap-2 rounded-xl bg-gray-950 pl-3 pr-2 text-left text-xs font-semibold text-gray-100 shadow-[inset_0_0_0_1px_rgba(167,139,250,0.34),0_1px_2px_rgba(0,0,0,0.22)] transition-[background-color,box-shadow,scale] duration-150 hover:bg-gray-900 hover:shadow-[inset_0_0_0_1px_rgba(196,181,253,0.58),0_2px_5px_rgba(0,0,0,0.28)] active:scale-[0.96] disabled:pointer-events-none disabled:text-gray-500 disabled:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] sm:w-60 sm:flex-none"
       >
         <Sparkles size={14} className="shrink-0 text-violet-300" aria-hidden="true" />
         <span className={`min-w-0 flex-1 truncate tabular-nums ${selected ? 'text-gray-100' : 'text-gray-400'}`}>
-          {selected ? labelFor(selected) : t('recommendationNone')}
+          {unavailable
+            ? t('recommendationNoMatchingSlots')
+            : selected
+              ? labelFor(selected)
+              : t('recommendationNone')}
         </span>
         <span className="relative flex h-8 w-8 shrink-0 items-center justify-center">
           {disabled ? (
