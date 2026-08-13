@@ -2421,6 +2421,8 @@
     "donationBody": "{user} enviou comprovante de depósito do banco da guilda para {silver} prata.",
     "shopTitle": "Pedido da loja pendente",
     "shopBody": "{user} enviou um pedido de loja no valor de {points} pontos.",
+    "shopCancelledTitle": "Pedido da loja cancelado",
+    "shopCancelledBody": "{user} cancelou um pedido de loja no valor de {points} pontos.",
     "shopItemsField": "Itens encomendados",
     "shopItemLine": "• {item} ×{quantity} — {points}p",
     "shopItemsMore": "E {count} mais",

@@ -2421,6 +2421,8 @@
     "donationBody": "{user} przesłany dowód depozytu bankowego gildii dla {silver} srebra.",
     "shopTitle": "Zamówienie sklepowe oczekujące",
     "shopBody": "{user} złożył zamówienie sklepowe o wartości {points} punktów.",
+    "shopCancelledTitle": "Zamówienie sklepowe anulowane",
+    "shopCancelledBody": "{user} anulował zamówienie sklepowe o wartości {points} punktów.",
     "shopItemsField": "Zamówione przedmioty",
     "shopItemLine": "• {item} ×{quantity} — {points}p",
     "shopItemsMore": "I {count} więcej",

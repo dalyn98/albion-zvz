@@ -2421,6 +2421,8 @@
     "donationBody": "{user} 提交了 {silver} 银币的公会金库存入凭证。",
     "shopTitle": "商店订单待处理",
     "shopBody": "{user} 提交了价值 {points} 点数的商店订单。",
+    "shopCancelledTitle": "商店订单已取消",
+    "shopCancelledBody": "{user} 取消了价值 {points} 点数的商店订单。",
     "shopItemsField": "订单物品",
     "shopItemLine": "• {item} ×{quantity} — {points}p",
     "shopItemsMore": "另有 {count} 种",

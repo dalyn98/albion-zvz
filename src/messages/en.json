@@ -2421,6 +2421,8 @@
     "donationBody": "{user} submitted guild bank deposit proof for {silver} silver.",
     "shopTitle": "Shop order pending",
     "shopBody": "{user} submitted a shop order worth {points} points.",
+    "shopCancelledTitle": "Shop order cancelled",
+    "shopCancelledBody": "{user} cancelled a shop order worth {points} points.",
     "shopItemsField": "Ordered items",
     "shopItemLine": "• {item} ×{quantity} — {points}p",
     "shopItemsMore": "and {count} more",

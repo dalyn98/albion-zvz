@@ -2421,6 +2421,8 @@
     "donationBody": "{user} قدمت إثبات إيداع بنك النقابة مقابل {silver} الفضة.",
     "shopTitle": "طلب المتجر معلق",
     "shopBody": "{user} قدم طلب متجر بقيمة {points} نقطة.",
+    "shopCancelledTitle": "تم إلغاء طلب المتجر",
+    "shopCancelledBody": "ألغى {user} طلب متجر بقيمة {points} نقطة.",
     "shopItemsField": "العناصر المطلوبة",
     "shopItemLine": "• {item} ×{quantity} — {points}p",
     "shopItemsMore": "و{count} المزيد",

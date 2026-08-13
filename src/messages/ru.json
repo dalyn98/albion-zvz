@@ -2421,6 +2421,8 @@
     "donationBody": "{user} представил подтверждение банковского депозита гильдии для {silver} серебра.",
     "shopTitle": "Ожидание заказа в магазине",
     "shopBody": "{user} отправил заказ в магазине на сумму {points} баллов.",
+    "shopCancelledTitle": "Заказ в магазине отменён",
+    "shopCancelledBody": "{user} отменил заказ в магазине на сумму {points} баллов.",
     "shopItemsField": "Заказанные товары",
     "shopItemLine": "• {item} ×{quantity} — {points}p",
     "shopItemsMore": "И {count} больше",

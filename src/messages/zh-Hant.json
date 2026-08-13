@@ -2421,6 +2421,8 @@
     "donationBody": "{user}提交了{silver}銀的公會銀行存款證明。",
     "shopTitle": "商店訂單待定",
     "shopBody": "{user}提交了價值{points}積分的商店訂單。",
+    "shopCancelledTitle": "商店訂單已取消",
+    "shopCancelledBody": "{user}取消了價值{points}積分的商店訂單。",
     "shopItemsField": "訂購的物品",
     "shopItemLine": "• {item} ×{quantity} — {points}p",
     "shopItemsMore": "和{count}更多",

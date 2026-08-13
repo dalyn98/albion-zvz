@@ -2421,6 +2421,8 @@
     "donationBody": "{user} menyerahkan bukti setoran bank guild untuk {silver} perak.",
     "shopTitle": "Pesanan toko tertunda",
     "shopBody": "{user} mengirimkan pesanan toko senilai {points} poin.",
+    "shopCancelledTitle": "Pesanan toko dibatalkan",
+    "shopCancelledBody": "{user} membatalkan pesanan toko senilai {points} poin.",
     "shopItemsField": "Barang yang dipesan",
     "shopItemLine": "• {item} ×{quantity} — {points}p",
     "shopItemsMore": "Dan {count} lebih",

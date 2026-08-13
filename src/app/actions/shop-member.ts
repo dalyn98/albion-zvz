@@ -35,6 +35,7 @@ import {
 } from '@/lib/shop-order-application-command'
 import { ApplicationCommandError } from '@/lib/application-command'
 import { isApplicationCommandIdempotencyKey } from '@/lib/application-command-idempotency'
+import { log } from '@/lib/log'
 import {
   isSameStableMemberOwner,
   resolveStableMemberOwnership,
@@ -122,21 +123,27 @@ async function loadOwnedShopOrder(
   subjectId: string,
 ): Promise<{
   ownerSubjectId: string | null
+  totalPoints: number | null
   notOwned: boolean
   error: { message: string } | null
 }> {
   const [{ data: order, error }, ownership] = await Promise.all([
     db
       .from('shop_orders')
-      .select('discord_id, guild_member_id')
+      .select('discord_id, guild_member_id, total_points')
       .eq('guild_id', guildId)
       .eq('id', orderId)
       .maybeSingle(),
     resolveStableMemberOwnership(db, guildId, subjectId),
   ])
-  if (error) return { ownerSubjectId: null, notOwned: false, error }
+  if (error) return { ownerSubjectId: null, totalPoints: null, notOwned: false, error }
   if (ownership.error) {
-    return { ownerSubjectId: null, notOwned: false, error: { message: ownership.error } }
+    return {
+      ownerSubjectId: null,
+      totalPoints: null,
+      notOwned: false,
+      error: { message: ownership.error },
+    }
   }
   if (!order || !isSameStableMemberOwner({
     currentGuildMemberId: ownership.guildMemberId,
@@ -144,9 +151,14 @@ async function loadOwnedShopOrder(
     rowGuildMemberId: order.guild_member_id,
     rowSubjectId: order.discord_id,
   })) {
-    return { ownerSubjectId: null, notOwned: true, error: null }
+    return { ownerSubjectId: null, totalPoints: null, notOwned: true, error: null }
   }
-  return { ownerSubjectId: order.discord_id, notOwned: false, error: null }
+  return {
+    ownerSubjectId: order.discord_id,
+    totalPoints: order.total_points,
+    notOwned: false,
+    error: null,
+  }
 }
 
 function trimOptionalString(value: unknown): string | null {
@@ -598,6 +610,26 @@ export async function cancelMyOrder(orderId: string): Promise<{ error?: string }
     revalidatePath('/me')
     revalidatePath('/admin/dashboard/approvals')
     revalidatePath('/', 'layout')
+    try {
+      const { t: tAdminNotify } = await getAdminNotificationTranslations(guildId)
+      await sendAdminNotification({
+        guildId,
+        topic: 'shop',
+        sourceTable: 'shop_order_cancellations',
+        sourceId: orderId,
+        title: tAdminNotify('shopCancelledTitle'),
+        body: tAdminNotify('shopCancelledBody', {
+          user: session.username,
+          points: (owned.totalPoints ?? 0).toLocaleString('en-US'),
+        }),
+        url: `/admin/dashboard/approvals?tab=shop&order=${encodeURIComponent(orderId)}#shop-order-${encodeURIComponent(orderId)}`,
+      })
+    } catch (notificationError) {
+      log.error('[shop-order] cancellation notification failed', notificationError, {
+        tenant_id: guildId,
+        order_id: orderId,
+      })
+    }
     return {}
   } catch (e) {
     return { error: await publicActionError(e, 'actions/shop-member') }

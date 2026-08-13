@@ -2421,6 +2421,8 @@
     "donationBody": "{user} presentó prueba de depósito del banco del gremio para {silver} plata.",
     "shopTitle": "Pedido de la tienda pendiente",
     "shopBody": "{user} envió un pedido de tienda por valor de {points} puntos.",
+    "shopCancelledTitle": "Pedido de la tienda cancelado",
+    "shopCancelledBody": "{user} canceló un pedido de tienda por valor de {points} puntos.",
     "shopItemsField": "Artículos pedidos",
     "shopItemLine": "• {item} ×{quantity} — {points}p",
     "shopItemsMore": "Y {count} más",

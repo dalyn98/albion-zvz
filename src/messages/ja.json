@@ -2421,6 +2421,8 @@
     "donationBody": "{user} が {silver} シルバーのギルド金庫入金証明を提出しました。",
     "shopTitle": "ショップ注文待ち",
     "shopBody": "{user} が {points} ポイント分のショップ注文を提出しました。",
+    "shopCancelledTitle": "ショップ注文キャンセル",
+    "shopCancelledBody": "{user} が {points} ポイント分のショップ注文をキャンセルしました。",
     "shopItemsField": "注文アイテム",
     "shopItemLine": "• {item} ×{quantity} — {points}p",
     "shopItemsMore": "他 {count}種",

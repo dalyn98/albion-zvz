@@ -2421,6 +2421,8 @@
     "donationBody": "{user} 님이 {silver} 실버 길드 금고 입금 증빙을 제출했습니다.",
     "shopTitle": "상점 주문 대기",
     "shopBody": "{user} 님이 {points} 포인트 상점 주문을 제출했습니다.",
+    "shopCancelledTitle": "상점 주문 취소",
+    "shopCancelledBody": "{user} 님이 {points} 포인트 상점 주문을 취소했습니다.",
     "shopItemsField": "주문 아이템",
     "shopItemLine": "• {item} ×{quantity} — {points}p",
     "shopItemsMore": "외 {count}종",

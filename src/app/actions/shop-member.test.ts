@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   isLocalGuildAccountRestrictedFromResources: vi.fn(),
   sendAdminNotification: vi.fn(),
   getAdminNotificationTranslations: vi.fn(),
+  logError: vi.fn(),
   loadApplicationCommandReceipt: vi.fn(),
   executeApplicationCommand: vi.fn(),
   resolveStableMemberOwnership: vi.fn(),
@@ -58,6 +59,10 @@ vi.mock('@/lib/local-guild-account', () => ({
 vi.mock('@/lib/admin-notifications', () => ({
   sendAdminNotification: mocks.sendAdminNotification,
   getAdminNotificationTranslations: mocks.getAdminNotificationTranslations,
+}))
+
+vi.mock('@/lib/log', () => ({
+  log: { error: mocks.logError },
 }))
 
 vi.mock('@/lib/application-command', async (importOriginal) => ({
@@ -130,6 +135,7 @@ function createCancelOrderDb(
       data: {
         discord_id: options.rowDiscordId ?? 'member-1',
         guild_member_id: options.rowGuildMemberId ?? 'member-record-1',
+        total_points: 250,
       },
       error: null,
     })),
@@ -153,6 +159,7 @@ describe('submitShopOrder', () => {
     mocks.isLocalGuildAccountRestrictedFromResources.mockReset()
     mocks.sendAdminNotification.mockReset()
     mocks.getAdminNotificationTranslations.mockReset()
+    mocks.logError.mockReset()
     mocks.loadApplicationCommandReceipt.mockReset()
     mocks.executeApplicationCommand.mockReset()
     mocks.resolveStableMemberOwnership.mockReset()
@@ -524,6 +531,9 @@ describe('cancelMyOrder', () => {
     mocks.getSessionGuildId.mockReset()
     mocks.getAdminClient.mockReset()
     mocks.isLocalGuildAccountRestrictedFromResources.mockReset()
+    mocks.sendAdminNotification.mockReset()
+    mocks.getAdminNotificationTranslations.mockReset()
+    mocks.logError.mockReset()
     mocks.resolveStableMemberOwnership.mockReset()
 
     mocks.getTranslations.mockResolvedValue((key: string) => key)
@@ -534,6 +544,11 @@ describe('cancelMyOrder', () => {
     })
     mocks.getSessionGuildId.mockResolvedValue('guild-1')
     mocks.isLocalGuildAccountRestrictedFromResources.mockReturnValue(false)
+    mocks.getAdminNotificationTranslations.mockResolvedValue({
+      locale: 'ko',
+      t: (key: string, values?: Record<string, unknown>) =>
+        values ? `${key}:${JSON.stringify(values)}` : key,
+    })
     mocks.resolveStableMemberOwnership.mockResolvedValue({
       guildMemberId: 'member-record-1',
     })
@@ -552,6 +567,15 @@ describe('cancelMyOrder', () => {
     })
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/shop')
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/me')
+    expect(mocks.sendAdminNotification).toHaveBeenCalledWith({
+      guildId: 'guild-1',
+      topic: 'shop',
+      sourceTable: 'shop_order_cancellations',
+      sourceId: 'order-1',
+      title: 'shopCancelledTitle',
+      body: 'shopCancelledBody:{"user":"MemberOne","points":"250"}',
+      url: '/admin/dashboard/approvals?tab=shop&order=order-1#shop-order-order-1',
+    })
   })
 
   it('does not report success when the stock-restoring RPC cannot cancel a pending order', async () => {
@@ -568,6 +592,23 @@ describe('cancelMyOrder', () => {
       p_discord_id: 'member-1',
     })
     expect(mocks.revalidatePath).not.toHaveBeenCalled()
+    expect(mocks.sendAdminNotification).not.toHaveBeenCalled()
+  })
+
+  it('keeps the cancellation successful when notification preparation fails', async () => {
+    const { db } = createCancelOrderDb()
+    mocks.getAdminClient.mockReturnValue(db)
+    mocks.getAdminNotificationTranslations.mockRejectedValueOnce(
+      new Error('translation unavailable'),
+    )
+
+    await expect(cancelMyOrder('order-1')).resolves.toEqual({})
+
+    expect(mocks.logError).toHaveBeenCalledWith(
+      '[shop-order] cancellation notification failed',
+      expect.any(Error),
+      { tenant_id: 'guild-1', order_id: 'order-1' },
+    )
   })
 
   it('uses the historical access subject after a local account is linked to Discord', async () => {

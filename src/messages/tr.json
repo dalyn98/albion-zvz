@@ -2421,6 +2421,8 @@
     "donationBody": "{user} {silver} gümüş için lonca banka mevduatı belgesi gönderdi.",
     "shopTitle": "Mağaza siparişi beklemede",
     "shopBody": "{user} {points} puan değerinde bir mağaza siparişi gönderdi.",
+    "shopCancelledTitle": "Mağaza siparişi iptal edildi",
+    "shopCancelledBody": "{user} {points} puan değerindeki mağaza siparişini iptal etti.",
     "shopItemsField": "Sipariş edilen ürünler",
     "shopItemLine": "• {item} ×{quantity} — {points}P",
     "shopItemsMore": "Ve {count} daha fazlası",

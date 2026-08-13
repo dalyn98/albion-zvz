@@ -2421,6 +2421,8 @@
     "donationBody": "{user} hat einen Guldenbank-Einzahlungsnachweis für {silver} Silber eingereicht.",
     "shopTitle": "Shop-Bestellung ausstehend",
     "shopBody": "{user} hat eine Shop-Bestellung im Wert von {points} Punkten eingereicht.",
+    "shopCancelledTitle": "Shop-Bestellung storniert",
+    "shopCancelledBody": "{user} hat eine Shop-Bestellung im Wert von {points} Punkten storniert.",
     "shopItemsField": "Bestellte Artikel",
     "shopItemLine": "• {item} ×{quantity} — {points}p",
     "shopItemsMore": "Und {count} mehr",

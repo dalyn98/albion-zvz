@@ -2421,6 +2421,8 @@
     "donationBody": "{user} ha presentato la prova del deposito bancario della gilda per {silver} argento.",
     "shopTitle": "Ordine del negozio in sospeso",
     "shopBody": "{user} ha inviato un ordine del negozio del valore di {points} punti.",
+    "shopCancelledTitle": "Ordine del negozio annullato",
+    "shopCancelledBody": "{user} ha annullato un ordine del negozio del valore di {points} punti.",
     "shopItemsField": "Articoli ordinati",
     "shopItemLine": "• {item} ×{quantity} — {points}p",
     "shopItemsMore": "E {count} di più",

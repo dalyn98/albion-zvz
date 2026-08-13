@@ -2421,6 +2421,8 @@
     "donationBody": "{user} a soumis une preuve de dépôt bancaire de guilde pour {silver} argent.",
     "shopTitle": "Commande en magasin en attente",
     "shopBody": "{user} a soumis une commande en magasin d'une valeur de {points} points.",
+    "shopCancelledTitle": "Commande en magasin annulée",
+    "shopCancelledBody": "{user} a annulé une commande en magasin d'une valeur de {points} points.",
     "shopItemsField": "Articles commandés",
     "shopItemLine": "• {item} ×{quantity} — {points}p",
     "shopItemsMore": "Et {count} plus",
