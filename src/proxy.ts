@@ -47,6 +47,40 @@ const SUPPORT_VIEW_ALLOWED_POST_PATHS = new Set([
   '/api/super-admin/impersonation/end',
 ])
 
+// Older Discord links were built by assigning a path containing `?` / `#`
+// directly to URL.pathname. Those separators were stored in Discord as `%3F`
+// / `%23`, so the browser requested a non-existent route. Repair only safe
+// navigation methods, keep the current origin, and leave any encoded markers
+// inside query/fragment values untouched.
+function redirectLegacyEncodedExternalLink(request: NextRequest): NextResponse | null {
+  if (!['GET', 'HEAD'].includes(request.method.toUpperCase())) return null
+
+  const pathname = request.nextUrl.pathname
+  const lowerPathname = pathname.toLowerCase()
+  const fragmentIndex = lowerPathname.indexOf('%23')
+  const queryCandidate = lowerPathname.indexOf('%3f')
+  const queryIndex =
+    queryCandidate >= 0 && (fragmentIndex < 0 || queryCandidate < fragmentIndex)
+      ? queryCandidate
+      : -1
+  if (queryIndex < 0 && fragmentIndex < 0) return null
+
+  const pathnameEnd = queryIndex >= 0 ? queryIndex : fragmentIndex
+  const recoveredPathname = pathname.slice(0, pathnameEnd) || '/'
+  const recoveredQuery = queryIndex >= 0
+    ? pathname.slice(
+        queryIndex + 3,
+        fragmentIndex >= 0 ? fragmentIndex : pathname.length,
+      )
+    : ''
+  const existingQuery = request.nextUrl.search.slice(1)
+  const target = request.nextUrl.clone()
+  target.pathname = recoveredPathname
+  target.search = [recoveredQuery, existingQuery].filter(Boolean).join('&')
+  target.hash = fragmentIndex >= 0 ? pathname.slice(fragmentIndex + 3) : ''
+  return NextResponse.redirect(target, 308)
+}
+
 async function blockSupportViewMutation(
   request: NextRequest,
 ): Promise<NextResponse | null> {
@@ -376,6 +410,9 @@ function handleSuperAdminPath(request: NextRequest): NextResponse | null {
 }
 
 export async function proxy(request: NextRequest) {
+  const encodedExternalLinkRedirect = redirectLegacyEncodedExternalLink(request)
+  if (encodedExternalLinkRedirect) return encodedExternalLinkRedirect
+
   const legacyRedirect = redirectLegacyHost(request)
   if (legacyRedirect) return legacyRedirect
 

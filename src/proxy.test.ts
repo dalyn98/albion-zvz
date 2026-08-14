@@ -178,6 +178,44 @@ describe('proxy pathname forwarding', () => {
     )
   })
 
+  it('repairs detail links already stored in Discord with encoded query and fragment separators', async () => {
+    const response = await proxy(
+      new NextRequest(
+        'https://menhera.albion-guildmanager.com/admin/dashboard/approvals%3Ftab=shop&order=order-1%23shop-order-order-1',
+        { headers: { host: 'menhera.albion-guildmanager.com' } },
+      ),
+    )
+
+    expect(response.status).toBe(308)
+    expect(response.headers.get('location')).toBe(
+      'https://menhera.albion-guildmanager.com/admin/dashboard/approvals?tab=shop&order=order-1#shop-order-order-1',
+    )
+    expect(mocks.verifySession).not.toHaveBeenCalled()
+  })
+
+  it('repairs fragment-only links without allowing an external redirect', async () => {
+    const response = await proxy(
+      new NextRequest(
+        'https://menhera.albion-guildmanager.com/me/settings%23discord-dm',
+        { headers: { host: 'menhera.albion-guildmanager.com' } },
+      ),
+    )
+    const sameOriginResponse = await proxy(
+      new NextRequest(
+        'https://menhera.albion-guildmanager.com/admin/dashboard/approvals%3Fnext=//outside.example',
+        { headers: { host: 'menhera.albion-guildmanager.com' } },
+      ),
+    )
+
+    expect(response.status).toBe(308)
+    expect(response.headers.get('location')).toBe(
+      'https://menhera.albion-guildmanager.com/me/settings#discord-dm',
+    )
+    expect(sameOriginResponse.headers.get('location')).toBe(
+      'https://menhera.albion-guildmanager.com/admin/dashboard/approvals?next=//outside.example',
+    )
+  })
+
   it('drops sensitive query values from an expired admin destination', async () => {
     const response = await proxy(
       new NextRequest(
