@@ -11,6 +11,11 @@ const DEFAULT_TIMEOUT_MS = 30_000
 const DEFAULT_SETTLE_MS = 1_000
 const DEFAULT_CLEANUP_TIMEOUT_MS = 5_000
 const DEFAULT_MIN_TEXT_LENGTH = 500
+const DEFAULT_BROWSER_LOCALE = 'en-US'
+const SUPPORTED_PUBLIC_LOCALES = [
+  'ko', 'ja', 'en', 'zh', 'zh-Hant', 'fr', 'de', 'es-ES', 'es-419',
+  'pt-BR', 'pt-PT', 'pl', 'ru', 'it', 'id', 'ar', 'tr',
+]
 const MOBILE_VIEWPORT = { width: 390, height: 844 }
 const DEFAULT_DESKTOP_WIDTHS = [1024, 1180, 1366, 1600]
 const TODAY = new Date().toISOString().slice(0, 10)
@@ -144,6 +149,7 @@ const RAW_PLACEHOLDER_PATTERN = /\{[A-Za-z_$][\w$]*\}/g
 const DOMAIN_LIKE_PATTERN = /^[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|net|org|io|gg|dev|app|be)$/i
 const DOMAIN_LIKE_GLOBAL_PATTERN =
   /\b[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|net|org|io|gg|dev|app|be)\b/gi
+const PROSE_ABBREVIATION_PATTERN = /\b(?:e\.g|i\.e)\.(?=[\s,;:)\]]|$)/gi
 
 const AUTH_REDIRECT_TARGETS = new Map([
   ['/me/settlements', { expectedPathname: '/me/requests', expectedSearch: '' }],
@@ -313,6 +319,10 @@ export function parseArgs(argv = process.argv.slice(2), env = process.env) {
     getArgValue(argv, '--desktop-widths') !== null ||
     env.SMOKE_DESKTOP === '1'
   return {
+    browserLocale:
+      getArgValue(argv, '--browser-locale') ||
+      env.SMOKE_BROWSER_LOCALE ||
+      DEFAULT_BROWSER_LOCALE,
     baseUrl: normalizeBaseUrl(
       getArgValue(argv, '--base-url') ||
         getArgValue(argv, '--base') ||
@@ -366,6 +376,31 @@ function expectedPathname(path) {
   return new URL(normalizePath(path), DEFAULT_BASE_URL).pathname
 }
 
+export function resolveBrowserLocale(value) {
+  const normalized = String(value || '').trim().replaceAll('_', '-').toLowerCase()
+  if (/^zh-(tw|hk|mo|hant)(-|$)/.test(normalized) || normalized === 'zh-hant') {
+    return 'zh-Hant'
+  }
+  if (normalized === 'zh' || /^zh-(cn|sg|hans)(-|$)/.test(normalized)) return 'zh'
+  if (normalized === 'es-es' || normalized.startsWith('es-es-')) return 'es-ES'
+  if (normalized === 'es' || normalized.startsWith('es-')) return 'es-419'
+  if (normalized === 'pt-pt' || normalized.startsWith('pt-pt-')) return 'pt-PT'
+  if (normalized === 'pt' || normalized.startsWith('pt-')) return 'pt-BR'
+  const exact = SUPPORTED_PUBLIC_LOCALES.find((locale) => locale.toLowerCase() === normalized)
+  if (exact) return exact
+  const base = normalized.split('-')[0]
+  return SUPPORTED_PUBLIC_LOCALES.find((locale) => locale === base) ?? 'en'
+}
+
+function expectedPublicPathnames(path, locale) {
+  const pathname = expectedPathname(path)
+  if (pathname === '/invite/open') return [pathname]
+  if (pathname === '/' || pathname === '/landing') {
+    return [`/${locale}`]
+  }
+  return [`/${locale}${pathname}`]
+}
+
 function normalizeDemoPathname(pathname) {
   const normalizedPathname = String(pathname || '').replace(/\/+$/, '')
   return normalizedPathname || '/'
@@ -412,6 +447,7 @@ function buildTarget(baseUrl, group, path, options = {}) {
     minTextLength: options.minTextLength ?? DEFAULT_MIN_TEXT_LENGTH,
     expectedPathname:
       options.expectedPathname ?? demoExpectedParts?.expectedPathname ?? expectedPathname(normalizedPath),
+    expectedPathnames: options.expectedPathnames,
     expectedSearch: options.expectedSearch ?? demoExpectedParts?.expectedSearch,
   }
 }
@@ -428,6 +464,7 @@ export function buildTargets(config) {
     ? config.groups
     : DEFAULT_GROUPS
   const targets = []
+  const publicLocale = resolveBrowserLocale(config.browserLocale)
 
   for (const group of groups) {
     if (group === 'public') {
@@ -436,14 +473,20 @@ export function buildTargets(config) {
         'public',
         path,
         path === '/landing'
-          ? { expectedPathname: '/' }
+          ? { expectedPathnames: expectedPublicPathnames(path, publicLocale) }
           : path === '/invite/open'
             ? { minTextLength: 40 }
             : path === '/zvz-battles'
-              ? { minTextLength: 200 }
+              ? {
+                  minTextLength: 200,
+                  expectedPathnames: expectedPublicPathnames(path, publicLocale),
+                }
               : path.startsWith('/docs/')
-                ? { minTextLength: 300 }
-                : undefined,
+                ? {
+                    minTextLength: 300,
+                    expectedPathnames: expectedPublicPathnames(path, publicLocale),
+                  }
+                : { expectedPathnames: expectedPublicPathnames(path, publicLocale) },
       )))
     } else if (group === 'demo') {
       targets.push(...DEMO_PATHS.map((path) => buildTarget(
@@ -490,7 +533,9 @@ export function buildTargets(config) {
 
 export function detectRawI18nTokens(text) {
   const input = String(text || '')
-  const inputWithoutDomains = input.replace(DOMAIN_LIKE_GLOBAL_PATTERN, ' ')
+  const inputWithoutDomains = input
+    .replace(DOMAIN_LIKE_GLOBAL_PATTERN, ' ')
+    .replace(PROSE_ABBREVIATION_PATTERN, ' ')
   const hits = new Set()
 
   for (const match of inputWithoutDomains.matchAll(RAW_I18N_KEY_PATTERN)) {
@@ -539,9 +584,12 @@ function finalPathWithSearch(finalUrl) {
 
 function isExpectedFinalPath(target, finalUrl) {
   const { pathname, search } = finalUrlParts(finalUrl)
-  if (!target.expectedPathname) return true
+  const expectedPathnames = target.expectedPathnames ?? (
+    target.expectedPathname ? [target.expectedPathname] : []
+  )
+  if (expectedPathnames.length === 0) return true
   if (target.expectedSearch !== undefined && search !== target.expectedSearch) return false
-  return pathname === target.expectedPathname
+  return expectedPathnames.includes(pathname)
 }
 
 function authStateForTarget(target, config) {
@@ -1062,6 +1110,7 @@ async function inspectTarget(browser, target, config, desktopWidth = null) {
   }
 
   const context = await browser.newContext({
+    locale: config.browserLocale,
     viewport: config.mobile
       ? MOBILE_VIEWPORT
       : { width: desktopWidth || 1366, height: 900 },

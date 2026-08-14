@@ -98,7 +98,7 @@ export default function LoginEntry({
         <a
           href={loginHref}
           className={cx(
-            'inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#5865F2] px-4 py-3.5 font-semibold text-white transition-[background-color,transform] hover:bg-[#4752c4]',
+            'inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#5865F2] px-4 py-3.5 font-semibold text-[#fff] transition-[background-color,transform] hover:bg-[#4752c4]',
             pressScaleClass,
           )}
         >

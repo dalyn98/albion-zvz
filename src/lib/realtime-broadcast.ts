@@ -1,3 +1,5 @@
+import 'server-only'
+
 // Server-side Supabase Realtime Broadcast helper.
 //
 // Why broadcast (not postgres_changes): 우리 세션은 HMAC 쿠키 기반 → Supabase

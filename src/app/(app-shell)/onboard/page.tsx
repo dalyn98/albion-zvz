@@ -154,7 +154,7 @@ export default async function OnboardPage({ searchParams }: OnboardPageProps) {
           </p>
           <Link
             href="/login?returnTo=%2Fonboard"
-            className="inline-block mt-4 px-4 py-2 rounded-lg bg-[#5865F2] hover:bg-[#4752c4] text-white text-sm font-semibold"
+            className="inline-block mt-4 px-4 py-2 rounded-lg bg-[#5865F2] hover:bg-[#4752c4] text-[#fff] text-sm font-semibold"
           >
             {t('relogin')}
           </Link>

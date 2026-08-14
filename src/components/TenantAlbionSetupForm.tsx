@@ -388,7 +388,7 @@ export default function TenantAlbionSetupForm({ tenantId, labels, initialSelecti
         <button
           type="submit"
           disabled={isPending || !server || !guildId}
-          className="flex-1 rounded-lg bg-[#5865F2] hover:bg-[#4752c4] disabled:opacity-60 text-white text-sm font-semibold py-2.5"
+          className="flex-1 rounded-lg bg-[#5865F2] hover:bg-[#4752c4] disabled:opacity-60 text-[#fff] text-sm font-semibold py-2.5"
         >
           {isPending ? labels.savingButton : labels.nextButton}
         </button>

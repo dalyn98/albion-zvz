@@ -30,6 +30,7 @@ describe('slot workspace browser smoke contract', () => {
     expect(source).toContain('.dragTo(')
     expect(source).toContain('a later field edit must expire the structural undo receipt')
     expect(source).toContain('sticky slot editor must not overlap the event save bar')
+    expect(source).toContain('rootFontSize * 5')
     expect(source).toContain('1024')
     expect(source).toContain('1280')
     expect(source).toContain('1366')

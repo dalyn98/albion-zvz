@@ -15,6 +15,7 @@ vi.mock('@/lib/seo-attribution', () => ({
       'cta_docs_click',
       'cta_bot_install_click',
       'language_switch',
+      'battles_board_view',
     ].includes(String(value)),
   recordClientSeoAttributionEvent: mocks.recordClientSeoAttributionEvent,
   seoSessionCookieOptions: () => ({
@@ -90,5 +91,20 @@ describe('POST /api/marketing/attribution', () => {
     expect(setCookie).toContain('agm_seo_session=00000000-0000-4000-8000-000000000001')
     expect(setCookie.toLowerCase()).toContain('httponly')
     expect(setCookie.toLowerCase()).toContain('samesite=lax')
+  })
+
+  it('accepts localized battle-board attribution events', async () => {
+    const payload = {
+      eventType: 'battles_board_view',
+      path: '/en/zvz-battles',
+    }
+
+    const response = await POST(request(payload))
+
+    expect(response.status).toBe(200)
+    expect(mocks.recordClientSeoAttributionEvent).toHaveBeenCalledWith(
+      expect.any(NextRequest),
+      payload,
+    )
   })
 })

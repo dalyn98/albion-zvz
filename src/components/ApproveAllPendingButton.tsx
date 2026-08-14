@@ -5,15 +5,29 @@ import { useRouter } from 'next/navigation'
 import { CheckCheck, Loader2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { approveAllPendingRequests } from '@/app/actions/approval-bulk'
+import { APPROVE_ALL_PENDING_LIMIT } from '@/lib/approval-bulk'
 import { useToast } from './ToastProvider'
+import { useConfirm } from './ConfirmDialog'
 
 export default function ApproveAllPendingButton({ count }: { count: number }) {
   const t = useTranslations('adminApprovals')
   const router = useRouter()
   const toast = useToast()
+  const askConfirm = useConfirm()
   const [pending, startTransition] = useTransition()
 
-  const approveAll = () => {
+  const approveAll = async () => {
+    const accepted = await askConfirm({
+      title: t('approveAllConfirmTitle'),
+      body: t('approveAllConfirmBody', {
+        count,
+        limit: APPROVE_ALL_PENDING_LIMIT,
+      }),
+      confirmLabel: t('approveAllConfirmAction'),
+      destructive: true,
+    })
+    if (!accepted) return
+
     startTransition(async () => {
       const result = await approveAllPendingRequests()
       if (result.fatalError) {
@@ -47,7 +61,7 @@ export default function ApproveAllPendingButton({ count }: { count: number }) {
   return (
     <button
       type="button"
-      onClick={approveAll}
+      onClick={() => void approveAll()}
       disabled={pending || count === 0}
       title={t('approveAllHint')}
       className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-success px-4 text-sm font-semibold text-success-foreground shadow-card transition-[background-color,box-shadow,transform,opacity] duration-200 hover:shadow-lift active:not-disabled:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-45"

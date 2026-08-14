@@ -55,6 +55,7 @@ jobs:
           retention-days: 14
 
       - name: Production build
+        if: ${{ !cancelled() }}
         env:
           NODE_OPTIONS: --max-old-space-size=4096
         run: npm run build
@@ -105,6 +106,7 @@ jobs:
         run: npx playwright install --with-deps chromium firefox webkit
 
       - name: Build and start authenticated test application
+        id: authenticated-app
         run: |
           set -a
           . ./supabase.env
@@ -135,24 +137,35 @@ jobs:
           fi
 
       - name: Create authenticated browser fixtures
+        id: auth-fixtures
+        if: ${{ !cancelled() && steps.authenticated-app.outcome == 'success' }}
         run: |
           npm run smoke:create-test-auth -- \
             --base-url http://localhost:3000 \
             --output-dir artifacts/test-auth
 
-      - name: Full desktop route smoke
+      - name: Public and demo route smoke
+        if: ${{ !cancelled() && steps.authenticated-app.outcome == 'success' && steps.auth-fixtures.outcome == 'success' }}
         run: |
           npm run smoke:browser -- \
             --base-url http://localhost:3000 \
             --groups public,demo \
             --capture-screenshots \
             --output artifacts/browser-smoke/public-demo-ci.md
+
+      - name: Member desktop route smoke
+        if: ${{ !cancelled() && steps.authenticated-app.outcome == 'success' && steps.auth-fixtures.outcome == 'success' }}
+        run: |
           npm run smoke:browser -- \
             --base-url http://localhost:3000 \
             --groups member \
             --member-storage-state artifacts/test-auth/member.json \
             --capture-screenshots \
             --output artifacts/browser-smoke/member-ci.md
+
+      - name: Admin desktop route smoke
+        if: ${{ !cancelled() && steps.authenticated-app.outcome == 'success' && steps.auth-fixtures.outcome == 'success' }}
+        run: |
           npm run smoke:browser -- \
             --base-url http://localhost:3000 \
             --groups admin \
@@ -161,6 +174,7 @@ jobs:
             --output artifacts/browser-smoke/admin-ci.md
 
       - name: Full mobile layout smoke
+        if: ${{ !cancelled() && steps.authenticated-app.outcome == 'success' && steps.auth-fixtures.outcome == 'success' }}
         run: |
           npm run smoke:browser -- \
             --base-url http://localhost:3000 \
@@ -172,12 +186,14 @@ jobs:
             --output artifacts/browser-smoke/mobile-ci.md
 
       - name: Core write-flow smoke
+        if: ${{ !cancelled() && steps.authenticated-app.outcome == 'success' && steps.auth-fixtures.outcome == 'success' }}
         run: |
           npm run smoke:slot-workspace -- \
             --base-url http://localhost:3000 \
             --storage-state artifacts/test-auth/admin.json
 
       - name: Cross-browser and accessibility matrix
+        if: ${{ !cancelled() && steps.authenticated-app.outcome == 'success' && steps.auth-fixtures.outcome == 'success' }}
         run: |
           npm run smoke:browser-matrix -- \
             --base-url http://localhost:3000 \

@@ -365,6 +365,15 @@ export function replaceSeoMarketingLocale(
   )
 }
 
+export function getSeoPublicLocale(pathname: string): SeoLocale | null {
+  return (
+    getSeoMarketingLocale(pathname) ??
+    getSeoZvzRecordLocale(pathname) ??
+    getSeoFeatureLocale(pathname) ??
+    getSeoDocsLocale(pathname)
+  )
+}
+
 export function buildSeoFeatureLanguageAlternates(
   pathname: string,
 ): Record<string, string> | null {

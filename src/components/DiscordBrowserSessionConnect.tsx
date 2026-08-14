@@ -133,7 +133,7 @@ export default function DiscordBrowserSessionConnect({ returnTo, labels }: Props
         disabled={phase === 'starting'}
         onClick={() => void start()}
         className={cx(
-          'group relative inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#5865F2] py-3.5 font-semibold text-white shadow-[0_10px_30px_-10px_rgba(88,101,242,0.6)] transition-[background-color,box-shadow,transform] duration-200 ease-out hover:-translate-y-0.5 hover:bg-[#4752c4] disabled:cursor-wait disabled:opacity-70',
+          'group relative inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#5865F2] py-3.5 font-semibold text-[#fff] shadow-[0_10px_30px_-10px_rgba(88,101,242,0.6)] transition-[background-color,box-shadow,transform] duration-200 ease-out hover:-translate-y-0.5 hover:bg-[#4752c4] disabled:cursor-wait disabled:opacity-70',
           pressScaleClass,
         )}
       >
@@ -156,7 +156,7 @@ export default function DiscordBrowserSessionConnect({ returnTo, labels }: Props
           type="button"
           onClick={() => void start()}
           className={cx(
-            'inline-flex w-full items-center justify-center rounded-lg bg-[#5865F2] py-2.5 text-sm font-semibold text-white hover:bg-[#4752c4]',
+            'inline-flex w-full items-center justify-center rounded-lg bg-[#5865F2] py-2.5 text-sm font-semibold text-[#fff] hover:bg-[#4752c4]',
             pressScaleClass,
           )}
         >
@@ -193,7 +193,7 @@ export default function DiscordBrowserSessionConnect({ returnTo, labels }: Props
           target="_blank"
           rel="noreferrer"
           className={cx(
-            'inline-flex items-center justify-center rounded-lg bg-[#5865F2] px-3 py-2.5 text-xs font-semibold text-white hover:bg-[#4752c4]',
+            'inline-flex items-center justify-center rounded-lg bg-[#5865F2] px-3 py-2.5 text-xs font-semibold text-[#fff] hover:bg-[#4752c4]',
             pressScaleClass,
           )}
         >

@@ -28,7 +28,7 @@ import { log } from '@/lib/log'
 import { logAdminAction } from '@/lib/admin-audit'
 import { logTenantOnboardingEvent } from '@/lib/tenant-onboarding-events'
 import { loadDiscordEventSignupMessages } from '@/lib/discord-event-signups'
-import { getIntlLocale, type Locale } from '@/i18n/locales'
+import { getIntlLocale } from '@/i18n/locales'
 import type {
   EventCategory,
   EventRegearAutoPolicy,

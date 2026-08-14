@@ -4,27 +4,6 @@ import { describe, expect, it } from 'vitest'
 
 const migrationsDir = join(process.cwd(), 'supabase', 'migrations')
 
-function sourceFiles(dir: string): string[] {
-  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-    const fullPath = join(dir, entry.name)
-    if (entry.isDirectory()) return sourceFiles(fullPath)
-    return /\.(ts|tsx)$/.test(entry.name) ? [fullPath] : []
-  })
-}
-
-function appRpcNames(): Set<string> {
-  const names = new Set<string>()
-  for (const root of ['src/app', 'src/lib']) {
-    for (const filePath of sourceFiles(join(process.cwd(), root))) {
-      const source = readFileSync(filePath, 'utf8')
-      for (const match of source.matchAll(/\.rpc\(['"]([a-zA-Z0-9_]+)['"]/g)) {
-        names.add(match[1])
-      }
-    }
-  }
-  return names
-}
-
 function normalizeType(raw: string): string {
   return raw
     .trim()
@@ -57,7 +36,6 @@ function signatureTypes(args: string): string {
 }
 
 interface FunctionDefinition {
-  name: string
   signature: string
   source: string
 }
@@ -77,9 +55,8 @@ function currentFunctionDefinitions(): Map<string, FunctionDefinition> {
     for (const match of sql.matchAll(functionPattern)) {
       const rawName = match[1].toLowerCase()
       const qualifiedName = rawName.startsWith('public.') ? rawName : `public.${rawName}`
-      const name = qualifiedName.slice('public.'.length)
       const signature = `${qualifiedName}(${signatureTypes(match[2])})`
-      definitions.set(signature, { name, signature, source: match[0] })
+      definitions.set(signature, { signature, source: match[0] })
     }
   }
 
@@ -87,10 +64,9 @@ function currentFunctionDefinitions(): Map<string, FunctionDefinition> {
 }
 
 describe('RPC search_path hardening', () => {
-  it('pins search_path for every app-called security-definer RPC', () => {
+  it('pins search_path for every current public security-definer function', () => {
     expect(statSync(migrationsDir).isDirectory()).toBe(true)
 
-    const rpcNames = appRpcNames()
     const allMigrationsSql = readdirSync(migrationsDir)
       .filter((file) => file.endsWith('.sql'))
       .sort()
@@ -98,7 +74,6 @@ describe('RPC search_path hardening', () => {
       .join('\n')
 
     const missing = [...currentFunctionDefinitions().values()]
-      .filter((definition) => rpcNames.has(definition.name))
       .filter((definition) => /security\s+definer/i.test(definition.source))
       .filter((definition) => {
         if (/set\s+search_path\s*=\s*public/i.test(definition.source)) return false
@@ -107,7 +82,11 @@ describe('RPC search_path hardening', () => {
           `'${escapedSignature}'[\\s\\S]*?alter function %s set search_path = public`,
           'i',
         )
-        return !alterPattern.test(allMigrationsSql)
+        const directAlterPattern = new RegExp(
+          `alter\\s+function\\s+${escapedSignature}\\s+set\\s+search_path\\s*=\\s*public`,
+          'i',
+        )
+        return !alterPattern.test(allMigrationsSql) && !directAlterPattern.test(allMigrationsSql)
       })
       .map((definition) => definition.signature)
 

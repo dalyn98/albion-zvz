@@ -118,7 +118,7 @@ export default async function PublicPricingPage() {
               <div className="flex flex-col sm:flex-row gap-2">
                 <a
                   href={installHref}
-                  className="inline-flex items-center justify-center rounded-lg bg-[#5865F2] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#4752c4]"
+                  className="inline-flex items-center justify-center rounded-lg bg-[#5865F2] px-5 py-2.5 text-sm font-semibold text-[#fff] transition-colors hover:bg-[#4752c4]"
                 >
                   {primaryCtaLabel}
                 </a>

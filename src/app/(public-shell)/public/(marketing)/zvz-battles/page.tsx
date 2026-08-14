@@ -423,7 +423,7 @@ function EntitySearchResultCard({
         <ArrowUpRight
           size={17}
           aria-hidden="true"
-          className="mt-1 shrink-0 text-gray-600 transition-[color,translate] duration-150 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-white"
+          className="mt-1 shrink-0 text-gray-400 transition-[color,translate] duration-150 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-white"
         />
       </div>
 
@@ -441,9 +441,9 @@ function EntitySearchResultCard({
             {t('searchGuildCount', { count: result.relatedGuildCount })}
           </span>
         ) : null}
-        <span className="text-gray-600">{periodLabel}</span>
+        <span className="text-gray-400">{periodLabel}</span>
         {result.latestBattleAt ? (
-          <span className="ml-auto text-gray-600">
+          <span className="ml-auto text-gray-400">
             {t('searchLatestBattle', {
               time: formatDateTime(result.latestBattleAt, locale),
             })}
@@ -634,7 +634,7 @@ function RankDelta({
     )
   }
   if (value === 0) {
-    return <span className="text-[11px] text-gray-600">—</span>
+    return <span className="text-[11px] text-gray-400">—</span>
   }
   const improved = value > 0
   return (
@@ -839,7 +839,7 @@ function V2EntityLink({
           <span className="max-w-32 truncate font-semibold text-gray-300">
             {row.representativeGuild.guildName}
           </span>
-          <span className="shrink-0 tabular-nums text-[11px] text-gray-600">
+          <span className="shrink-0 tabular-nums text-[11px] text-gray-400">
             {t('representativeGuildContribution', {
               participation: formatDecimal(row.representativeGuild.equivalentBattles),
               kills: formatNumber(row.representativeGuild.kills),
@@ -895,7 +895,7 @@ function RankingRowContext({
     : t('primaryEngagementScalePending')
   return (
     <div className="mt-1.5">
-      <p className="text-pretty text-[11px] leading-4 text-gray-600">
+      <p className="text-pretty text-[11px] leading-4 text-gray-400">
         {t('rankingReasonSummary', {
           scale,
           count: row.engagementCount,
@@ -1208,7 +1208,7 @@ function V2RankingTable({
                       <p className="tabular-nums text-base font-black text-white">
                         {formatDecimal(row.score)}
                       </p>
-                      <p className="mt-0.5 tabular-nums text-xs text-gray-600">
+                      <p className="mt-0.5 tabular-nums text-xs text-gray-400">
                         {t('killFameColumn')} {formatCompact(row.killFame)}
                       </p>
                     </td>

@@ -538,10 +538,13 @@ async function verifyDesktop(page, eventPath, config) {
   )
   const floatingLayout = await inlineEditor.evaluate((element) => {
     const box = element.getBoundingClientRect()
+    const rootFontSize = Number.parseFloat(getComputedStyle(document.documentElement).fontSize)
     return {
       position: getComputedStyle(element).position,
+      computedTop: getComputedStyle(element).top,
       top: Math.round(box.top),
       viewportHeight: window.innerHeight,
+      expectedTop: Math.round(rootFontSize * 5),
     }
   })
   assert.equal(
@@ -550,7 +553,7 @@ async function verifyDesktop(page, eventPath, config) {
     `the editor must float with the viewport at slot twenty (${JSON.stringify(floatingLayout)})`,
   )
   assert.ok(
-    floatingLayout.top >= 78 && floatingLayout.top <= 82,
+    Math.abs(floatingLayout.top - floatingLayout.expectedTop) <= 2,
     `the floating editor must keep its desktop top inset (${JSON.stringify(floatingLayout)})`,
   )
 

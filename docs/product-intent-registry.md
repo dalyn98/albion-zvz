@@ -1,10 +1,12 @@
 # 제품 개발 의도 레지스트리
 
-- 기준일: 2026-08-02
-- 기준 코드: `6a4c9c7e` + Release C migration 359 로컬 milestone
+- 기준일: 2026-08-14
+- 기준 코드: `213b3b6f` + 전체 감사 보완 migration 412
 - 요구사항 원본: 이 프로젝트의 제품 Q&A, `CONTEXT.md`,
   `UBIQUITOUS_LANGUAGE.md`, `docs/guild-operating-model-final-design.md`
-- 제외 범위: 전투로그 수집·전투 집계·공개 전투 탐색과 관련된 상세 기능
+- 제외 범위: 전투로그 수집·전투 집계·공개 전투 탐색의 제품 로직. 다만
+  공통 SEO attribution, 접근성, locale 및 성능 회귀 방지는 전체 품질 계약으로
+  검증한다.
 - 상태 값: `구현 완료` / `부분 구현` / `개발 의도와 다르게 구현` /
   `아직 구현되지 않음` / `제거하거나 축소하기로 결정`
 
@@ -122,8 +124,8 @@ milestone을 마칠 때 상태와 증거를 갱신하며, 상세한 도메인 �
 | PUB-01 | 공개 길드 프로필은 홍보·모집이 주목적이고 통계는 보조다. 모집 마감에도 페이지는 유지하되 가입 CTA만 숨기며 실제 지원은 Discord로 보낸다. | 구현 완료 | 공개 profile/settings/safe defaults가 모집 상태별 CTA와 검증된 Discord 초대를 사용한다. 모집 마감은 프로필을 보존하고 CTA만 숨기며, 기능 비활성·tenant 정지·대표권 분쟁은 본문·metadata·cache 경계에서 동일하게 fail-closed 처리한다. 공개 길드 디렉터리는 모집을 명시한 길드의 서버·시간·언어·역할 allowlist만 노출하고 회원·Discord/Albion 식별자·포인트·리기어·재정은 포함하지 않는다. | C |
 | PUB-02 | 회원 공개 활동 링크는 본인 opt-in, unlisted/noindex, aggregate-only, 폐기·재발급 가능하며 로컬 계정도 확인 캐릭터로 사용할 수 있다. | 구현 완료 | 공개 활동은 폐기·재발급 가능한 token route, noindex/no-referrer, aggregate allowlist DTO를 사용한다. Discord와 로컬 계정 모두 현재 길드의 신뢰된 캐릭터만 연결할 수 있고 운영 메모·포인트·리기어·증빙·준수 정보는 DTO에 포함하지 않는다. | C |
 | PUB-03 | 로그인 없는 데모는 격리된 브라우저 세션에서 대표 흐름의 상태 변화를 끝까지 체험하고 초기화할 수 있다. | 구현 완료 | `/demo`는 이벤트 공개→슬롯 신청→실제 참가·참여 보상 확정→리기어 신청·승인→완제품 전달→수령을 역할별 command로 연결한다. 상태는 versioned `sessionStorage`에만 보존되어 새로고침과 다른 데모 경로에서 복원되고, 명시적 초기화와 새 브라우저 세션 격리를 제공한다. 전체 전이 중 운영 API mutation이 없음을 브라우저에서 검증했다. | C |
-| PUB-04 | 공개 제품 문서는 현재 계약을 네 언어로 설명하고, 기존 사용자는 공개 페이지에서 바로 자기 길드로 갈 수 있다. | 구현 완료 | `/docs/current-contract`가 실제 identity·event·regear·보급·경제·업무함·Menhera·언어/시간대와 4단계 feature state를 ko/ja/en/zh로 설명한다. 데모·길드 디렉터리·내 길드 CTA와 locale canonical/hreflang을 제공하고, 세부 운영 문서는 한국어 중심임을 명시한다. | C |
-| PUB-05 | 미완성 서사형 랜딩은 숨기고, 실제 운영 루프·접근성·4 locale 기준을 충족한 뒤 기존 canonical 랜딩을 대체한다. | 제거하거나 축소하기로 결정 | `/world-prototype`는 noindex로 격리돼 있다. 승격 전까지 별도 공개 제품으로 홍보하지 않는다. | C |
+| PUB-04 | 공개 제품 문서는 현재 계약을 지원 언어로 설명하고, 기존 사용자는 공개 페이지에서 바로 자기 길드로 갈 수 있다. | 구현 완료 | `/docs/current-contract`가 실제 identity·event·regear·보급·경제·업무함·Menhera·언어/시간대와 4단계 feature state를 17개 지원 locale로 설명한다. 데모·길드 디렉터리·내 길드 CTA와 locale canonical/hreflang을 제공하고, 세부 운영 문서는 한국어 중심임을 명시한다. | C |
+| PUB-05 | 미완성 서사형 랜딩은 숨기고, 실제 운영 루프·접근성·지원 locale 기준을 충족한 뒤 기존 canonical 랜딩을 대체한다. | 제거하거나 축소하기로 결정 | `/world-prototype`는 noindex로 격리돼 있다. 승격 전까지 별도 공개 제품으로 홍보하지 않는다. | C |
 | PUB-06 | 현재는 종료일 없는 무료 베타이며 유료 전환 시점·가격·포함 기능을 확정하지 않는다. | 구현 완료 | 가격/FAQ가 무료 베타와 미정 상태를 표시하고 billing gate가 없다. | 유지 |
 | SEO-01 | 안정 공개 표면과 opt-in 길드 프로필만 색인하고 개인 결과/공유 링크는 noindex한다. 비식별 공개 가치 이용과 길드 도입 전환을 분리 측정한다. | 구현 완료 | 마케팅·공개 길드·제품 문서는 locale canonical/hreflang을 사용하고 공개 프로필은 opt-in·활성 tenant·무분쟁 조건에서만 색인된다. 회원 활동 token, 전술 share, 이벤트 invite/query link는 `noindex/nofollow/nocache`와 `no-referrer`를 명시하며 source 계약 테스트가 metadata fallback까지 고정한다. 공개 가치 이용과 onboarding 전환 attribution은 식별자 없이 분리한다. | C |
 
@@ -135,17 +137,30 @@ milestone을 마칠 때 상태와 증거를 갱신하며, 상세한 도메인 �
 | HOME-01 | 로그인 직후 활성 길드·역할별 임박 이벤트, 행동 필요 업무, 운영 차단 문제만 우선하며 같은 원본을 중복 노출하지 않는다. | 구현 완료 | 회원 홈·상태 chip은 migration 354 snapshot의 최우선 행동과 기능 상태를 공유하고, 관리자 홈은 migration 356의 단일 업무 snapshot을 사용한다. 회원·관리자 49개 경로와 event creator·event-scoped guest·bomb-squad caller·로컬 계정 문맥을 실제 브라우저에서 검증해 역할 밖 자원 화면 차단과 이벤트 중심 복귀를 확인했다. | C |
 | INBOX-01 | 회원 업무함은 본인 행동 필요, 길드 처리 대기, 완료 이력을 분리하고 원본 module과 항상 같은 상태다. | 구현 완료 | migration 354가 리기어·환전·기부·상점·회원 거래·제작·금고 입금을 `action_required/waiting_on_guild/history`로 정규화한다. `/me/requests`는 완료 이력을 접고 필터하며 원본 module deep link와 기존 command만 사용한다. | C |
 | PRIV-01 | 포인트·리기어·증빙·준수·운영 메모는 본인과 업무 권한자만 보며 공개/일반 명부 DTO에는 포함하지 않는다. | 구현 완료 | 일반 명부·회원 상세·공개 길드·공개 회원 활동은 각각 안정 회원/allowlist DTO를 사용한다. 포인트·환전·리기어·증빙·Menhera 준수·운영 메모 query와 직렬화는 본인 또는 해당 capability에서만 생성되고, 다른 회원 직접 URL은 활성·신뢰 캐릭터를 요구하며 raw Discord ID를 숨긴다. 예외 신원과 탈퇴자는 운영진 route로 격리한다. | C |
-| I18N-01 | ko/ja/en/zh key·placeholder가 동등하고 사용자 노출 하드코딩이 없다. | 구현 완료 | 자동 parity/hardcoded UI tests와 CI가 존재한다. 현재 네 locale 모두 9,184개 비-superAdmin 키와 placeholder가 일치하며 공개 데모·길드 탐색·현재 제품 계약도 네 언어 경로를 제공한다. | 지속 |
-| UX-01 | disabled/setup/draining 상태, 빈 상태, 다음 action, 직접 URL과 Discord handoff가 모바일·데스크톱에서 일관된다. | 구현 완료 | 중앙 feature catalog, 공통 상태 화면, 회원·운영진 snapshot과 원본 deep link를 구현했다. production build 기준 회원·관리자 49개 콘텐츠 경로, 모바일 110개 layout contract, 1024/1600px 데스크톱 220개 경로-폭 조합이 상태·경로·raw i18n·요청 오류·overflow·touch·zoom·overlay 계약을 모두 통과했다. | C |
+| I18N-01 | 모든 지원 locale의 key·ICU placeholder가 동등하고 사용자 노출 하드코딩이 없다. | 구현 완료 | 자동 parity/hardcoded UI tests와 CI가 존재한다. 현재 17개 locale 모두 9,933개 비-superAdmin 키와 ICU placeholder가 일치한다. locale 전체를 읽는 회귀 테스트가 기존 4개 언어 전용 검사 누락을 보완하며, 공개 데모·길드 탐색·현재 제품 계약도 같은 locale 경로를 제공한다. | 지속 |
+| UX-01 | disabled/setup/draining 상태, 빈 상태, 다음 action, 직접 URL과 Discord handoff가 모바일·데스크톱에서 일관된다. | 구현 완료 | 중앙 feature catalog, 공통 상태 화면, 회원·운영진 snapshot과 원본 deep link를 구현했다. production build 기준 회원·관리자 49개 콘텐츠 경로, 모바일 110개 layout contract, 1024/1600px 데스크톱 220개 경로-폭 조합을 유지한다. 추가 browser matrix는 Chromium/Firefox/WebKit, 모바일, 공개·회원·관리자, RTL locale을 독립 검증하고 serious/critical 접근성·console·overflow·언어 방향 회귀를 실패 처리한다. | C |
 
 ## 10. 최종 감사 계약
 
 | ID | 확정 개발 의도 | 현재 상태 | 현재 증거와 gap | 배포 단위 |
 |---|---|---|---|---|
 | SEC-01 | 모든 mutation은 live tenant membership/capability를 서버에서 다시 확인하고 tenant ID 위조를 차단한다. | 구현 완료 | 공통 mutation guard가 서명 쿠키의 DB revocation을 확인하고 일반 Discord 사용자의 현재 길드 membership·role capability를 다시 계산한다. support-view mutation은 공통 guard와 Proxy에서 이중 차단하며 게스트·로컬 계정은 명시된 좁은 흐름만 사용한다. 안정 회원 read cutover와 legacy RPC의 tenant 복합 FK·서버 권한을 정적 계약, 단위 145건, Postgres 통합 41건으로 재검증했다. | C |
-| SEC-02 | anon/authenticated는 내부 업무 테이블·service-role RPC를 직접 실행할 수 없다. | 구현 완료 | migration 359가 남아 있던 6개 내부 registry/projection 테이블에 RLS와 service-only ACL을 적용하고 public schema의 모든 trigger 함수 직접 실행 권한을 public·anon·authenticated·service_role에서 제거한다. 로컬 전체 schema 카탈로그에서 RLS 미적용 0, browser 조회 가능 내부 table 0, 직접 실행 가능 trigger 함수 0을 확인했고 service trigger 업무 회귀를 통합 검증했다. | C |
-| PERF-01 | 공용·업무 화면은 중복 전 길드 query와 불필요한 큰 payload를 피하고 캐시가 개인정보 경계를 넘지 않는다. | 구현 완료 | 공개 페이지는 production build 로컬 5회 측정에서 median 4~6ms와 기존 공개 CDN cache를 유지했다. 인증 화면도 3회 측정에서 주요 경로가 약 14~53ms였고 안정 회원·업무 snapshot의 bounded query 계약을 통과했다. 기능 상세 첫 이미지만 eager로 로드해 관측된 LCP lazy-load 경고를 제거하고 나머지 캐러셀 이미지는 lazy를 유지한다. | C |
+| SEC-02 | anon/authenticated는 내부 업무 테이블·service-role RPC를 직접 실행할 수 없다. | 구현 완료 | migration 359가 남아 있던 6개 내부 registry/projection 테이블에 RLS와 service-only ACL을 적용하고 public schema의 모든 trigger 함수 직접 실행 권한을 제거한다. migration 412는 rolling-client 호환용 `caller_assign_slot`도 고정 `search_path=public`과 service-role 전용 ACL로 보완한다. 로컬 전체 schema 카탈로그에서 RLS 미적용 0, browser 조회 가능 내부 table 0, `search_path=public`이 없는 SECURITY DEFINER 함수 0을 확인했다. | C |
+| PERF-01 | 공용·업무 화면은 중복 전 길드 query와 불필요한 큰 payload를 피하고 캐시가 개인정보 경계를 넘지 않는다. | 구현 완료 | 공개 페이지는 production build 로컬 5회 측정에서 median 4~6ms와 기존 공개 CDN cache를 유지했다. 인증 화면도 3회 측정에서 주요 경로가 약 14~53ms였고 안정 회원·업무 snapshot의 bounded query 계약을 통과했다. 기능 상세 첫 이미지만 eager로 로드하고 나머지는 lazy를 유지한다. 공개 ZvZ 보드는 제품 로직을 바꾸지 않고 4,000 DOM node 상한을 브라우저 매트릭스에 두어 현재 약 3,100개 수준의 급격한 회귀를 차단한다. | C |
 | OPS-04 | 운영 health·dependency·로그·migration drift가 배포 단위별로 검증되고 데이터 손실 rollback을 사용하지 않는다. | 구현 완료 | CI, `/api/health`, `/api/health/dependencies`, safe DB push, forward migration 규칙이 확립돼 있다. | 지속 |
+
+### 2026-08-14 전체 감사 보완
+
+- 추적 계약 84개: 구현 완료 80개, 부분 구현 1개(`EVT-11`의 전투 통계
+  시간대는 제외 범위), 의도적으로 제거·축소 3개, 미구현·의도 불일치 0개다.
+- CI가 한 선행 실패 때문에 build·후속 브라우저 검증을 숨기지 않도록 공개,
+  회원, 관리자, 모바일, 슬롯, 브라우저 엔진 단위로 독립 실행한다.
+- locale-prefixed 기능·문서 경로가 브라우저 언어로 재이동하던 경계를 공통
+  public locale resolver로 고정하고, localized ZvZ attribution의 400 회귀를 막는다.
+- Discord brand CTA와 핵심 빈 상태의 WCAG AA 대비, RTL 문서 속성, WebKit
+  console 오류를 실제 production build 브라우저로 검증한다.
+- 일괄 승인에는 즉시 발생하는 포인트·재고·정산 변경을 명시한 확인과 서버/UI
+  공통 200건 상한을 둔다.
 
 ## 우선순위 실행 백로그
 

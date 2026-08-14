@@ -12,12 +12,26 @@ describe('CI workflow', () => {
     expect(workflow).toMatch(
       /      - name: Production build\n(?:        .+\n)*        run: npm run build/,
     )
+    expect(workflow).toContain(
+      "      - name: Production build\n        if: ${{ !cancelled() }}",
+    )
     expect(workflow).toContain('      - name: Lint\n        run: npm run lint')
     expect(workflow).toContain(
       '      - name: Unit tests and coverage floor\n        run: npm run test:coverage',
     )
     expect(workflow).toContain('      - name: Strict integration tests')
     expect(workflow).toContain('run: npm run test:integration:required')
+    for (const step of [
+      'Public and demo route smoke',
+      'Member desktop route smoke',
+      'Admin desktop route smoke',
+      'Full mobile layout smoke',
+      'Core write-flow smoke',
+      'Cross-browser and accessibility matrix',
+    ]) {
+      expect(workflow).toContain(`      - name: ${step}`)
+    }
+    expect(workflow.match(/steps\.auth-fixtures\.outcome == 'success'/g)).toHaveLength(6)
     expect(workflow).toContain('Vercel Deployment Checks block')
     expect(workflow).toMatch(/^  unit:$/m)
     expect(workflow).toMatch(/^  integration:$/m)

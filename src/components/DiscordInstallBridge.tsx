@@ -39,7 +39,7 @@ export default function DiscordInstallBridge({
     <main className="flex-1 w-full max-w-md mx-auto px-4 py-12 sm:py-16">
       <div className="space-y-6">
         <div className="space-y-3 text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-[#5865F2] text-white">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-[#5865F2] text-[#fff]">
             <DiscordIcon />
           </div>
           <h1 className="text-2xl font-bold text-white">{title}</h1>
@@ -68,7 +68,7 @@ export default function DiscordInstallBridge({
         <div className="space-y-3">
           <a
             href={installUrl}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#5865F2] px-4 py-3.5 text-sm font-semibold text-white shadow-[0_10px_30px_-10px_rgba(88,101,242,0.6)] transition-colors hover:bg-[#4752c4]"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#5865F2] px-4 py-3.5 text-sm font-semibold text-[#fff] shadow-[0_10px_30px_-10px_rgba(88,101,242,0.6)] transition-colors hover:bg-[#4752c4]"
           >
             <DiscordIcon />
             <span>{continueLabel}</span>

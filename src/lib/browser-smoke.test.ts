@@ -46,6 +46,32 @@ describe('browser-smoke script contract', () => {
     ]))
   })
 
+  it('uses a deterministic browser locale and expects localized public URLs', async () => {
+    const { buildTargets, parseArgs, resolveBrowserLocale } = await loadBrowserSmokeModule()
+    const config = parseArgs(['--groups=public'], {})
+    const byPath = new Map(
+      buildTargets(config).map((target: { path: string }) => [target.path, target]),
+    )
+
+    expect(config).toMatchObject({ browserLocale: 'en-US' })
+    expect(byPath.get('/')).toMatchObject({
+      expectedPathnames: ['/en'],
+    })
+    expect(byPath.get('/landing')).toMatchObject({
+      expectedPathnames: ['/en'],
+    })
+    expect(byPath.get('/features')).toMatchObject({
+      expectedPathnames: ['/en/features'],
+    })
+    expect(byPath.get('/docs/events')).toMatchObject({
+      expectedPathnames: ['/en/docs/events'],
+    })
+    expect(byPath.get('/invite/open')).toMatchObject({ expectedPathname: '/invite/open' })
+    expect(resolveBrowserLocale('zh-TW')).toBe('zh-Hant')
+    expect(resolveBrowserLocale('es-MX')).toBe('es-419')
+    expect(resolveBrowserLocale('pt-PT')).toBe('pt-PT')
+  })
+
   it('checks demo detail and legacy redirect destinations exactly', async () => {
     const { buildTargets, evaluateTargetSnapshot, parseArgs } = await loadBrowserSmokeModule()
     const targets = buildTargets(parseArgs(['--groups=demo'], {}))
@@ -262,12 +288,12 @@ describe('browser-smoke script contract', () => {
     })
   })
 
-  it('detects raw i18n keys and unresolved placeholders without flagging domains', async () => {
+  it('detects raw i18n keys and unresolved placeholders without flagging domains or prose abbreviations', async () => {
     const { detectRawI18nTokens } = await loadBrowserSmokeModule()
 
     expect(
       detectRawI18nTokens(
-        'shopCatalog.cart.quoteRequired publicPricing.title ctaPrimary {count} albion-guildmanager.com your-guild.albion-guildmanager.com node.js',
+        'e.g. i.e., shopCatalog.cart.quoteRequired publicPricing.title ctaPrimary {count} albion-guildmanager.com your-guild.albion-guildmanager.com node.js',
       ),
     ).toEqual([
       'ctaPrimary',
@@ -275,6 +301,7 @@ describe('browser-smoke script contract', () => {
       'shopCatalog.cart.quoteRequired',
       '{count}',
     ])
+    expect(detectRawI18nTokens('raw e.g key')).toContain('e.g')
   })
 
   it('ignores aborted client prefetch requests without hiding hard request failures', async () => {

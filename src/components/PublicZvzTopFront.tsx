@@ -142,7 +142,7 @@ export default function PublicZvzTopFront({
                   >
                     {item.entityName}
                   </p>
-                  <span className="text-[10px] font-black uppercase tracking-[0.18em] text-gray-600">
+                  <span className="text-[10px] font-black uppercase tracking-[0.18em] text-gray-400">
                     {labels.versus}
                   </span>
                   <div className="min-w-0 text-right">
@@ -196,7 +196,7 @@ export default function PublicZvzTopFront({
                   <ArrowUpRight
                     size={15}
                     aria-hidden="true"
-                    className="text-gray-600 transition-transform duration-150 ease-out group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-white"
+                    className="text-gray-400 transition-transform duration-150 ease-out group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-white"
                   />
                 </div>
               </Link>

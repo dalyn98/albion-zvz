@@ -33,6 +33,7 @@ import { canApproveRegearParticipantStatus } from '@/lib/regear-participant-conf
 import { isRegearSupported } from '@/lib/regear-support-server'
 import { hasBlockingShopOrderStockShortage } from '@/lib/shop/order-approval'
 import { publicActionError } from '@/lib/public-action-error'
+import { APPROVE_ALL_PENDING_LIMIT } from '@/lib/approval-bulk'
 
 export type BulkApprovalQueueKey =
   | 'donation'
@@ -61,10 +62,6 @@ export interface ApproveAllPendingResult {
 }
 
 type ApprovalResult = { error?: string }
-
-// One click must stay bounded even when a tenant has accumulated an abnormal
-// backlog. Remaining rows stay pending and are reported as skipped.
-const APPROVE_ALL_PENDING_LIMIT = 200
 
 const QUEUE_CAPABILITIES = {
   donation: [CAP.DONATION_APPROVE],

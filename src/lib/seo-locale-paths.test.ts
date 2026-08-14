@@ -10,6 +10,7 @@ import {
   getSeoFeatureInternalPathname,
   getSeoMarketingCanonicalPathname,
   getSeoMarketingInternalPathname,
+  getSeoPublicLocale,
   getSeoZvzRecordCanonicalPathname,
   getSeoZvzRecordInternalPathname,
   replaceSeoDocsLocale,
@@ -200,5 +201,13 @@ describe('SEO locale paths', () => {
     expect(replaceSeoMarketingLocale('/pricing', 'zh')).toBe('/zh/pricing')
     expect(replaceSeoMarketingLocale('/en', 'ja')).toBe('/ja')
     expect(replaceSeoMarketingLocale('/public/faq', 'en')).toBe('/en/faq')
+  })
+
+  it('preserves every explicit public locale instead of applying browser detection', () => {
+    expect(getSeoPublicLocale('/ar/features')).toBe('ar')
+    expect(getSeoPublicLocale('/fr/docs/regear/auto')).toBe('fr')
+    expect(getSeoPublicLocale('/ja/zvz-battles/guild/east/example')).toBe('ja')
+    expect(getSeoPublicLocale('/de/pricing')).toBe('de')
+    expect(getSeoPublicLocale('/features')).toBeNull()
   })
 })

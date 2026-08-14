@@ -145,7 +145,7 @@ export default async function RegearPage() {
               <div className="space-y-2 border-y border-border py-10 text-center">
                 <ShieldCheck size={28} className="text-gray-600 mx-auto" />
                 <p className="text-gray-400 text-sm">{t('noEligible')}</p>
-                <p className="text-gray-600 text-xs">{t('noEligibleHint')}</p>
+                <p className="text-gray-400 text-xs">{t('noEligibleHint')}</p>
               </div>
             ) : (
               <ul className="space-y-3">

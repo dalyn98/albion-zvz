@@ -8,6 +8,7 @@ import {
   normalizeSeoPathname,
   parseSeoDocsPathname,
   parseSeoFeaturePathname,
+  parseSeoMarketingPathname,
   parseSeoZvzRecordPathname,
 } from '@/lib/seo-locale-paths'
 import { getAdminClient } from '@/lib/supabase-admin'
@@ -115,7 +116,6 @@ const MARKETING_ATTRIBUTION_PATHS = new Set([
   '/faq',
   '/zvz-battles',
 ])
-
 function hasSeoAttributionDbEnv(): boolean {
   return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY)
 }
@@ -225,10 +225,11 @@ function canonicalMarketingAttributionPath(pathname: string): {
       featureSlug: null,
     }
   }
-  if (!MARKETING_ATTRIBUTION_PATHS.has(normalized)) return null
+  const marketing = parseSeoMarketingPathname(normalized)
+  if (!marketing || !MARKETING_ATTRIBUTION_PATHS.has(marketing.unprefixedPathname)) return null
   return {
-    path: normalized,
-    locale: null,
+    path: marketing.canonicalPathname,
+    locale: marketing.locale,
     featureSlug: null,
   }
 }

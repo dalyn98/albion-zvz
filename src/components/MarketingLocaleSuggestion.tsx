@@ -10,7 +10,7 @@ import {
   type Locale,
 } from '@/i18n/locales'
 import {
-  getSeoMarketingLocale,
+  getSeoPublicLocale,
   replaceSeoMarketingLocale,
 } from '@/lib/seo-locale-paths'
 
@@ -36,7 +36,7 @@ export default function MarketingLocaleSuggestion() {
   const pathname = usePathname()
 
   useEffect(() => {
-    if (getSeoMarketingLocale(pathname)) return
+    if (getSeoPublicLocale(pathname)) return
     const targetLocale = cookieLocale() ?? browserLocale()
     if (!targetLocale || targetLocale === currentLocale) return
 

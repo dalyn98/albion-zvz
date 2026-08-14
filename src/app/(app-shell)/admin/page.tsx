@@ -77,7 +77,7 @@ export default async function AdminLoginPage({
             <InAppBrowserNoticeWithMessages />
             <a
               href={loginHref}
-              className="flex items-center justify-center gap-2 w-full bg-[#5865F2] hover:bg-[#4752c4] text-white font-bold py-3 rounded-lg transition-colors"
+              className="flex items-center justify-center gap-2 w-full bg-[#5865F2] hover:bg-[#4752c4] text-[#fff] font-bold py-3 rounded-lg transition-colors"
             >
               <DiscordIcon />
               {t('loginWithDiscord')}

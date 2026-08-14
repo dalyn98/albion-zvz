@@ -344,7 +344,7 @@ export default function TenantSetupForm({
       <button
         type="submit"
         disabled={isPending}
-        className="w-full rounded-lg bg-[#5865F2] hover:bg-[#4752c4] disabled:opacity-60 text-white text-sm font-semibold py-2.5"
+        className="w-full rounded-lg bg-[#5865F2] hover:bg-[#4752c4] disabled:opacity-60 text-[#fff] text-sm font-semibold py-2.5"
       >
         {isPending ? labels.savingButton : labels.nextButton}
       </button>

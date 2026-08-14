@@ -84,7 +84,7 @@ export default async function MarketingNav({ active, guildLoginHref = null }: Ma
             rel="noopener noreferrer"
             aria-label={t('discord')}
             title={t('discord')}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-gray-700 bg-gray-800/60 text-gray-300 transition-colors hover:border-[#5865F2] hover:bg-[#5865F2] hover:text-white"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-gray-700 bg-gray-800/60 text-gray-300 transition-colors hover:border-[#5865F2] hover:bg-[#5865F2] hover:text-[#fff]"
           >
             <DiscordIcon size={14} />
           </a>

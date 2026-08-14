@@ -669,7 +669,7 @@ export default function AppSidebar({
         ) : (
           <a
             href={loginHref}
-            className="inline-flex min-h-10 items-center justify-center gap-1 rounded-lg bg-[#5865F2] px-3 py-2 text-xs font-semibold text-white hover:bg-[#4752c4]"
+            className="inline-flex min-h-10 items-center justify-center gap-1 rounded-lg bg-[#5865F2] px-3 py-2 text-xs font-semibold text-[#fff] hover:bg-[#4752c4]"
           >
             <LogIn size={12} />
             {t('login')}
@@ -895,7 +895,7 @@ export default function AppSidebar({
           ) : (
             <a
               href={loginHref}
-              className={`flex min-h-10 items-center gap-2 rounded-lg bg-[#5865F2] font-semibold text-white transition-colors hover:bg-[#4752c4] ${navExpanded ? 'justify-center px-3 py-2 text-xs' : 'justify-center p-2'}`}
+              className={`flex min-h-10 items-center gap-2 rounded-lg bg-[#5865F2] font-semibold text-[#fff] transition-colors hover:bg-[#4752c4] ${navExpanded ? 'justify-center px-3 py-2 text-xs' : 'justify-center p-2'}`}
             >
               <LogIn size={13} />
               {navExpanded && <span>{t('discordLogin')}</span>}

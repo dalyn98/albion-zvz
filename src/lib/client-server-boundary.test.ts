@@ -5,6 +5,13 @@ import { describe, expect, it } from 'vitest'
 
 const SOURCE_ROOTS = ['src/app', 'src/components', 'src/lib']
 const FORBIDDEN_CLIENT_IMPORTS = new Set(['next/headers', 'server-only'])
+const SOURCE_TEXT_CACHE = new Map<string, string>()
+const SOURCE_FILE_CACHE = new Map<string, ts.SourceFile>()
+const INTERNAL_IMPORT_CACHE = new Map<string, string | null>()
+const RUNTIME_IMPORT_CACHE = new WeakMap<ts.SourceFile, Array<{
+  specifier: string
+  statement: ts.ImportDeclaration | ts.ExportDeclaration
+}>>()
 
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -15,13 +22,25 @@ function sourceFiles(dir: string): string[] {
 }
 
 function parseSource(filePath: string): ts.SourceFile {
-  return ts.createSourceFile(
+  const cached = SOURCE_FILE_CACHE.get(filePath)
+  if (cached) return cached
+  const sourceFile = ts.createSourceFile(
     filePath,
-    readFileSync(filePath, 'utf8'),
+    sourceText(filePath),
     ts.ScriptTarget.Latest,
     true,
     ts.ScriptKind.TSX,
   )
+  SOURCE_FILE_CACHE.set(filePath, sourceFile)
+  return sourceFile
+}
+
+function sourceText(filePath: string): string {
+  const cached = SOURCE_TEXT_CACHE.get(filePath)
+  if (cached !== undefined) return cached
+  const source = readFileSync(filePath, 'utf8')
+  SOURCE_TEXT_CACHE.set(filePath, source)
+  return source
 }
 
 function hasUseClientDirective(sourceFile: ts.SourceFile): boolean {
@@ -44,12 +63,19 @@ function hasDirective(sourceFile: ts.SourceFile, directive: string): boolean {
 }
 
 function resolveInternalImport(fromFile: string, specifier: string): string | null {
+  const cacheKey = `${fromFile}\0${specifier}`
+  if (INTERNAL_IMPORT_CACHE.has(cacheKey)) {
+    return INTERNAL_IMPORT_CACHE.get(cacheKey) ?? null
+  }
   const base = specifier.startsWith('@/') ?
     join(process.cwd(), 'src', specifier.slice(2)) :
     specifier.startsWith('.') ?
       join(dirname(fromFile), specifier) :
       null
-  if (!base) return null
+  if (!base) {
+    INTERNAL_IMPORT_CACHE.set(cacheKey, null)
+    return null
+  }
   const candidates = [
     base,
     `${base}.ts`,
@@ -57,7 +83,11 @@ function resolveInternalImport(fromFile: string, specifier: string): string | nu
     join(base, 'index.ts'),
     join(base, 'index.tsx'),
   ]
-  return candidates.find((candidate) => existsSync(candidate) && statSync(candidate).isFile()) ?? null
+  const resolved = candidates.find(
+    (candidate) => existsSync(candidate) && statSync(candidate).isFile(),
+  ) ?? null
+  INTERNAL_IMPORT_CACHE.set(cacheKey, resolved)
+  return resolved
 }
 
 function isTypeOnlyImport(statement: ts.ImportDeclaration): boolean {
@@ -78,6 +108,8 @@ function importedRuntimeSpecifiers(sourceFile: ts.SourceFile): Array<{
   specifier: string
   statement: ts.ImportDeclaration | ts.ExportDeclaration
 }> {
+  const cached = RUNTIME_IMPORT_CACHE.get(sourceFile)
+  if (cached) return cached
   const imports: Array<{
     specifier: string
     statement: ts.ImportDeclaration | ts.ExportDeclaration
@@ -96,6 +128,7 @@ function importedRuntimeSpecifiers(sourceFile: ts.SourceFile): Array<{
       }
     }
   }
+  RUNTIME_IMPORT_CACHE.set(sourceFile, imports)
   return imports
 }
 
@@ -106,7 +139,7 @@ function serverOnlyImportChain(
   if (seen.has(filePath)) return null
   seen.add(filePath)
 
-  const source = readFileSync(filePath, 'utf8')
+  const source = sourceText(filePath)
   const sourceFile = parseSource(filePath)
   if (hasUseServerDirective(sourceFile)) return null
 

@@ -71,10 +71,28 @@ describe('seo attribution helpers', () => {
       source: 'utm',
       utm: { utm_source: 'naver' },
     })
+    expect(parseSeoAttributionContext({
+      path: '/en/zvz-battles?min=10',
+      referrer: null,
+    })).toMatchObject({
+      path: '/en/zvz-battles',
+      locale: 'en',
+      featureSlug: null,
+      source: 'direct',
+    })
+    expect(parseSeoAttributionContext({
+      path: '/pt-BR/pricing',
+      referrer: null,
+    })).toMatchObject({
+      path: '/pt-BR/pricing',
+      locale: 'pt-BR',
+      featureSlug: null,
+    })
   })
 
   it('rejects private or external paths for the public tracking surface', () => {
     expect(parseSeoAttributionContext({ path: '/admin/dashboard', referrer: null })).toBeNull()
+    expect(parseSeoAttributionContext({ path: '/en/privacy', referrer: null })).toBeNull()
     expect(parseSeoAttributionContext({ path: 'https://evil.example/features', referrer: null })).toBeNull()
     expect(parseSeoAttributionContext({ path: '/ja/docs/regear/auto', referrer: null })).toBeNull()
   })
