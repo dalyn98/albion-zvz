@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('next/cache', () => ({
   unstable_cache: <T extends (...args: never[]) => unknown>(fn: T) => fn,
@@ -20,7 +20,42 @@ vi.mock('@/lib/supabase-admin', () => ({
   }),
 }))
 
-import { resolveTenantBySlugAnyStatus } from './tenant-resolver'
+import { resolveTenantBySlugAnyStatus, tenantUrl } from './tenant-resolver'
+
+afterEach(() => {
+  vi.unstubAllEnvs()
+})
+
+describe('tenantUrl', () => {
+  it('preserves the query and fragment in tenant-scoped Discord links', () => {
+    vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
+
+    expect(
+      tenantUrl(
+        'menhera',
+        '/admin/dashboard/approvals?tab=shop&order=order-1#shop-order-order-1',
+      ),
+    ).toBe(
+      'https://menhera.albion-guildmanager.com/admin/dashboard/approvals?tab=shop&order=order-1#shop-order-order-1',
+    )
+  })
+
+  it('keeps query and fragment links on the bare preview host', () => {
+    vi.stubEnv('APP_URL', 'https://albion-guildmanager.vercel.app')
+
+    expect(tenantUrl('menhera', '/me/settings#discord-dm')).toBe(
+      'https://albion-guildmanager.vercel.app/me/settings#discord-dm',
+    )
+  })
+
+  it('does not let a protocol-relative-looking path replace the tenant host', () => {
+    vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
+
+    expect(tenantUrl('menhera', '//outside.example/approvals?tab=shop')).toBe(
+      'https://menhera.albion-guildmanager.com//outside.example/approvals?tab=shop',
+    )
+  })
+})
 
 describe('resolveTenantBySlugAnyStatus', () => {
   beforeEach(() => {

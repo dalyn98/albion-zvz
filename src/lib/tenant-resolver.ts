@@ -98,10 +98,16 @@ export function tenantUrl(slug: string | null | undefined, path: string): string
     if (host === 'localhost' || host === '127.0.0.1' || host.endsWith('.vercel.app')) {
       return bare
     }
+    // `URL.pathname` encodes `?` and `#` when they are assigned as part of the
+    // pathname. Discord admin links commonly include both (approval filters and
+    // an item anchor), so parse the internal path first and assign each URL
+    // component separately. Concatenating with a fixed origin also keeps a
+    // protocol-relative-looking path (`//host`) on our own tenant origin.
+    const target = new URL(`https://tenant-path.invalid${trimmedPath}`)
     u.hostname = `${slug}.${host}`
-    u.pathname = trimmedPath
-    u.search = ''
-    u.hash = ''
+    u.pathname = target.pathname
+    u.search = target.search
+    u.hash = target.hash
     return u.toString().replace(/\/$/, '')
   } catch {
     return bare

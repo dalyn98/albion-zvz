@@ -58,11 +58,40 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  vi.unstubAllEnvs()
   delete process.env.DISCORD_BOT_TOKEN
 })
 
 describe('Discord admin approval custom ids', () => {
   const sourceId = '11111111-1111-4111-8111-111111111111'
+  const approvalMessages = (openButton = '열기') => ({
+    approveButton: '승인',
+    rejectButton: '거절',
+    openButton,
+    regearSilverButton: '실버',
+    regearStockButton: '재고',
+    regearCraftButton: '제작',
+    confirmApproveButton: '확정',
+    confirmRejectButton: '거절 확정',
+    cancelButton: '취소',
+    unsupported: '',
+    notAuthorized: '',
+    notInGuild: '',
+    guildNotLinked: '',
+    confirmApprove: '',
+    confirmStock: '',
+    confirmCrafted: '',
+    cancelDone: '',
+    rejectModalTitle: '',
+    rejectModalLabel: '',
+    rejectModalPlaceholder: '',
+    approved: '',
+    stocked: '',
+    crafted: '',
+    rejected: '',
+    failed: '',
+    handledButton: '',
+  })
 
   it('round-trips an admin approval action', () => {
     const customId = buildAdminApprovalCustomId('exchange', 'confirm_approve', sourceId)
@@ -191,34 +220,7 @@ describe('Discord admin approval custom ids', () => {
       sourceId,
       url: '/admin/dashboard/approvals',
       tenantSlug: null,
-      messages: {
-        approveButton: '승인',
-        rejectButton: '거절',
-        openButton: '열기',
-        regearSilverButton: '실버',
-        regearStockButton: '재고',
-        regearCraftButton: '제작',
-        confirmApproveButton: '확정',
-        confirmRejectButton: '거절 확정',
-        cancelButton: '취소',
-        unsupported: '',
-        notAuthorized: '',
-        notInGuild: '',
-        guildNotLinked: '',
-        confirmApprove: '',
-        confirmStock: '',
-        confirmCrafted: '',
-        cancelDone: '',
-        rejectModalTitle: '',
-        rejectModalLabel: '',
-        rejectModalPlaceholder: '',
-        approved: '',
-        stocked: '',
-        crafted: '',
-        rejected: '',
-        failed: '',
-        handledButton: '',
-      },
+      messages: approvalMessages(),
     })
 
     expect(components[0]?.components).toHaveLength(5)
@@ -229,6 +231,25 @@ describe('Discord admin approval custom ids', () => {
       '거절',
       '열기',
     ])
+  })
+
+  it('builds the open button with a valid tenant URL including query and fragment', () => {
+    vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
+    const components = buildAdminApprovalMessageComponents({
+      kind: 'shop',
+      sourceId,
+      url: '/admin/dashboard/approvals?tab=shop&order=order-1#shop-order-order-1',
+      tenantSlug: 'menhera',
+      messages: approvalMessages('상세보기'),
+    })
+    const openButton = components[0]?.components.find(
+      (component) => 'style' in component && component.style === 5,
+    )
+
+    expect(openButton).toMatchObject({
+      label: '상세보기',
+      url: 'https://menhera.albion-guildmanager.com/admin/dashboard/approvals?tab=shop&order=order-1#shop-order-order-1',
+    })
   })
 })
 
