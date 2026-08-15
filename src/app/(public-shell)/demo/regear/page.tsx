@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { cookies } from 'next/headers'
-import { ChevronDown, ShieldCheck, Wallet, ShoppingBag, Coins, ClipboardList, Handshake } from 'lucide-react'
+import { ChevronDown, ShieldCheck, Wallet, ShoppingBag, Coins, ClipboardList, Handshake, CircleDollarSign } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import {
   DEMO_REGEAR_LIST,
@@ -496,6 +496,18 @@ async function ExchangeSection({
 
   return (
     <div className="space-y-4">
+      <div
+        role="note"
+        className="flex gap-3 rounded-xl bg-info-soft px-4 py-3 text-info-soft-foreground shadow-card ring-1 ring-info/25"
+      >
+        <CircleDollarSign size={20} className="mt-0.5 shrink-0" aria-hidden="true" />
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-balance">{t('pageTitle')}</p>
+          <p className="mt-1 text-pretty text-xs leading-relaxed text-info-soft-foreground/85">
+            {t('pageDescription')}
+          </p>
+        </div>
+      </div>
       <ScopeTabs
         baseHref="/demo/regear?tab=exchange"
         active={scope}

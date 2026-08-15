@@ -42,6 +42,8 @@ interface ExchangeRequestRow {
   resolved_at: string | null
   handled_by: string | null
   handled_by_username: string | null
+  held_points: number
+  hold_status: AdminExchangeRequest['hold_status']
 }
 
 export async function listExchangeRequests(
@@ -59,7 +61,7 @@ export async function listExchangeRequests(
         let query = db
           .from('exchange_requests')
           .select(
-            'id, discord_id, username, silver, status, admin_notes, created_at, resolved_at, handled_by, handled_by_username',
+            'id, discord_id, username, silver, status, admin_notes, created_at, resolved_at, handled_by, handled_by_username, held_points, hold_status',
           )
           .eq('guild_id', guildId)
         if (scope === 'pending') query = query.eq('status', 'pending')
@@ -90,6 +92,8 @@ export async function listExchangeRequests(
         handled_by: r.handled_by ?? null,
         handled_by_username: r.handled_by_username ?? null,
         balance: balances.get(r.discord_id) ?? 0,
+        held_points: r.held_points,
+        hold_status: r.hold_status,
       })),
     }
   } catch (e) {

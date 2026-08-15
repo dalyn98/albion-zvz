@@ -18,6 +18,10 @@ import {
 } from '@/lib/regear-claim-ceiling'
 import { isValidRoleRegearPayoutRate } from '@/lib/regear-payout'
 import type { RegearParticipantConfirmationStatus } from '@/lib/regear-participant-confirmation'
+import type {
+  ExchangeHoldStatus,
+  ExchangeRequestStatus,
+} from '@/lib/exchange-payout'
 
 export type RegearRequesterRelation = AlbionIdentityRelation
 
@@ -120,13 +124,15 @@ export type AdminExchangeRequest = {
   discord_id: string
   username: string
   silver: number
-  status: 'pending' | 'approved' | 'rejected'
+  status: ExchangeRequestStatus
   admin_notes: string | null
   created_at: string
   resolved_at: string | null
   handled_by: string | null
   handled_by_username: string | null
   balance: number
+  held_points: number
+  hold_status: ExchangeHoldStatus
 }
 
 export type RoleReward = {

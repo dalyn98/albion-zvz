@@ -166,10 +166,22 @@ describe('approveAllPendingRequests', () => {
 
     const result = await approveAllPendingRequests()
 
-    expect(order).toEqual(['donation', 'event_payout', 'craft', 'regear', 'exchange', 'shop'])
-    expect(result).toMatchObject({ total: 9, succeeded: 6, failed: 0, skipped: 3 })
+    expect(order).toEqual(['donation', 'event_payout', 'craft', 'regear', 'shop'])
+    expect(result).toMatchObject({ total: 7, succeeded: 5, failed: 0, skipped: 2 })
     expect(mocks.getSessionGuildId).toHaveBeenCalledWith(expect.objectContaining({ isAdmin: true }))
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/admin/dashboard/approvals')
+  })
+
+  it('never bulk-completes exchange payouts without proof of in-game delivery', async () => {
+    mocks.listExchangeRequests.mockResolvedValue({
+      requests: [{ id: 'exchange-1', balance: 500, silver: 400 }],
+    })
+
+    const result = await approveAllPendingRequests()
+
+    expect(result).toMatchObject({ total: 0, succeeded: 0, failed: 0, skipped: 0 })
+    expect(mocks.listExchangeRequests).not.toHaveBeenCalled()
+    expect(mocks.approveExchangeRequest).not.toHaveBeenCalled()
   })
 
   it('keeps processing after an individual approval fails', async () => {

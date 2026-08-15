@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import {
-  Check, X, ShieldAlert, ShieldCheck, ChevronDown, ChevronUp, Users,
+  Check, X, ShieldAlert, ShieldCheck, ChevronDown, ChevronUp, Users, LockKeyhole,
 } from 'lucide-react'
 import SearchBox from '@/components/SearchBox'
 import { matchesName, normalizeQuery } from '@/lib/search-match'
@@ -219,57 +219,90 @@ export function DemoExchangeReviewList({ requests }: { requests: DemoExchangeReq
       {filtered.length === 0 ? (
         <p className="text-gray-500 text-sm text-center py-6">{tCommon('searchNoResults')}</p>
       ) : (
-        <ul className="space-y-3">
+        <ul className="divide-y divide-border border-y border-border">
           {filtered.map((r) => {
             const effectiveStatus = overrides[r.id] ?? r.status
             const handler = overrides[r.id] ? DEMO_HANDLER_NAME : r.handledBy
+            const currentBalance = r.points * 1000
+            const balanceAfterPayout = Math.max(0, currentBalance - r.silver)
             return (
-              <li key={r.id} className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-3">
-                <div className="flex flex-col items-start justify-between gap-2 sm:flex-row sm:gap-3">
+              <li key={r.id} className="space-y-4 px-1 py-5 sm:px-2">
+                <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="min-w-0 break-all text-sm font-semibold text-white">{r.member}</span>
-                    </div>
-                    <div className="flex items-center gap-3 text-xs text-gray-400 mt-1 flex-wrap">
-                      <span className="font-mono text-amber-400">{formatSilver(r.silver)}</span>
-                      <span className="text-gray-500">
-                        {t('balanceLabel', { amount: formatSilver(r.points * 1000) })}
-                      </span>
-                      <span className="font-mono text-gray-600">{formatTimeLabel(tDemo, r.requestedAt)}</span>
-                    </div>
+                    <span className="block min-w-0 break-words text-sm font-semibold text-foreground">
+                      {r.member}
+                    </span>
+                    <span className="mt-1 block text-xs tabular-nums text-subtle">
+                      {formatTimeLabel(tDemo, r.requestedAt)}
+                    </span>
                   </div>
                   <span
-                    className={`flex-shrink-0 self-start rounded px-2 py-0.5 text-xs font-semibold ${STATUS_CLASS_DEFAULT[effectiveStatus]}`}
+                    className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${STATUS_CLASS_DEFAULT[effectiveStatus]}`}
                   >
                     {statusText(t, effectiveStatus)}
                   </span>
                 </div>
 
-                {effectiveStatus === 'pending' && (
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <button
-                      type="button"
-                      onClick={() => setStatus(r.id, 'approved')}
-                      className="flex items-center gap-1 text-xs bg-green-500/20 hover:bg-green-500/30 border border-green-500/40 text-green-300 px-3 py-1.5 rounded transition-colors"
-                    >
-                      <Check size={13} />
-                      {t('approveButton')}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setStatus(r.id, 'rejected')}
-                      className="flex items-center gap-1 text-xs bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-red-300 px-3 py-1.5 rounded transition-colors"
-                    >
-                      <X size={13} /> {t('reject')}
-                    </button>
+                <dl className={`grid grid-cols-2 gap-px overflow-hidden rounded-xl bg-border shadow-card ${effectiveStatus === 'pending' ? 'sm:grid-cols-3' : ''}`}>
+                  <div className="bg-surface-2 px-3 py-3">
+                    <dt className="text-[10px] font-semibold uppercase tracking-[0.14em] text-subtle">
+                      {t('payoutAmountLabel')}
+                    </dt>
+                    <dd className="mt-1 text-base font-semibold tabular-nums text-accent-soft-foreground">
+                      {formatSilver(r.silver)}
+                    </dd>
                   </div>
-                )}
+                  <div className="bg-surface-2 px-3 py-3">
+                    <dt className="text-[10px] font-semibold uppercase tracking-[0.14em] text-subtle">
+                      {t('currentBalanceLabel')}
+                    </dt>
+                    <dd className="mt-1 text-base font-semibold tabular-nums text-foreground">
+                      {formatSilver(currentBalance)}
+                    </dd>
+                  </div>
+                  {effectiveStatus === 'pending' ? (
+                    <div className="col-span-2 bg-surface-2 px-3 py-3 sm:col-span-1">
+                      <dt className="text-[10px] font-semibold uppercase tracking-[0.14em] text-subtle">
+                        {t('afterPayoutLabel')}
+                      </dt>
+                      <dd className="mt-1 text-base font-semibold tabular-nums text-foreground">
+                        {formatSilver(balanceAfterPayout)}
+                      </dd>
+                    </div>
+                  ) : null}
+                </dl>
 
-                {effectiveStatus !== 'pending' && handler && (
-                  <div className="text-gray-500 text-[11px] font-mono border-t border-gray-800 pt-2 space-y-0.5">
+                {effectiveStatus === 'pending' ? (
+                  <>
+                    <p className="inline-flex min-h-7 items-center gap-1.5 rounded-full bg-success-soft px-2.5 text-xs font-medium text-success-soft-foreground">
+                      <LockKeyhole size={13} aria-hidden="true" />
+                      {t('holdReady')}
+                    </p>
+                    <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => setStatus(r.id, 'approved')}
+                        className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg bg-success px-4 text-sm font-semibold text-success-foreground shadow-card transition-[background-color,box-shadow,transform] hover:shadow-lift active:scale-[0.96]"
+                      >
+                        <Check size={15} aria-hidden="true" />
+                        {t('approveButton')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setStatus(r.id, 'rejected')}
+                        className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg bg-danger-soft px-4 text-sm font-semibold text-danger-soft-foreground ring-1 ring-danger/35 transition-[background-color,transform] hover:bg-danger/20 active:scale-[0.96]"
+                      >
+                        <X size={15} aria-hidden="true" /> {t('reject')}
+                      </button>
+                    </div>
+                  </>
+                ) : null}
+
+                {effectiveStatus !== 'pending' && handler ? (
+                  <div className="space-y-0.5 border-t border-border pt-3 text-[11px] text-subtle">
                     <p>{t('handledBy', { status: statusText(t, effectiveStatus), handler })}</p>
                   </div>
-                )}
+                ) : null}
               </li>
             )
           })}

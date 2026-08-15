@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { Suspense } from 'react'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
-import { ShieldCheck, Wallet, ShoppingBag, Coins, ClipboardList, Handshake, ChevronDown } from 'lucide-react'
+import { ShieldCheck, Wallet, ShoppingBag, Coins, ClipboardList, Handshake, ChevronDown, CircleDollarSign } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import {
   listRegearRequests,
@@ -156,7 +156,6 @@ const APPROVAL_TAB_CAPABILITIES: Record<TypeKey, readonly bigint[]> = {
 
 const BULK_APPROVAL_CAPABILITIES: Partial<Record<TypeKey, readonly bigint[]>> = {
   regear: [CAP.REGEAR_APPROVE, CAP.REGEAR_EDIT_PRICE, CAP.REGEAR_BULK_ACTION],
-  exchange: [CAP.EXCHANGE_APPROVE],
   donation: [CAP.DONATION_APPROVE],
   shop: [CAP.INVENTORY_DELIVER],
   event_payout: [CAP.EVENT_MANAGE],
@@ -289,7 +288,9 @@ export default async function ApprovalsPage({
             <span className="text-sm text-muted">{tApprovals('pendingTotal')}</span>
           </div>
         )}
-        actions={<ApproveAllPendingButton count={bulkApprovablePending} />}
+        actions={bulkApprovablePending > 0
+          ? <ApproveAllPendingButton count={bulkApprovablePending} />
+          : undefined}
       />
 
       <div className="grid min-w-0 gap-6 lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-8">
@@ -876,6 +877,18 @@ async function ExchangeSection({
 
   return (
     <div className="space-y-4">
+      <div
+        role="note"
+        className="flex gap-3 rounded-xl bg-info-soft px-4 py-3 text-info-soft-foreground shadow-card ring-1 ring-info/25"
+      >
+        <CircleDollarSign size={20} className="mt-0.5 shrink-0" aria-hidden="true" />
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-balance">{t('pageTitle')}</p>
+          <p className="mt-1 text-pretty text-xs leading-relaxed text-info-soft-foreground/85">
+            {t('pageDescription')}
+          </p>
+        </div>
+      </div>
       <ScopeTabs
         baseHref="/admin/dashboard/approvals?tab=exchange"
         active={scope}

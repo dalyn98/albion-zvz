@@ -7,10 +7,6 @@ import {
   listRegearRequests,
 } from '@/app/actions/regear-admin'
 import {
-  approveExchangeRequest,
-  listExchangeRequests,
-} from '@/app/actions/exchange-admin'
-import {
   approveDonationRequest,
   listDonationRequests,
 } from '@/app/actions/donation-admin'
@@ -40,7 +36,6 @@ export type BulkApprovalQueueKey =
   | 'event_payout'
   | 'craft'
   | 'regear'
-  | 'exchange'
   | 'shop'
 
 export interface BulkApprovalQueueResult {
@@ -68,7 +63,6 @@ const QUEUE_CAPABILITIES = {
   event_payout: [CAP.EVENT_MANAGE],
   craft: [CAP.CRAFT_TASK_DELIVER, CAP.CRAFT_MASTER],
   regear: [CAP.REGEAR_APPROVE, CAP.REGEAR_EDIT_PRICE, CAP.REGEAR_BULK_ACTION],
-  exchange: [CAP.EXCHANGE_APPROVE],
   shop: [CAP.INVENTORY_DELIVER],
 } as const satisfies Record<BulkApprovalQueueKey, readonly bigint[]>
 
@@ -118,6 +112,8 @@ function addQueueResult(
 
 /**
  * Approves every currently safe request the caller is allowed to resolve.
+ * Exchange payouts are deliberately excluded: the database can validate the
+ * point hold, but it cannot prove that an operator delivered silver in-game.
  * Credit-producing queues run first so a same-member withdrawal or purchase
  * can use a top-up approved by the same click. Every child action still owns
  * authentication, tenant scoping, validation, audit logging, and notification.
@@ -202,23 +198,6 @@ export async function approveAllPendingRequests(): Promise<ApproveAllPendingResu
           listed.requests.length - safe.length,
           remainingBudget,
           approveRegearRequest,
-        ))
-      }
-    }
-
-    if (canRun('exchange')) {
-      const listed = await listExchangeRequests('pending')
-      if (listed.error) {
-        record({ key: 'exchange', total: 0, succeeded: 0, failed: 0, skipped: 0, error: listed.error })
-      } else {
-        // Re-read balances after credit queues. The action/RPC validates again.
-        const safe = listed.requests.filter((row) => row.balance >= row.silver)
-        record(await approveQueue(
-          'exchange',
-          safe.map((row) => row.id),
-          listed.requests.length - safe.length,
-          remainingBudget,
-          approveExchangeRequest,
         ))
       }
     }
