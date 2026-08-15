@@ -1,8 +1,15 @@
 'use client'
 
-import { useCallback, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
-import { CheckCircle2, Loader2, RotateCw, X } from 'lucide-react'
+import { CheckCircle2, Loader2, RotateCw, ShieldAlert, X } from 'lucide-react'
 import {
   completeApprovalAction,
   failApprovalAction,
@@ -136,46 +143,133 @@ export function useApprovalWorkflow(): ApprovalWorkflowController {
 
 export function ApprovalReviewDialog({ workflow }: { workflow: ApprovalWorkflowController }) {
   const t = useTranslations('approvalWorkflow')
-  useBodyScrollLock(workflow.state.status === 'review' && workflow.spec !== null)
-  if (workflow.state.status !== 'review' || !workflow.spec) return null
+  const dialogRef = useRef<HTMLDivElement>(null)
+  const cancelButtonRef = useRef<HTMLButtonElement>(null)
+  const isOpen = workflow.state.status === 'review' && workflow.spec !== null
+  useBodyScrollLock(isOpen)
 
-  return (
+  useEffect(() => {
+    if (!isOpen) return
+
+    const trigger = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null
+    cancelButtonRef.current?.focus({ preventScroll: true })
+
+    return () => {
+      queueMicrotask(() => {
+        if (trigger?.isConnected) trigger.focus({ preventScroll: true })
+      })
+    }
+  }, [isOpen])
+
+  if (!isOpen || !workflow.spec || typeof document === 'undefined') return null
+
+  const titleId = `approval-review-${workflow.spec.subjectId}`
+  const summaryId = `${titleId}-summary`
+  const warningId = `${titleId}-warning`
+
+  const handleKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      workflow.cancelReview()
+      return
+    }
+    if (event.key !== 'Tab') return
+
+    const dialog = dialogRef.current
+    if (!dialog) return
+    const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    ))
+    const first = focusable[0]
+    const last = focusable[focusable.length - 1]
+    if (!first || !last) {
+      event.preventDefault()
+      dialog.focus()
+      return
+    }
+
+    const activeElement = document.activeElement
+    if (
+      event.shiftKey
+      && (activeElement === dialog || activeElement === first || !dialog.contains(activeElement))
+    ) {
+      event.preventDefault()
+      last.focus()
+    } else if (
+      !event.shiftKey
+      && (activeElement === dialog || activeElement === last || !dialog.contains(activeElement))
+    ) {
+      event.preventDefault()
+      first.focus()
+    }
+  }
+
+  return createPortal(
     <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby={`approval-review-${workflow.state.subjectId}`}
-      className="fixed inset-0 z-[120] flex items-end justify-center bg-black/75 p-4 sm:items-center"
+      role="presentation"
+      data-approval-review-overlay
+      className="fixed inset-0 z-[220] flex items-end justify-center overflow-y-auto overscroll-contain bg-black/75 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-sm sm:items-center sm:p-6"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) workflow.cancelReview()
+      }}
     >
-      <div className="w-full max-w-md space-y-4 rounded-2xl border border-amber-500/40 bg-gray-950 p-5 shadow-2xl">
-        <div>
-          <h2 id={`approval-review-${workflow.state.subjectId}`} className="text-lg font-bold text-white">
-            {workflow.spec.title}
-          </h2>
-          <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-gray-300">
-            {workflow.spec.summary}
+      <div
+        ref={dialogRef}
+        role="dialog"
+        tabIndex={-1}
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={`${summaryId} ${warningId}`}
+        data-approval-review-panel
+        className="my-auto flex max-h-[calc(100dvh-2rem)] w-full max-w-md flex-col overflow-hidden rounded-[20px] bg-surface shadow-[0_0_0_1px_rgb(255_255_255/0.10),0_24px_80px_rgb(0_0_0/0.55)] outline-none"
+        onKeyDown={handleKeyDown}
+      >
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-4 pt-5 sm:px-6 sm:pt-6">
+          <div className="flex items-start gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-warning-soft text-warning-soft-foreground shadow-card">
+              <ShieldAlert size={20} aria-hidden="true" />
+            </span>
+            <div className="min-w-0 flex-1 pt-0.5">
+              <h2 id={titleId} className="text-balance text-lg font-bold text-foreground">
+                {workflow.spec.title}
+              </h2>
+              <p
+                id={summaryId}
+                className="mt-2 whitespace-pre-wrap break-words text-pretty text-sm leading-relaxed text-muted"
+              >
+                {workflow.spec.summary}
+              </p>
+            </div>
+          </div>
+          <p
+            id={warningId}
+            className="mt-4 rounded-xl bg-warning-soft px-3 py-2.5 text-pretty text-xs leading-relaxed text-warning-soft-foreground ring-1 ring-warning/25"
+          >
+            {t('reviewWarning')}
           </p>
         </div>
-        <p className="rounded-lg border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
-          {t('reviewWarning')}
-        </p>
-        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <div className="grid shrink-0 grid-cols-1 gap-2 bg-surface-2 px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-1px_0_rgb(255_255_255/0.06)] sm:flex sm:justify-end sm:px-6">
           <button
+            ref={cancelButtonRef}
             type="button"
             onClick={workflow.cancelReview}
-            className="min-h-11 rounded-lg border border-gray-700 px-4 text-sm font-semibold text-gray-200 hover:bg-gray-800"
+            className="order-2 min-h-11 rounded-lg px-4 text-sm font-semibold text-muted shadow-card ring-1 ring-border transition-[background-color,color,transform] hover:bg-surface hover:text-foreground active:scale-[0.96] sm:order-1"
           >
             {t('cancel')}
           </button>
           <button
             type="button"
             onClick={workflow.confirmReview}
-            className="min-h-11 rounded-lg bg-amber-500 px-5 text-sm font-bold text-black hover:bg-amber-400"
+            className="order-1 min-h-11 rounded-lg bg-accent px-5 text-sm font-bold text-accent-foreground shadow-card transition-[background-color,box-shadow,transform] hover:bg-accent-hover hover:shadow-lift active:scale-[0.96] sm:order-2"
           >
             {workflow.spec.confirmLabel}
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 

@@ -52,6 +52,17 @@ describe('approval workflow state', () => {
 })
 
 describe('approval surfaces', () => {
+  it('portals the review dialog outside contained queue rows', () => {
+    const component = source('src/components/ApprovalWorkflow.tsx')
+
+    expect(component).toContain("import { createPortal } from 'react-dom'")
+    expect(component).toContain('createPortal(')
+    expect(component).toContain('document.body')
+    expect(component).toContain('max-h-[calc(100dvh-2rem)]')
+    expect(component).toContain('overflow-y-auto')
+    expect(component).toContain("event.key === 'Escape'")
+  })
+
   it.each([
     'src/components/RegearReviewRow.tsx',
     'src/components/ExchangeReviewList.tsx',
