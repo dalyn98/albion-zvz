@@ -11,6 +11,10 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import { CAP } from '@/lib/permissions'
 import { sessionCanCreateOrManageEvents } from '@/lib/event-permissions'
 import type { AssignableMember } from '@/lib/member-assign-search'
+import {
+  prepareEventSlotRegearParticipantSnapshot,
+  type EventSlotRegearParticipantSnapshotPayload,
+} from '@/lib/regear-effective-policy-server'
 
 // Approve / reject sign-ups on a bomb squad party. Authorization passes if the
 // caller is an admin, delegated event manager, event owner, or the party's
@@ -26,6 +30,11 @@ async function authorizeBombSquadAction(slotId: string): Promise<
       guildId: string
       partyNumber: number | null
       requestedDiscordId: string | null
+      requestedUsername: string | null
+      roleName: string | null
+      manualRegearExcluded: boolean
+      autoRegearExcluded: boolean
+      regearPolicyVersionId: string | null
       battleStarted: boolean
     }
   | { ok: false; error: string }
@@ -39,7 +48,7 @@ async function authorizeBombSquadAction(slotId: string): Promise<
   const { data, error } = await db
     .from('slots')
     .select(
-      'id, requested_discord_id, is_solo_bomb, parties!inner(is_bomb_squad, caller_discord_id, party_number, events!inner(id, created_by, battle_started_at))',
+      'id, requested_discord_id, requested_username, role_name, manual_regear_excluded, auto_regear_excluded, is_solo_bomb, parties!inner(is_bomb_squad, caller_discord_id, party_number, events!inner(id, created_by, battle_started_at, regear_policy_version_id))',
     )
     .eq('guild_id', guildId)
     .eq('id', slotId)
@@ -75,6 +84,12 @@ async function authorizeBombSquadAction(slotId: string): Promise<
     guildId,
     partyNumber: (party.party_number as number | null | undefined) ?? null,
     requestedDiscordId: (data.requested_discord_id as string | null) ?? null,
+    requestedUsername: (data.requested_username as string | null) ?? null,
+    roleName: (data.role_name as string | null) ?? null,
+    manualRegearExcluded: data.manual_regear_excluded === true,
+    autoRegearExcluded: data.auto_regear_excluded === true,
+    regearPolicyVersionId:
+      (event.regear_policy_version_id as string | null | undefined) ?? null,
     battleStarted,
   }
 }
@@ -86,6 +101,10 @@ async function authorizeDirectAssignAction(slotId: string): Promise<
       eventId: string
       guildId: string
       partyNumber: number | null
+      roleName: string | null
+      manualRegearExcluded: boolean
+      autoRegearExcluded: boolean
+      regearPolicyVersionId: string | null
       battleStarted: boolean
     }
   | { ok: false; error: string }
@@ -99,7 +118,7 @@ async function authorizeDirectAssignAction(slotId: string): Promise<
   const { data, error } = await db
     .from('slots')
     .select(
-      'id, is_solo_bomb, parties!inner(is_bomb_squad, caller_discord_id, party_number, events!inner(id, created_by, battle_started_at))',
+      'id, role_name, manual_regear_excluded, auto_regear_excluded, is_solo_bomb, parties!inner(is_bomb_squad, caller_discord_id, party_number, events!inner(id, created_by, battle_started_at, regear_policy_version_id))',
     )
     .eq('guild_id', guildId)
     .eq('id', slotId)
@@ -134,7 +153,32 @@ async function authorizeDirectAssignAction(slotId: string): Promise<
     eventId: event.id,
     guildId,
     partyNumber: (party?.party_number as number | null | undefined) ?? null,
+    roleName: (data.role_name as string | null) ?? null,
+    manualRegearExcluded: data.manual_regear_excluded === true,
+    autoRegearExcluded: data.auto_regear_excluded === true,
+    regearPolicyVersionId:
+      (event.regear_policy_version_id as string | null | undefined) ?? null,
     battleStarted,
+  }
+}
+
+function toSlotSnapshotRpcArgs(
+  guildId: string,
+  slotId: string,
+  snapshot: EventSlotRegearParticipantSnapshotPayload,
+) {
+  return {
+    p_guild_id: guildId,
+    p_slot_id: slotId,
+    p_policy_version_id: snapshot.policyVersionId,
+    p_discord_id: snapshot.discordId,
+    p_username: snapshot.username,
+    p_role_name: snapshot.roleName,
+    p_manual_excluded: snapshot.manualExcluded,
+    p_auto_excluded: snapshot.autoExcluded,
+    p_manual_policy_snapshot: snapshot.manualPolicy,
+    p_auto_policy_snapshot: snapshot.autoPolicy,
+    p_source_snapshot: snapshot.sources,
   }
 }
 
@@ -157,14 +201,58 @@ export async function approveSlotRequest(slotId: string): Promise<{ error?: stri
   const tAction = await getTranslations('slotAction')
   const auth = await authorizeBombSquadAction(slotId)
   if (!auth.ok) return { error: auth.error }
-  const { db, eventId, guildId, partyNumber, requestedDiscordId, battleStarted } = auth
+  const {
+    db,
+    eventId,
+    guildId,
+    partyNumber,
+    requestedDiscordId,
+    requestedUsername,
+    roleName,
+    manualRegearExcluded,
+    autoRegearExcluded,
+    regearPolicyVersionId,
+    battleStarted,
+  } = auth
 
-  const { error } = battleStarted
-    ? await db.rpc('admin_approve_event_slot_request', {
-        p_guild_id: guildId,
-        p_slot_id: slotId,
+  let rpcResult: { error: { message?: string } | null }
+  if (battleStarted && regearPolicyVersionId) {
+    if (!requestedDiscordId || !requestedUsername) {
+      return { error: tAction('noPendingRequest') }
+    }
+    if (!roleName?.trim()) return { error: tAction('serverError') }
+    let snapshot: EventSlotRegearParticipantSnapshotPayload
+    try {
+      snapshot = await prepareEventSlotRegearParticipantSnapshot({
+        db,
+        guildId,
+        eventId,
+        discordId: requestedDiscordId,
+        username: requestedUsername,
+        roleName,
+        manualExcluded: manualRegearExcluded,
+        autoExcluded: autoRegearExcluded,
       })
-    : await db.rpc('approve_slot_request', { p_slot_id: slotId })
+    } catch (snapshotError) {
+      return {
+        error:
+          await publicActionError(snapshotError, 'actions/bomb-squad') ||
+          tAction('serverError'),
+      }
+    }
+    rpcResult = await db.rpc(
+      'admin_approve_event_slot_request_with_regear_snapshot',
+      toSlotSnapshotRpcArgs(guildId, slotId, snapshot),
+    )
+  } else if (battleStarted) {
+    rpcResult = await db.rpc('admin_approve_event_slot_request', {
+      p_guild_id: guildId,
+      p_slot_id: slotId,
+    })
+  } else {
+    rpcResult = await db.rpc('approve_slot_request', { p_slot_id: slotId })
+  }
+  const { error } = rpcResult
   if (error) {
     const message = error.message ?? ''
     if (message.includes('NO_PENDING_REQUEST')) return { error: tAction('noPendingRequest') }
@@ -204,7 +292,17 @@ export async function directAssignMember(
   const tAction = await getTranslations('slotAction')
   const auth = await authorizeDirectAssignAction(slotId)
   if (!auth.ok) return { error: auth.error }
-  const { db, eventId, guildId, partyNumber, battleStarted } = auth
+  const {
+    db,
+    eventId,
+    guildId,
+    partyNumber,
+    roleName,
+    manualRegearExcluded,
+    autoRegearExcluded,
+    regearPolicyVersionId,
+    battleStarted,
+  } = auth
 
   // guild_avatars 는 service-role 로만 읽을 수 있어 auth 에서 받은 admin db 를
   // 그대로 재사용한다. withdrawn 된 멤버는 명단에 뜨지도 않지만 방어적으로 체크.
@@ -217,19 +315,47 @@ export async function directAssignMember(
   if (memberError) return { error: await publicActionError(memberError, 'actions/bomb-squad') }
   if (!member) return { error: tAction('memberNotFound') }
   if (member.withdrawn_at) return { error: tAction('memberWithdrawn') }
-
-  const { error } = battleStarted
-    ? await db.rpc('admin_direct_assign_event_slot', {
+  let rpcResult: { error: { message?: string } | null }
+  if (battleStarted && regearPolicyVersionId) {
+    if (!roleName?.trim()) return { error: tAction('serverError') }
+    let snapshot: EventSlotRegearParticipantSnapshotPayload
+    try {
+      snapshot = await prepareEventSlotRegearParticipantSnapshot({
+        db,
+        guildId,
+        eventId,
+        discordId: memberDiscordId,
+        username: member.username,
+        roleName,
+        manualExcluded: manualRegearExcluded,
+        autoExcluded: autoRegearExcluded,
+      })
+    } catch (snapshotError) {
+      return {
+        error:
+          await publicActionError(snapshotError, 'actions/bomb-squad') ||
+          tAction('serverError'),
+      }
+    }
+    rpcResult = await db.rpc(
+      'admin_direct_assign_event_slot_with_regear_snapshot',
+      toSlotSnapshotRpcArgs(guildId, slotId, snapshot),
+    )
+  } else if (battleStarted) {
+    rpcResult = await db.rpc('admin_direct_assign_event_slot', {
         p_guild_id: guildId,
         p_slot_id: slotId,
         p_discord_id: memberDiscordId,
         p_username: member.username,
       })
-    : await db.rpc('direct_assign_slot', {
-        p_slot_id: slotId,
-        p_discord_id: memberDiscordId,
-        p_username: member.username,
-      })
+  } else {
+    rpcResult = await db.rpc('direct_assign_slot', {
+      p_slot_id: slotId,
+      p_discord_id: memberDiscordId,
+      p_username: member.username,
+    })
+  }
+  const { error } = rpcResult
   if (error) {
     const message = error.message ?? ''
     if (message.includes('SLOT_NOT_FOUND')) return { error: tAction('slotNotFound') }

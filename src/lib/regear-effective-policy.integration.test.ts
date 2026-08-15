@@ -269,7 +269,7 @@ describeIntegration('effective regear policy snapshot invariants (migs 298-300)'
     }
   })
 
-  it('blocks participant self-cancel but allows late assignment and manager correction', async () => {
+  it('requires an immutable snapshot for late assignment and manager correction', async () => {
     const client = getTestServiceClient()
     const fixture = await createEventPolicyFixture(tenant)
     const { error: startError } = await startFixture(tenant, fixture)
@@ -293,25 +293,39 @@ describeIntegration('effective regear policy snapshot invariants (migs 298-300)'
       p_discord_id: 'replacement-member',
       p_username: 'Replacement Member',
     })
-    expect(regularAssignError).toBeNull()
-
-    const { error: secondAdminCancelError } = await client.rpc('admin_cancel_event_slot', {
-      p_guild_id: tenant.guildId,
-      p_slot_id: fixture.slotId!,
-      p_discord_id: 'replacement-member',
-    })
-    expect(secondAdminCancelError).toBeNull()
+    expect(regularAssignError?.message).toContain('event_regear_policy_snapshot_required')
 
     const { error: adminAssignError } = await client.rpc(
-      'admin_direct_assign_event_slot',
+      'admin_direct_assign_event_slot_with_regear_snapshot',
       {
         p_guild_id: tenant.guildId,
         p_slot_id: fixture.slotId!,
+        p_policy_version_id: fixture.policyVersionId,
         p_discord_id: 'replacement-member',
         p_username: 'Replacement Member',
+        p_role_name: 'EngageDps',
+        p_manual_excluded: false,
+        p_auto_excluded: false,
+        p_manual_policy_snapshot: { allowed: true },
+        p_auto_policy_snapshot: { allowed: true },
+        p_source_snapshot: { scope: 'event' },
       },
     )
     expect(adminAssignError).toBeNull()
+
+    const { data: replacementSnapshot, error: replacementSnapshotError } = await client
+      .from('event_regear_policy_snapshots')
+      .select('policy_version_id, discord_id, role_name')
+      .eq('guild_id', tenant.guildId)
+      .eq('event_id', fixture.eventId)
+      .eq('discord_id', 'replacement-member')
+      .single()
+    expect(replacementSnapshotError).toBeNull()
+    expect(replacementSnapshot).toEqual({
+      policy_version_id: fixture.policyVersionId,
+      discord_id: 'replacement-member',
+      role_name: 'EngageDps',
+    })
 
     const pendingSlotId = crypto.randomUUID()
     const { error: pendingInsertError } = await client.from('slots').insert({
@@ -319,6 +333,7 @@ describeIntegration('effective regear policy snapshot invariants (migs 298-300)'
       guild_id: tenant.guildId,
       party_id: fixture.partyId!,
       slot_number: 2,
+      role_name: 'Healer',
       is_hidden: false,
       requested_discord_id: 'pending-member',
       requested_username: 'Pending Member',
@@ -331,14 +346,74 @@ describeIntegration('effective regear policy snapshot invariants (migs 298-300)'
     })
     expect(pendingCancelError).toBeNull()
 
+    const pendingApprovalSlotId = crypto.randomUUID()
+    const { error: pendingApprovalInsertError } = await client.from('slots').insert({
+      id: pendingApprovalSlotId,
+      guild_id: tenant.guildId,
+      party_id: fixture.partyId!,
+      slot_number: 3,
+      role_name: 'Healer',
+      is_hidden: false,
+      requested_discord_id: 'approved-member',
+      requested_username: 'Approved Member',
+      requested_at: new Date().toISOString(),
+    })
+    expect(pendingApprovalInsertError).toBeNull()
+    const { error: approvalError } = await client.rpc(
+      'admin_approve_event_slot_request_with_regear_snapshot',
+      {
+        p_guild_id: tenant.guildId,
+        p_slot_id: pendingApprovalSlotId,
+        p_policy_version_id: fixture.policyVersionId,
+        p_discord_id: 'approved-member',
+        p_username: 'Approved Member',
+        p_role_name: 'Healer',
+        p_manual_excluded: false,
+        p_auto_excluded: false,
+        p_manual_policy_snapshot: { allowed: true },
+        p_auto_policy_snapshot: { allowed: true },
+        p_source_snapshot: { scope: 'event' },
+      },
+    )
+    expect(approvalError).toBeNull()
+
+    const [{ data: approvedSlot }, { data: approvedSnapshot }] = await Promise.all([
+      client
+        .from('slots')
+        .select('assigned_discord_id')
+        .eq('guild_id', tenant.guildId)
+        .eq('id', pendingApprovalSlotId)
+        .single(),
+      client
+        .from('event_regear_policy_snapshots')
+        .select('discord_id, role_name')
+        .eq('guild_id', tenant.guildId)
+        .eq('event_id', fixture.eventId)
+        .eq('discord_id', 'approved-member')
+        .single(),
+    ])
+    expect(approvedSlot).toEqual({ assigned_discord_id: 'approved-member' })
+    expect(approvedSnapshot).toEqual({
+      discord_id: 'approved-member',
+      role_name: 'Healer',
+    })
+
     const otherTenant = await createTestTenant('started-roster-other')
     try {
       const { error: crossTenantError } = await client.rpc(
-        'admin_cancel_event_slot',
+        'admin_direct_assign_event_slot_with_regear_snapshot',
         {
           p_guild_id: otherTenant.guildId,
           p_slot_id: fixture.slotId!,
+          p_policy_version_id: fixture.policyVersionId,
           p_discord_id: 'replacement-member',
+          p_username: 'Replacement Member',
+          p_role_name: 'EngageDps',
+          p_manual_excluded: false,
+          p_auto_excluded: false,
+          p_manual_policy_snapshot: { allowed: true },
+          p_auto_policy_snapshot: { allowed: true },
+          p_source_snapshot: { scope: 'event' },
         },
       )
       expect(crossTenantError?.message).toContain('SLOT_NOT_FOUND')

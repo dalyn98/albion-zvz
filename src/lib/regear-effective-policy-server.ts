@@ -76,6 +76,18 @@ export interface EventEffectiveRegearPolicyPreviewDiff
   username: string
 }
 
+export interface EventSlotRegearParticipantSnapshotPayload {
+  policyVersionId: string
+  discordId: string
+  username: string
+  roleName: string
+  manualExcluded: boolean
+  autoExcluded: boolean
+  manualPolicy: RegearPolicySnapshot
+  autoPolicy: RegearPolicySnapshot
+  sources: EffectiveRegearPolicyExplanation
+}
+
 interface EventSnapshotDbRow {
   id: string
   policy_version_id: string
@@ -812,6 +824,147 @@ export async function loadEventParticipantEffectivePolicy(input: {
     .maybeSingle()
   if (error) throw new Error(error.message)
   return data ? mapStoredSnapshot(data as EventSnapshotDbRow) : null
+}
+
+export async function prepareEventSlotRegearParticipantSnapshot(input: {
+  db: DbClient
+  guildId: string
+  eventId: string
+  discordId: string
+  username: string
+  roleName: string
+  manualExcluded: boolean
+  autoExcluded: boolean
+}): Promise<EventSlotRegearParticipantSnapshotPayload> {
+  const event = await readEventPolicyRow(input.db, input.guildId, input.eventId)
+  const config = event
+    ? matchingStoredEventConfig(event, input.guildId, input.eventId)
+    : null
+  if (!event || !config || !event.battle_started_at) {
+    throw new Error('event_regear_policy_not_frozen')
+  }
+
+  const { data: guestProfile, error: guestProfileError } = await input.db
+    .from('event_guest_profiles')
+    .select('discord_id')
+    .eq('guild_id', input.guildId)
+    .eq('event_id', input.eventId)
+    .eq('discord_id', input.discordId)
+    .maybeSingle()
+  if (guestProfileError) throw new Error(guestProfileError.message)
+  const isGuest = Boolean(guestProfile)
+  const manualExcluded =
+    input.manualExcluded || (isGuest && !event.guest_regear_enabled)
+  const autoExcluded = input.autoExcluded || isGuest
+
+  const existing = await loadEventParticipantEffectivePolicy({
+    db: input.db,
+    guildId: input.guildId,
+    eventId: input.eventId,
+    discordId: input.discordId,
+  })
+  if (existing?.policyVersionId === config.policyVersionId) {
+    return {
+      policyVersionId: existing.policyVersionId,
+      discordId: input.discordId,
+      username: input.username,
+      roleName: input.roleName,
+      manualExcluded,
+      autoExcluded,
+      manualPolicy: existing.manualPolicy,
+      autoPolicy: existing.autoPolicy,
+      sources: existing.sources,
+    }
+  }
+
+  const [participant] = await attachParticipantDiscordRoles(
+    config,
+    input.guildId,
+    [{
+      discordId: input.discordId,
+      username: input.username,
+      roleName: input.roleName,
+      manualExcluded,
+      autoExcluded,
+      isGuest,
+    }],
+  )
+  const pair = resolveEffectiveRegearPolicy(config, participant)
+  return {
+    ...pairToPayload(pair),
+    policyVersionId: config.policyVersionId,
+  }
+}
+
+export async function ensureCurrentSlotEventRegearPolicySnapshot(input: {
+  db: DbClient
+  guildId: string
+  eventId: string
+  discordId: string
+}): Promise<EventEffectiveRegearPolicyRow | null> {
+  const existing = await loadEventParticipantEffectivePolicy(input)
+  if (existing) return existing
+
+  const ownership = await resolveStableMemberOwnership(
+    input.db,
+    input.guildId,
+    input.discordId,
+  )
+  let slotQuery = input.db
+    .from('slots')
+    .select(
+      'id, assigned_discord_id, assigned_username, role_name, manual_regear_excluded, auto_regear_excluded, parties!inner(event_id)',
+    )
+    .eq('guild_id', input.guildId)
+    .eq('parties.event_id', input.eventId)
+  slotQuery = ownership.guildMemberId
+    ? slotQuery.eq('assigned_guild_member_id', ownership.guildMemberId)
+    : slotQuery.eq('assigned_discord_id', input.discordId)
+  const { data: slot, error: slotError } = await slotQuery
+    .limit(1)
+    .maybeSingle()
+  if (slotError) throw new Error(slotError.message)
+  if (!slot) return null
+
+  const discordId =
+    typeof slot.assigned_discord_id === 'string'
+      ? slot.assigned_discord_id.trim()
+      : ''
+  const username =
+    typeof slot.assigned_username === 'string' && slot.assigned_username.trim()
+      ? slot.assigned_username.trim()
+      : discordId
+  const roleName =
+    typeof slot.role_name === 'string' ? slot.role_name.trim() : ''
+  if (!discordId || !username || !roleName) {
+    throw new Error('event_regear_participant_snapshot_invalid')
+  }
+
+  const prepared = await prepareEventSlotRegearParticipantSnapshot({
+    db: input.db,
+    guildId: input.guildId,
+    eventId: input.eventId,
+    discordId,
+    username,
+    roleName,
+    manualExcluded: slot.manual_regear_excluded === true,
+    autoExcluded: slot.auto_regear_excluded === true,
+  })
+  const { error } = await input.db.rpc('add_event_regear_slot_participant_snapshot', {
+    p_guild_id: input.guildId,
+    p_slot_id: slot.id,
+    p_policy_version_id: prepared.policyVersionId,
+    p_discord_id: prepared.discordId,
+    p_username: prepared.username,
+    p_role_name: prepared.roleName,
+    p_manual_excluded: prepared.manualExcluded,
+    p_auto_excluded: prepared.autoExcluded,
+    p_manual_policy_snapshot: prepared.manualPolicy,
+    p_auto_policy_snapshot: prepared.autoPolicy,
+    p_source_snapshot: prepared.sources,
+  })
+  if (error) throw new Error(error.message)
+  return loadEventParticipantEffectivePolicy(input)
 }
 
 export async function getMemberEventEffectiveRegearPolicy(input: {

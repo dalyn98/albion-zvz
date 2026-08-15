@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   sessionHas: vi.fn(),
   getSessionGuildId: vi.fn(),
   revalidatePath: vi.fn(),
+  prepareEventSlotRegearParticipantSnapshot: vi.fn(),
 }))
 
 vi.mock('@/lib/supabase-admin', () => ({
@@ -35,6 +36,11 @@ vi.mock('next/cache', () => ({
 
 vi.mock('next-intl/server', () => ({
   getTranslations: vi.fn(async () => (key: string) => key),
+}))
+
+vi.mock('@/lib/regear-effective-policy-server', () => ({
+  prepareEventSlotRegearParticipantSnapshot:
+    mocks.prepareEventSlotRegearParticipantSnapshot,
 }))
 
 import { approveSlotRequest } from './bomb-squad'
@@ -76,6 +82,10 @@ function pendingBombSlot(overrides: Record<string, unknown> = {}) {
   return {
     id: 'slot-1',
     requested_discord_id: 'member-1',
+    requested_username: 'Member One',
+    role_name: 'Support',
+    manual_regear_excluded: false,
+    auto_regear_excluded: false,
     is_solo_bomb: false,
     parties: {
       is_bomb_squad: true,
@@ -85,6 +95,7 @@ function pendingBombSlot(overrides: Record<string, unknown> = {}) {
         id: 'event-1',
         created_by: 'owner-1',
         battle_started_at: null,
+        regear_policy_version_id: null,
       },
     },
     ...overrides,
@@ -98,6 +109,18 @@ describe('approveSlotRequest', () => {
     mocks.sessionHas.mockReset()
     mocks.getSessionGuildId.mockReset()
     mocks.revalidatePath.mockReset()
+    mocks.prepareEventSlotRegearParticipantSnapshot.mockReset()
+    mocks.prepareEventSlotRegearParticipantSnapshot.mockResolvedValue({
+      policyVersionId: 'policy-1',
+      discordId: 'member-1',
+      username: 'Member One',
+      roleName: 'Support',
+      manualExcluded: false,
+      autoExcluded: false,
+      manualPolicy: { version: 1, policyVersionId: 'policy-1' },
+      autoPolicy: { version: 1, policyVersionId: 'policy-1' },
+      sources: { version: 1, policyVersionId: 'policy-1' },
+    })
   })
 
   it('requires retained event creation authority for the original event owner', async () => {
@@ -143,7 +166,7 @@ describe('approveSlotRequest', () => {
       {
         method: 'select',
         args: [
-          'id, requested_discord_id, is_solo_bomb, parties!inner(is_bomb_squad, caller_discord_id, party_number, events!inner(id, created_by, battle_started_at))',
+          'id, requested_discord_id, requested_username, role_name, manual_regear_excluded, auto_regear_excluded, is_solo_bomb, parties!inner(is_bomb_squad, caller_discord_id, party_number, events!inner(id, created_by, battle_started_at, regear_policy_version_id))',
         ],
       },
       { method: 'eq', args: ['guild_id', 'guild-1'] },
@@ -168,6 +191,7 @@ describe('approveSlotRequest', () => {
             id: 'event-1',
             created_by: 'owner-1',
             battle_started_at: '2026-07-31T12:00:00.000Z',
+            regear_policy_version_id: 'policy-1',
           },
         },
       }),
@@ -184,9 +208,28 @@ describe('approveSlotRequest', () => {
     mocks.getAdminClient.mockReturnValue({ from: vi.fn(() => query), rpc })
 
     await expect(approveSlotRequest('slot-1')).resolves.toEqual({})
-    expect(rpc).toHaveBeenCalledWith('admin_approve_event_slot_request', {
+    expect(mocks.prepareEventSlotRegearParticipantSnapshot).toHaveBeenCalledWith({
+      db: expect.any(Object),
+      guildId: 'guild-1',
+      eventId: 'event-1',
+      discordId: 'member-1',
+      username: 'Member One',
+      roleName: 'Support',
+      manualExcluded: false,
+      autoExcluded: false,
+    })
+    expect(rpc).toHaveBeenCalledWith('admin_approve_event_slot_request_with_regear_snapshot', {
       p_guild_id: 'guild-1',
       p_slot_id: 'slot-1',
+      p_policy_version_id: 'policy-1',
+      p_discord_id: 'member-1',
+      p_username: 'Member One',
+      p_role_name: 'Support',
+      p_manual_excluded: false,
+      p_auto_excluded: false,
+      p_manual_policy_snapshot: { version: 1, policyVersionId: 'policy-1' },
+      p_auto_policy_snapshot: { version: 1, policyVersionId: 'policy-1' },
+      p_source_snapshot: { version: 1, policyVersionId: 'policy-1' },
     })
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/events/event-1')
   })
@@ -202,6 +245,7 @@ describe('approveSlotRequest', () => {
             id: 'event-1',
             created_by: 'owner-1',
             battle_started_at: '2026-07-31T12:00:00.000Z',
+            regear_policy_version_id: 'policy-1',
           },
         },
       }),
@@ -218,9 +262,18 @@ describe('approveSlotRequest', () => {
     mocks.getAdminClient.mockReturnValue({ from: vi.fn(() => query), rpc })
 
     await expect(approveSlotRequest('slot-1')).resolves.toEqual({})
-    expect(rpc).toHaveBeenCalledWith('admin_approve_event_slot_request', {
+    expect(rpc).toHaveBeenCalledWith('admin_approve_event_slot_request_with_regear_snapshot', {
       p_guild_id: 'guild-1',
       p_slot_id: 'slot-1',
+      p_policy_version_id: 'policy-1',
+      p_discord_id: 'member-1',
+      p_username: 'Member One',
+      p_role_name: 'Support',
+      p_manual_excluded: false,
+      p_auto_excluded: false,
+      p_manual_policy_snapshot: { version: 1, policyVersionId: 'policy-1' },
+      p_auto_policy_snapshot: { version: 1, policyVersionId: 'policy-1' },
+      p_source_snapshot: { version: 1, policyVersionId: 'policy-1' },
     })
   })
 })

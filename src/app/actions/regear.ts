@@ -68,7 +68,10 @@ import {
   type EventRegearPolicy,
   type RegearPolicySnapshot,
 } from '@/lib/regear-event-policy'
-import { loadEventParticipantEffectivePolicy } from '@/lib/regear-effective-policy-server'
+import {
+  ensureCurrentSlotEventRegearPolicySnapshot,
+  loadEventParticipantEffectivePolicy,
+} from '@/lib/regear-effective-policy-server'
 import {
   craftRegearSlots,
   parseCraftIncludeCapeFormValue,
@@ -534,7 +537,7 @@ async function requestRegearInner(
     ? (event.category as EventCategory)
     : '전투'
   const usesEventParticipantList = eventCategory !== '전투'
-  const frozenParticipantPolicy = event.regear_policy_version_id
+  let frozenParticipantPolicy = event.regear_policy_version_id
     ? await loadEventParticipantEffectivePolicy({
         db,
         guildId,
@@ -542,6 +545,26 @@ async function requestRegearInner(
         discordId: session.discordId,
       })
     : null
+  if (
+    event.regear_policy_version_id &&
+    !frozenParticipantPolicy &&
+    event.category === '전투'
+  ) {
+    try {
+      frozenParticipantPolicy = await ensureCurrentSlotEventRegearPolicySnapshot({
+        db,
+        guildId,
+        eventId,
+        discordId: session.discordId,
+      })
+    } catch (snapshotError) {
+      log.error('[requestRegear] missing slot policy snapshot repair failed', snapshotError, {
+        tenant_id: guildId,
+        event_id: eventId,
+        discord_id: session.discordId,
+      })
+    }
+  }
   if (
     (event.regear_policy_version_id || isScopedGuest) &&
     !frozenParticipantPolicy
@@ -1247,6 +1270,44 @@ export async function listMyRegearEligibleEvents(): Promise<{
       }))
       .filter((slot) => slot.eventId && eventIdSet.has(slot.eventId)),
   )
+  const missingCombatSnapshotEvents = rosterEligibleEvents.filter(
+    (event) =>
+      event.category === '전투' &&
+      Boolean(event.regear_policy_version_id) &&
+      !frozenPolicyByEvent.has(event.id) &&
+      slotRoleByEvent.has(event.id),
+  )
+  if (missingCombatSnapshotEvents.length > 0) {
+    const repairedSnapshots = await Promise.allSettled(
+      missingCombatSnapshotEvents.map((event) =>
+        ensureCurrentSlotEventRegearPolicySnapshot({
+          db,
+          guildId,
+          eventId: event.id,
+          discordId: session.discordId,
+        }),
+      ),
+    )
+    repairedSnapshots.forEach((result, index) => {
+      const eventId = missingCombatSnapshotEvents[index]?.id
+      if (!eventId) return
+      if (result.status === 'fulfilled' && result.value) {
+        frozenPolicyByEvent.set(eventId, result.value.manualPolicy)
+        return
+      }
+      if (result.status === 'rejected') {
+        log.error(
+          '[listMyRegearEligibleEvents] missing slot policy snapshot repair failed',
+          result.reason,
+          {
+            tenant_id: guildId,
+            event_id: eventId,
+            discord_id: session.discordId,
+          },
+        )
+      }
+    })
+  }
   const eventToRole = buildManualRegearEligibilityRoleMap(
     rosterEligibleEvents.map((event) => ({
       eventId: event.id,
