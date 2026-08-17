@@ -201,6 +201,44 @@ describe('saveEventGuestProfile', () => {
     })
   })
 
+  it('creates a new guest profile after operational start so late signup remains possible', async () => {
+    const { db, upserts } = createDb({
+      eventRow: {
+        id: 'event-1',
+        status: 'published',
+        battle_started_at: '2026-08-17T10:00:00.000Z',
+        gather_at: '2026-08-17T09:00:00.000Z',
+      },
+    })
+    mocks.getAdminClient.mockReturnValue(db)
+    mocks.getSession.mockResolvedValue(null)
+    mocks.resolveEventGuestInviteScope.mockResolvedValue({
+      eventId: 'event-1',
+      guildId: 'guild-1',
+      source: 'invite',
+    })
+
+    await expect(
+      saveEventGuestProfile({
+        eventId: 'event-1',
+        displayName: 'Late Guest',
+        characterName: 'LateGuestCharacter',
+        locale: 'ko',
+        inviteToken: 'token-1',
+      }),
+    ).resolves.toEqual({ ok: true, characterVerified: false })
+
+    expect(upserts).toContainEqual({
+      table: 'event_guest_profiles',
+      row: expect.objectContaining({
+        event_id: 'event-1',
+        display_name: 'Late Guest',
+        albion_character_name: 'LateGuestCharacter',
+      }),
+      options: { onConflict: 'guild_id,event_id,discord_id' },
+    })
+  })
+
   it('updates an active Discord-authenticated profile and records exact public character evidence', async () => {
     const { db, upserts } = createDb({
       guestRow: { discord_id: 'guest-1' },

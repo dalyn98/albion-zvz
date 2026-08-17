@@ -20,6 +20,10 @@ import {
   hashEventGuestManagementSecret,
 } from '@/lib/event-guest-security'
 import { isAlbionMemberVerificationSubject } from '@/lib/member-albion-access'
+import {
+  prepareEventSlotRegearParticipantSnapshot,
+  type EventSlotRegearParticipantSnapshotPayload,
+} from '@/lib/regear-effective-policy-server'
 
 export type SlotPicks = Partial<Record<SlotKey, GearOption>>
 
@@ -109,6 +113,30 @@ function revalidateSlotAssignmentSurfaces(
   if (discordId) revalidatePath(`/members/${discordId}`)
 }
 
+function toLateSignupSnapshotRpcArgs(
+  guildId: string,
+  eventId: string,
+  slotId: string,
+  picks: Record<string, GearOption> | null,
+  snapshot: EventSlotRegearParticipantSnapshotPayload,
+) {
+  return {
+    p_guild_id: guildId,
+    p_event_id: eventId,
+    p_slot_id: slotId,
+    p_picks: picks,
+    p_policy_version_id: snapshot.policyVersionId,
+    p_discord_id: snapshot.discordId,
+    p_username: snapshot.username,
+    p_role_name: snapshot.roleName,
+    p_manual_excluded: snapshot.manualExcluded,
+    p_auto_excluded: snapshot.autoExcluded,
+    p_manual_policy_snapshot: snapshot.manualPolicy,
+    p_auto_policy_snapshot: snapshot.autoPolicy,
+    p_source_snapshot: snapshot.sources,
+  }
+}
+
 export async function assignSlot(
   slotId: string,
   picks: SlotPicks = {},
@@ -146,7 +174,7 @@ export async function assignSlot(
   let slotLookup = db
     .from('slots')
     .select(
-      'guild_id, is_hidden, parties!inner(is_bomb_squad, event_id, party_number)',
+      'guild_id, is_hidden, role_name, manual_regear_excluded, auto_regear_excluded, parties!inner(is_bomb_squad, event_id, party_number, events!inner(battle_started_at, regear_policy_version_id))',
     )
     .eq('id', slotId)
 
@@ -165,15 +193,28 @@ export async function assignSlot(
         is_bomb_squad: boolean | null
         event_id: string
         party_number: number
+        events:
+          | { battle_started_at: string | null; regear_policy_version_id: string | null }
+          | { battle_started_at: string | null; regear_policy_version_id: string | null }[]
+          | null
       }
     | {
         is_bomb_squad: boolean | null
         event_id: string
         party_number: number
+        events:
+          | { battle_started_at: string | null; regear_policy_version_id: string | null }
+          | { battle_started_at: string | null; regear_policy_version_id: string | null }[]
+          | null
       }[]
     | null
   const partyObj = Array.isArray(partyJoin) ? partyJoin[0] : partyJoin
   const isBomb = !!partyObj?.is_bomb_squad
+  const eventJoin = partyObj
+    ? Array.isArray(partyObj.events)
+      ? partyObj.events[0]
+      : partyObj.events
+    : null
   const albionEventGate = session.isGuest
     ? null
     : await getAlbionEventAccessGateState({
@@ -215,6 +256,25 @@ export async function assignSlot(
 
   let managementPath: string | undefined
   let error: { message: string } | null = null
+  let lateSignupSnapshot: EventSlotRegearParticipantSnapshotPayload | null = null
+  if (!isBomb && eventJoin?.battle_started_at && eventJoin.regear_policy_version_id) {
+    const roleName = typeof slotCheck.role_name === 'string' ? slotCheck.role_name.trim() : ''
+    if (!partyObj?.event_id || !roleName) return { error: tAction('serverError') }
+    try {
+      lateSignupSnapshot = await prepareEventSlotRegearParticipantSnapshot({
+        db,
+        guildId,
+        eventId: partyObj.event_id,
+        discordId: session.discordId,
+        username: displayUsername,
+        roleName,
+        manualExcluded: slotCheck.manual_regear_excluded === true,
+        autoExcluded: slotCheck.auto_regear_excluded === true,
+      })
+    } catch (snapshotError) {
+      return { error: await publicActionError(snapshotError, 'actions/member') }
+    }
+  }
   if (session.isGuest && partyObj?.event_id === session.eventScope) {
     const attemptId =
       typeof idempotencyKey === 'string' &&
@@ -237,7 +297,7 @@ export async function assignSlot(
     const managementSecret = createEventGuestManagementSecret()
     const managementSecretHash =
       await hashEventGuestManagementSecret(managementSecret)
-    const result = await db.rpc('assign_guest_event_slot', {
+    const baseArgs = {
       p_guild_id: guildId,
       p_event_id: partyObj.event_id,
       p_guest_id: session.discordId,
@@ -246,16 +306,39 @@ export async function assignSlot(
       p_picks: payload,
       p_idempotency_key: attemptId,
       p_management_secret_hash: managementSecretHash,
-    })
+    }
+    const result = lateSignupSnapshot
+      ? await db.rpc('assign_guest_event_slot_with_regear_snapshot', {
+          ...baseArgs,
+          ...toLateSignupSnapshotRpcArgs(
+            guildId,
+            partyObj.event_id,
+            slotId,
+            payload,
+            lateSignupSnapshot,
+          ),
+        })
+      : await db.rpc('assign_guest_event_slot', baseArgs)
     error = result.error
     if (!error) managementPath = `/guest/manage#${managementSecret}`
   } else {
-    const result = await db.rpc('assign_slot', {
-      p_slot_id: slotId,
-      p_discord_id: session.discordId,
-      p_username: displayUsername,
-      p_picks: payload,
-    })
+    const result = lateSignupSnapshot && partyObj?.event_id
+      ? await db.rpc(
+          'assign_event_slot_with_regear_snapshot',
+          toLateSignupSnapshotRpcArgs(
+            guildId,
+            partyObj.event_id,
+            slotId,
+            payload,
+            lateSignupSnapshot,
+          ),
+        )
+      : await db.rpc('assign_slot', {
+          p_slot_id: slotId,
+          p_discord_id: session.discordId,
+          p_username: displayUsername,
+          p_picks: payload,
+        })
     error = result.error
   }
   if (error) return { error: mapRpcError(error.message, tAction, tGear) }

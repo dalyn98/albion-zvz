@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   consumeEventGuestRequestBudget: vi.fn(),
   createEventGuestManagementSecret: vi.fn(),
   hashEventGuestManagementSecret: vi.fn(),
+  prepareEventSlotRegearParticipantSnapshot: vi.fn(),
 }))
 
 vi.mock('@/lib/supabase-admin', () => ({
@@ -62,6 +63,11 @@ vi.mock('@/lib/event-guest-security', () => ({
   consumeEventGuestRequestBudget: mocks.consumeEventGuestRequestBudget,
   createEventGuestManagementSecret: mocks.createEventGuestManagementSecret,
   hashEventGuestManagementSecret: mocks.hashEventGuestManagementSecret,
+}))
+
+vi.mock('@/lib/regear-effective-policy-server', () => ({
+  prepareEventSlotRegearParticipantSnapshot:
+    mocks.prepareEventSlotRegearParticipantSnapshot,
 }))
 
 vi.mock('next-intl/server', () => ({
@@ -130,6 +136,7 @@ describe('adminCancelSlot', () => {
     mocks.consumeEventGuestRequestBudget.mockReset()
     mocks.createEventGuestManagementSecret.mockReset()
     mocks.hashEventGuestManagementSecret.mockReset()
+    mocks.prepareEventSlotRegearParticipantSnapshot.mockReset()
     mocks.consumeEventGuestRequestBudget.mockResolvedValue(true)
     mocks.createEventGuestManagementSecret.mockReturnValue('guest-management-secret')
     mocks.hashEventGuestManagementSecret.mockResolvedValue('a'.repeat(64))
@@ -172,7 +179,7 @@ describe('adminCancelSlot', () => {
       {
         method: 'select',
         args: [
-          'guild_id, is_hidden, parties!inner(is_bomb_squad, event_id, party_number)',
+          'guild_id, is_hidden, role_name, manual_regear_excluded, auto_regear_excluded, parties!inner(is_bomb_squad, event_id, party_number, events!inner(battle_started_at, regear_policy_version_id))',
         ],
       },
       { method: 'eq', args: ['id', 'slot-1'] },
@@ -232,6 +239,81 @@ describe('adminCancelSlot', () => {
       p_discord_id: 'ally-1',
       p_username: 'Ally',
       p_picks: null,
+    })
+  })
+
+  it('atomically snapshots policy when a member signs up after operational start', async () => {
+    const { query } = createSlotQuery({
+      guild_id: 'guild-1',
+      is_hidden: false,
+      role_name: 'Dps',
+      manual_regear_excluded: false,
+      auto_regear_excluded: false,
+      parties: {
+        event_id: 'event-1',
+        party_number: 1,
+        is_bomb_squad: false,
+        events: {
+          battle_started_at: '2026-08-17T10:00:00.000Z',
+          regear_policy_version_id: 'policy-1',
+        },
+      },
+    })
+    const snapshot = {
+      policyVersionId: 'policy-1',
+      discordId: 'member-1',
+      username: 'Member',
+      roleName: 'Dps',
+      manualExcluded: false,
+      autoExcluded: false,
+      manualPolicy: { allowed: true },
+      autoPolicy: { allowed: true },
+      sources: { scope: 'event' },
+    }
+    const rpc = vi.fn().mockResolvedValue({ error: null })
+
+    mocks.getSession.mockResolvedValue({
+      discordId: 'member-1',
+      username: 'Member',
+      isMember: true,
+      isAdmin: false,
+      isGuest: false,
+    })
+    mocks.getSessionGuildId.mockResolvedValue('guild-1')
+    mocks.getAlbionEventAccessGateState.mockResolvedValue({
+      memberOnboardingRequired: false,
+      memberEventVerificationRequired: false,
+      allianceEventAllowed: false,
+    })
+    mocks.prepareEventSlotRegearParticipantSnapshot.mockResolvedValue(snapshot)
+    mocks.getAdminClient.mockReturnValue({ from: vi.fn(() => query), rpc })
+
+    await expect(assignSlot('slot-1')).resolves.toEqual({ pending: false })
+
+    expect(mocks.prepareEventSlotRegearParticipantSnapshot).toHaveBeenCalledWith({
+      db: expect.any(Object),
+      guildId: 'guild-1',
+      eventId: 'event-1',
+      discordId: 'member-1',
+      username: 'Member',
+      roleName: 'Dps',
+      manualExcluded: false,
+      autoExcluded: false,
+    })
+    expect(rpc).toHaveBeenCalledWith('assign_event_slot_with_regear_snapshot', {
+      p_guild_id: 'guild-1',
+      p_event_id: 'event-1',
+      p_slot_id: 'slot-1',
+      p_picks: null,
+      p_policy_version_id: 'policy-1',
+      p_discord_id: 'member-1',
+      p_username: 'Member',
+      p_role_name: 'Dps',
+      p_manual_excluded: false,
+      p_auto_excluded: false,
+      p_manual_policy_snapshot: { allowed: true },
+      p_auto_policy_snapshot: { allowed: true },
+      p_source_snapshot: { scope: 'event' },
     })
   })
 

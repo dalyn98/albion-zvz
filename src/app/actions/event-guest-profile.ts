@@ -107,18 +107,12 @@ export async function saveEventGuestProfile(input: {
 
   const { data: eventRow, error: eventError } = await db
     .from('events')
-    .select('id, status, battle_started_at, gather_at')
+    .select('id, status')
     .eq('guild_id', guildId)
     .eq('id', input.eventId)
     .maybeSingle()
   if (eventError) return { error: await publicActionError(eventError, 'actions/event-guest-profile') }
   if (!eventRow || eventRow.status !== 'published') return { error: t('eventNotFound') }
-  if (
-    eventRow.battle_started_at ||
-    (eventRow.gather_at && Date.parse(eventRow.gather_at) <= Date.now())
-  ) {
-    return { error: t('recruitmentClosed') }
-  }
 
   if (session) {
     const [{ data: activeGuest }, { data: revokedGuest }] = await Promise.all([

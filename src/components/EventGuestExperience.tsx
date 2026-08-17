@@ -227,7 +227,7 @@ export default async function EventGuestExperience({
               autoRegearEnabled={false}
               eventCategory={event.category}
               timezone={timezone}
-              canApplyToSlots={Boolean(profile && currentGuestId) && !event.battleStarted}
+              canApplyToSlots={Boolean(profile && currentGuestId)}
               memberHrefPrefix="/guest/access-unavailable"
             />
           ) : (

@@ -295,6 +295,62 @@ describeIntegration('effective regear policy snapshot invariants (migs 298-300)'
     })
     expect(regularAssignError?.message).toContain('event_regear_policy_snapshot_required')
 
+    const lateSignupSlotId = crypto.randomUUID()
+    const { error: lateSignupSlotError } = await client.from('slots').insert({
+      id: lateSignupSlotId,
+      guild_id: tenant.guildId,
+      party_id: fixture.partyId!,
+      slot_number: 4,
+      role_name: 'Healer',
+      is_hidden: false,
+    })
+    expect(lateSignupSlotError).toBeNull()
+    const { error: lateSignupError } = await client.rpc(
+      'assign_event_slot_with_regear_snapshot',
+      {
+        p_guild_id: tenant.guildId,
+        p_event_id: fixture.eventId,
+        p_slot_id: lateSignupSlotId,
+        p_picks: {},
+        p_policy_version_id: fixture.policyVersionId,
+        p_discord_id: 'late-signup-member',
+        p_username: 'Late Signup Member',
+        p_role_name: 'Healer',
+        p_manual_excluded: false,
+        p_auto_excluded: false,
+        p_manual_policy_snapshot: { allowed: true },
+        p_auto_policy_snapshot: { allowed: true },
+        p_source_snapshot: { scope: 'late-signup' },
+      },
+    )
+    expect(lateSignupError).toBeNull()
+    const [{ data: lateSlot }, { data: lateSnapshot }] = await Promise.all([
+      client
+        .from('slots')
+        .select('assigned_discord_id')
+        .eq('guild_id', tenant.guildId)
+        .eq('id', lateSignupSlotId)
+        .single(),
+      client
+        .from('event_regear_policy_snapshots')
+        .select('policy_version_id, discord_id, role_name')
+        .eq('guild_id', tenant.guildId)
+        .eq('event_id', fixture.eventId)
+        .eq('discord_id', 'late-signup-member')
+        .single(),
+    ])
+    expect(lateSlot).toEqual({ assigned_discord_id: 'late-signup-member' })
+    expect(lateSnapshot).toEqual({
+      policy_version_id: fixture.policyVersionId,
+      discord_id: 'late-signup-member',
+      role_name: 'Healer',
+    })
+    const { error: lateCancelError } = await client.rpc('cancel_slot', {
+      p_slot_id: lateSignupSlotId,
+      p_discord_id: 'late-signup-member',
+    })
+    expect(lateCancelError?.message).toContain('EVENT_PARTICIPANT_SELF_CANCEL_LOCKED')
+
     const { error: adminAssignError } = await client.rpc(
       'admin_direct_assign_event_slot_with_regear_snapshot',
       {
