@@ -138,6 +138,9 @@ export default function RegearReviewRow({
   const videoProofHint = videoProofTitle
     ? `${videoProofTitle} (${t('videoProofRateHint', { rate: effectiveRatePercent })})`
     : t('videoProofRateHint', { rate: effectiveRatePercent })
+  const hasOverchargeGifEvidence =
+    request.request_type === 'overcharge' &&
+    request.screenshot_path?.toLowerCase().endsWith('.gif') === true
 
   const statusLabel = (status: string): string => {
     if (status === 'pending') return t('statusPending')
@@ -630,6 +633,13 @@ export default function RegearReviewRow({
         </div>
       )}
 
+      {hasOverchargeGifEvidence && (
+        <div className="flex items-center gap-1.5 rounded-lg border border-orange-500/30 bg-orange-500/10 px-3 py-2 text-xs font-semibold text-orange-200">
+          <ImageIcon size={13} />
+          {t('overchargeEvidenceLabel')}
+        </div>
+      )}
+
       {screenshotUrl ? (
         <div className="space-y-2">
           <button
@@ -640,7 +650,9 @@ export default function RegearReviewRow({
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={screenshotUrl}
-              alt={t('screenshotAlt')}
+              alt={hasOverchargeGifEvidence
+                ? t('overchargeEvidenceAlt')
+                : t('screenshotAlt')}
               className="w-full max-h-72 object-contain bg-black"
             />
             <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/40 transition-colors">
@@ -667,7 +679,11 @@ export default function RegearReviewRow({
           className="flex items-center gap-1 text-xs bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-3 py-1.5 rounded"
         >
           {loadingScreenshot ? <Loader2 size={13} className="animate-spin" /> : <ImageIcon size={13} />}
-          {loadingScreenshot ? tCommon('loadingDots') : t('viewScreenshot')}
+          {loadingScreenshot
+            ? tCommon('loadingDots')
+            : t(hasOverchargeGifEvidence
+              ? 'viewOverchargeEvidence'
+              : 'viewScreenshot')}
         </button>
       ) : request.resolved_at ? (
         // 처리 완료 후 48시간 cleanup cron 으로 path 가 NULL 된 행. 신청 당시
@@ -914,7 +930,13 @@ export default function RegearReviewRow({
       )}
 
       {zoomed && screenshotUrl && (
-        <ImageLightbox src={screenshotUrl} alt={t('screenshotAlt')} onClose={() => setZoomed(false)} />
+        <ImageLightbox
+          src={screenshotUrl}
+          alt={hasOverchargeGifEvidence
+            ? t('overchargeEvidenceAlt')
+            : t('screenshotAlt')}
+          onClose={() => setZoomed(false)}
+        />
       )}
 
       {zoomed2 && screenshot2Url && (

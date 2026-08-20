@@ -69,22 +69,37 @@ import {
 } from '@/lib/regear-support-server'
 import { resolveStableMemberOwnership } from '@/lib/stable-member-ownership'
 import { isOverchargeVideoProofMissing } from '@/lib/regear-request-policy'
+import {
+  ALLOWED_MIME,
+  MAX_SCREENSHOT_BYTES,
+  SCREENSHOT_BUCKET,
+  allowedRegearEvidenceMime,
+} from '@/lib/regear-helpers'
 
 // 이벤트와 무관한 자유 신청 창구 (regear_windows). 관리자가 윈도우를 열고
 // (open) / 닫고 (close), 멤버는 열려 있는 윈도우에 manual flow 로 신청한다.
 // auto-regear 와 killboard 매칭은 windows 흐름에선 사용하지 않는다 — 본인이
 // 사망한 사실을 직접 기재하고 부위별 가격을 입력해 신청.
 
-const SCREENSHOT_BUCKET = 'regear-screenshots'
-const MAX_SCREENSHOT_BYTES = 10 * 1024 * 1024
-const ALLOWED_MIME = new Set(['image/png', 'image/jpeg', 'image/webp'])
-
 const DEFAULT_MAX_DEATHS_PER_WINDOW = 1
 
 function screenshotUploadErrorMessage(
   tErr: Awaited<ReturnType<typeof getTranslations>>,
   error: 'missing' | 'empty' | 'tooLarge' | 'wrongType',
+  requestType: RegearType = 'death',
+  slot: 'primary' | 'secondary' = 'primary',
 ): string {
+  if (requestType === 'overcharge' && slot === 'primary') {
+    switch (error) {
+      case 'missing':
+      case 'empty':
+        return tErr('overchargeGifMissing')
+      case 'tooLarge':
+        return tErr('overchargeGifTooLarge')
+      case 'wrongType':
+        return tErr('overchargeGifWrongType')
+    }
+  }
   switch (error) {
     case 'missing':
     case 'empty':
@@ -656,10 +671,12 @@ export async function requestWindowRegear(formData: FormData): Promise<{
   const parsedBuildSnapshot = parseBuildSnapshotInput(buildSnapshotRaw, roleName)
   if (parsedBuildSnapshot === 'invalid') return { error: tErr('invalidInput') }
   const image = await validateImageUploadFile(file, {
-    allowedTypes: ALLOWED_MIME,
+    allowedTypes: allowedRegearEvidenceMime(requestType, 'primary'),
     maxBytes: MAX_SCREENSHOT_BYTES,
   })
-  if (!image.ok) return { error: screenshotUploadErrorMessage(tErr, image.error) }
+  if (!image.ok) {
+    return { error: screenshotUploadErrorMessage(tErr, image.error, requestType, 'primary') }
+  }
   const hasFile2 = file2 instanceof File && file2.size > 0
   const image2 = hasFile2
     ? await validateImageUploadFile(file2, {
@@ -668,7 +685,16 @@ export async function requestWindowRegear(formData: FormData): Promise<{
       })
     : null
   if (hasFile2) {
-    if (!image2?.ok) return { error: screenshotUploadErrorMessage(tErr, image2?.error ?? 'wrongType') }
+    if (!image2?.ok) {
+      return {
+        error: screenshotUploadErrorMessage(
+          tErr,
+          image2?.error ?? 'wrongType',
+          requestType,
+          'secondary',
+        ),
+      }
+    }
   }
 
   const db = getAdminClient()

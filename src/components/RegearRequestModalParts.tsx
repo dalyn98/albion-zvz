@@ -9,8 +9,15 @@ import {
   resolveRegearPreviewPayoutRatePercent,
 } from '@/lib/regear-payout'
 import { compressImageIfLarge } from '@/lib/image-compress'
+import {
+  ALLOWED_MIME,
+  OVERCHARGE_EVIDENCE_MIME,
+  allowedRegearEvidenceMime,
+  isAllowedRegearEvidenceMime,
+  type RegearEvidenceSlot,
+} from '@/lib/regear-helpers'
 
-export const ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/webp']
+export const ACCEPTED_TYPES = [...ALLOWED_MIME, ...OVERCHARGE_EVIDENCE_MIME]
 
 export type RequestType = 'death' | 'overcharge'
 
@@ -20,6 +27,18 @@ export interface EntryState {
   file: File | null
   file2: File | null
   claimedInput: string
+}
+
+export function canAttachRegearEvidence(
+  entry: Pick<EntryState, 'requestType'>,
+  slot: RegearEvidenceSlot,
+  mime: string,
+): boolean {
+  return isAllowedRegearEvidenceMime(entry.requestType, slot, mime)
+}
+
+export async function prepareRegearEvidenceFile(file: File): Promise<File> {
+  return file.type === 'image/gif' ? file : compressImageIfLarge(file)
 }
 
 interface RequestTypePickerProps {
@@ -339,7 +358,9 @@ export function RegearEntryRow({
       <ScreenshotSlot
         entryId={entry.id}
         slot="primary"
-        label={t('screenshotPrimaryLabel')}
+        label={isOvercharge ? t('overchargeGifPrimaryLabel') : t('screenshotPrimaryLabel')}
+        hint={isOvercharge ? t('overchargeGifHint') : undefined}
+        acceptedTypes={[...allowedRegearEvidenceMime(entry.requestType, 'primary')]}
         file={entry.file}
         onChange={(file) => onChange({ file })}
         onHover={(active) => onSlotHover(entry.id, active ? 'primary' : null)}
@@ -349,6 +370,7 @@ export function RegearEntryRow({
         entryId={entry.id}
         slot="secondary"
         label={t('screenshotSecondaryLabel')}
+        acceptedTypes={[...allowedRegearEvidenceMime(entry.requestType, 'secondary')]}
         file={entry.file2}
         onChange={(file) => onChange({ file2: file })}
         onHover={(active) => onSlotHover(entry.id, active ? 'secondary' : null)}
@@ -367,12 +389,23 @@ interface ScreenshotSlotProps {
   entryId: string
   slot: 'primary' | 'secondary'
   label: string
+  hint?: string
+  acceptedTypes: readonly string[]
   file: File | null
   onChange: (file: File | null) => void
   onHover: (active: boolean) => void
 }
 
-function ScreenshotSlot({ entryId, slot, label, file, onChange, onHover }: ScreenshotSlotProps) {
+function ScreenshotSlot({
+  entryId,
+  slot,
+  label,
+  hint,
+  acceptedTypes,
+  file,
+  onChange,
+  onHover,
+}: ScreenshotSlotProps) {
   const t = useTranslations('regear')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
@@ -405,8 +438,8 @@ function ScreenshotSlot({ entryId, slot, label, file, onChange, onHover }: Scree
           e.preventDefault()
           setDragging(false)
           const dropped = e.dataTransfer.files?.[0]
-          if (dropped && ACCEPTED_TYPES.includes(dropped.type)) {
-            compressImageIfLarge(dropped).then(onChange)
+          if (dropped && acceptedTypes.includes(dropped.type)) {
+            prepareRegearEvidenceFile(dropped).then(onChange)
           }
         }}
         className={`flex flex-col items-center justify-center gap-2 w-full rounded-lg cursor-pointer transition-colors overflow-hidden ${
@@ -430,11 +463,12 @@ function ScreenshotSlot({ entryId, slot, label, file, onChange, onHover }: Scree
           </>
         )}
       </label>
+      {hint && <p className="mt-1 text-[10px] leading-relaxed text-orange-300/80">{hint}</p>}
       <input
         id={inputId}
         ref={fileInputRef}
         type="file"
-        accept="image/png,image/jpeg,image/webp"
+        accept={acceptedTypes.join(',')}
         className="hidden"
         onChange={(e) => {
           const picked = e.target.files?.[0] ?? null
@@ -442,7 +476,8 @@ function ScreenshotSlot({ entryId, slot, label, file, onChange, onHover }: Scree
             onChange(null)
             return
           }
-          compressImageIfLarge(picked).then(onChange)
+          if (!acceptedTypes.includes(picked.type)) return
+          prepareRegearEvidenceFile(picked).then(onChange)
         }}
       />
       {file && (

@@ -28,6 +28,12 @@ import {
 } from '@/lib/alliance-content-regear-video'
 import { normalizeYoutubeVideoProofUrl } from '@/lib/regear-video-proof'
 import { useToast } from './ToastProvider'
+import {
+  ALLOWED_MIME,
+  OVERCHARGE_EVIDENCE_MIME,
+  allowedRegearEvidenceMime,
+  isAllowedRegearEvidenceMime,
+} from '@/lib/regear-helpers'
 
 interface Props {
   detail: MyRegearDetail
@@ -37,7 +43,7 @@ interface Props {
   readOnly?: boolean
 }
 
-const ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/webp']
+const ACCEPTED_TYPES = [...ALLOWED_MIME, ...OVERCHARGE_EVIDENCE_MIME]
 
 type SlotKind = 'primary' | 'secondary'
 
@@ -82,6 +88,7 @@ export default function MyManualRegearEditor({
   )
   const [shotError, setShotError] = useState<string | null>(null)
   const [shotPending, startShotTransition] = useTransition()
+  const hoveredSlotRef = useRef<SlotKind | null>(null)
   const [videoUrl, setVideoUrl] = useState(detail.videoProofUrl ?? '')
   const [savedVideoUrl, setSavedVideoUrl] = useState(detail.videoProofUrl ?? '')
   const [savedVideoTitle, setSavedVideoTitle] = useState(detail.videoProofTitle ?? null)
@@ -117,13 +124,38 @@ export default function MyManualRegearEditor({
         if (!blob) continue
         const ext = item.type.split('/')[1]
         const file = new File([blob], `clipboard-${Date.now()}.${ext}`, { type: item.type })
-        // 1) primary 가 비었으면 거기에. (현재 path 도 없거나 pendingRemove 인 경우)
-        // 2) 그 외엔 secondary.
+        const hover = hoveredSlotRef.current
+        if (hover) {
+          e.preventDefault()
+          if (!isAllowedRegearEvidenceMime(detail.requestType, hover, file.type)) return
+          compressImageIfLarge(file).then((prepared) => {
+            if (hover === 'primary') {
+              setPrimarySlot((s) => ({ ...s, pendingFile: prepared }))
+            } else {
+              setSecondarySlot((s) => ({ ...s, pendingFile: prepared, pendingRemove: false }))
+            }
+          })
+          return
+        }
+
+        // hover가 없으면 허용 형식에 맞는 첫 빈 슬롯으로 보낸다. OC GIF는 primary,
+        // 보조 정적 이미지는 secondary에만 들어가므로 애니메이션이 압축되지 않는다.
         const primaryEffectivelyEmpty =
           !primarySlot.pendingFile && !primarySlot.currentPath
+        const primaryAllowed = isAllowedRegearEvidenceMime(
+          detail.requestType,
+          'primary',
+          file.type,
+        )
+        const secondaryAllowed = isAllowedRegearEvidenceMime(
+          detail.requestType,
+          'secondary',
+          file.type,
+        )
+        if (!primaryAllowed && !secondaryAllowed) continue
         e.preventDefault()
         compressImageIfLarge(file).then((compressed) => {
-          if (primaryEffectivelyEmpty) {
+          if (primaryAllowed && (primaryEffectivelyEmpty || !secondaryAllowed)) {
             setPrimarySlot((s) => ({ ...s, pendingFile: compressed }))
           } else {
             setSecondarySlot((s) => ({ ...s, pendingFile: compressed, pendingRemove: false }))
@@ -134,7 +166,7 @@ export default function MyManualRegearEditor({
     }
     document.addEventListener('paste', onPaste)
     return () => document.removeEventListener('paste', onPaste)
-  }, [editable, primarySlot.pendingFile, primarySlot.currentPath])
+  }, [detail.requestType, editable, primarySlot.pendingFile, primarySlot.currentPath])
 
   const handleSaveClaim = () => {
     const parsed = parseSilverInput(inputValue)
@@ -447,7 +479,13 @@ export default function MyManualRegearEditor({
             <ScreenshotSlotEditor
               requestId={detail.id}
               slot="primary"
-              label={t('screenshotPrimary')}
+              label={detail.requestType === 'overcharge'
+                ? tRegear('overchargeGifPrimaryLabel')
+                : t('screenshotPrimary')}
+              hint={detail.requestType === 'overcharge'
+                ? tRegear('overchargeGifHint')
+                : undefined}
+              acceptedTypes={[...allowedRegearEvidenceMime(detail.requestType, 'primary')]}
               state={primarySlot}
               editable={editable}
               onSelectFile={(file) =>
@@ -458,11 +496,15 @@ export default function MyManualRegearEditor({
               }
               canRemove={false}
               onRemoveCurrent={() => {}}
+              onHover={(active) => {
+                hoveredSlotRef.current = active ? 'primary' : null
+              }}
             />
             <ScreenshotSlotEditor
               requestId={detail.id}
               slot="secondary"
               label={t('screenshotSecondary')}
+              acceptedTypes={[...allowedRegearEvidenceMime(detail.requestType, 'secondary')]}
               state={secondarySlot}
               editable={editable}
               onSelectFile={(file) =>
@@ -475,6 +517,9 @@ export default function MyManualRegearEditor({
               onRemoveCurrent={() =>
                 setSecondarySlot((s) => ({ ...s, pendingRemove: true, pendingFile: null }))
               }
+              onHover={(active) => {
+                hoveredSlotRef.current = active ? 'secondary' : null
+              }}
             />
           </div>
 
@@ -522,24 +567,30 @@ interface ScreenshotSlotEditorProps {
   requestId: string
   slot: SlotKind
   label: string
+  hint?: string
+  acceptedTypes: readonly string[]
   state: ScreenshotSlotState
   editable: boolean
   canRemove: boolean
   onSelectFile: (file: File) => void
   onRemoveCurrent: () => void
   onUndo: () => void
+  onHover: (active: boolean) => void
 }
 
 function ScreenshotSlotEditor({
   requestId,
   slot,
   label,
+  hint,
+  acceptedTypes,
   state,
   editable,
   canRemove,
   onSelectFile,
   onRemoveCurrent,
   onUndo,
+  onHover,
 }: ScreenshotSlotEditorProps) {
   const t = useTranslations('regearBreakdown')
   const inputRef = useRef<HTMLInputElement>(null)
@@ -592,7 +643,7 @@ function ScreenshotSlotEditor({
   const onFiles = (files: FileList | null) => {
     const file = files?.[0]
     if (!file) return
-    if (!ACCEPTED_TYPES.includes(file.type)) return
+    if (!acceptedTypes.includes(file.type)) return
     compressImageIfLarge(file).then(onSelectFile)
   }
 
@@ -602,7 +653,11 @@ function ScreenshotSlotEditor({
     !showPending && (state.currentPath === null || state.pendingRemove)
 
   return (
-    <div className="space-y-2">
+    <div
+      className="space-y-2"
+      onMouseEnter={() => onHover(true)}
+      onMouseLeave={() => onHover(false)}
+    >
       <div className="flex items-center justify-between gap-2">
         <span className="text-[11px] font-semibold text-gray-400">{label}</span>
         {showPending && (
@@ -616,6 +671,7 @@ function ScreenshotSlotEditor({
           </span>
         )}
       </div>
+      {hint && <p className="text-[10px] leading-relaxed text-orange-300/80">{hint}</p>}
 
       {showCurrent && (
         <div className="rounded-lg border border-gray-700 bg-gray-950 overflow-hidden">
@@ -686,7 +742,7 @@ function ScreenshotSlotEditor({
             id={inputId}
             ref={inputRef}
             type="file"
-            accept="image/png,image/jpeg,image/webp"
+            accept={acceptedTypes.join(',')}
             className="hidden"
             onChange={(e) => onFiles(e.target.files)}
           />

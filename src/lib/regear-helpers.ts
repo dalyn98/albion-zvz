@@ -7,6 +7,7 @@ import {
   SLOT_KEYS,
   getDisplayGear,
   type BuildSnapshot,
+  type RegearType,
   type SlotGearDisplay,
   type SlotKey,
 } from '@/types'
@@ -15,6 +16,27 @@ export const SCREENSHOT_BUCKET = 'regear-screenshots'
 // 10 MiB — 마이그 003 의 버킷 한도와 동일하게 유지.
 export const MAX_SCREENSHOT_BYTES = 10 * 1024 * 1024
 export const ALLOWED_MIME = new Set(['image/png', 'image/jpeg', 'image/webp'])
+export const OVERCHARGE_EVIDENCE_MIME = new Set(['image/gif'])
+export type RegearEvidenceSlot = 'primary' | 'secondary'
+
+// OC는 킬보드로 아이템 파괴를 검증할 수 없으므로 1번 증빙을 애니메이션 GIF로
+// 강제한다. 2번 슬롯은 장비 상세 등 보조 정적 이미지 용도로 유지한다.
+export function allowedRegearEvidenceMime(
+  requestType: RegearType,
+  slot: RegearEvidenceSlot,
+): ReadonlySet<string> {
+  return requestType === 'overcharge' && slot === 'primary'
+    ? OVERCHARGE_EVIDENCE_MIME
+    : ALLOWED_MIME
+}
+
+export function isAllowedRegearEvidenceMime(
+  requestType: RegearType,
+  slot: RegearEvidenceSlot,
+  mime: string,
+): boolean {
+  return allowedRegearEvidenceMime(requestType, slot).has(mime)
+}
 export const DAY_MS = 24 * 60 * 60 * 1000
 
 // 자동 리기어 pending 상태에서 청구자가 부위별 시세를 수정할 때 쓰는 구조.

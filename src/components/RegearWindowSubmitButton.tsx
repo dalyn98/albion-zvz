@@ -23,7 +23,6 @@ import {
   type ManualRegearPhase,
 } from '@/lib/regear-request-policy'
 import { formatSilver, parseSilverInput } from '@/lib/silver'
-import { compressImageIfLarge } from '@/lib/image-compress'
 import { normalizeYoutubeVideoProofUrl } from '@/lib/regear-video-proof'
 import { resolveRegearClaimCeilingSilver } from '@/lib/regear-claim-ceiling'
 import { resolveRegearPayoutRatePercent } from '@/lib/regear-payout'
@@ -33,11 +32,13 @@ import { isRegearRolePolicyZeroReview } from '@/lib/regear-role-policy'
 import { useToast } from './ToastProvider'
 import {
   ACCEPTED_TYPES,
+  canAttachRegearEvidence,
   DeathCountPicker,
   FulfillmentModeNotice,
   ManualRegearEntryActions,
   RegearEntryRow,
   RequestTypePicker,
+  prepareRegearEvidenceFile,
   VideoProofField,
   type EntryState,
   type RequestType,
@@ -311,9 +312,13 @@ export default function RegearWindowSubmitButton({
         const pasted = new File([blob], `clipboard-${Date.now()}.${ext}`, { type: item.type })
         const latest = entriesRef.current
         const hover = hoveredSlotRef.current
-        if (hover && latest.some((en) => en.id === hover.entryId)) {
+        const hoveredEntry = hover
+          ? latest.find((entry) => entry.id === hover.entryId) ?? null
+          : null
+        if (hover && hoveredEntry) {
           e.preventDefault()
-          compressImageIfLarge(pasted).then((compressed) => {
+          if (!canAttachRegearEvidence(hoveredEntry, hover.slot, pasted.type)) return
+          prepareRegearEvidenceFile(pasted).then((compressed) => {
             const patch: Partial<EntryState> =
               hover.slot === 'primary' ? { file: compressed } : { file2: compressed }
             updateEntry(hover.entryId, patch)
@@ -328,11 +333,11 @@ export default function RegearWindowSubmitButton({
         }
         let target: { entryId: string; slot: 'primary' | 'secondary' } | null = null
         for (const entry of latest) {
-          if (!entry.file) {
+          if (!entry.file && canAttachRegearEvidence(entry, 'primary', pasted.type)) {
             target = { entryId: entry.id, slot: 'primary' }
             break
           }
-          if (!entry.file2) {
+          if (!entry.file2 && canAttachRegearEvidence(entry, 'secondary', pasted.type)) {
             target = { entryId: entry.id, slot: 'secondary' }
             break
           }
@@ -340,7 +345,7 @@ export default function RegearWindowSubmitButton({
         if (!target) return
         const finalTarget = target
         e.preventDefault()
-        compressImageIfLarge(pasted).then((compressed) => {
+        prepareRegearEvidenceFile(pasted).then((compressed) => {
           const patch: Partial<EntryState> =
             finalTarget.slot === 'primary' ? { file: compressed } : { file2: compressed }
           updateEntry(finalTarget.entryId, patch)
@@ -441,6 +446,12 @@ export default function RegearWindowSubmitButton({
             ? t('allOverchargeEntriesRequired')
             : t('allEntriesRequired')
         nextErrors[entry.id] = requiredMessage
+        continue
+      }
+      if (!canAttachRegearEvidence(entry, 'primary', entry.file!.type)) {
+        nextErrors[entry.id] = entry.requestType === 'overcharge'
+          ? t('overchargeGifRequired')
+          : t('screenshotWrongType')
         continue
       }
       const parsed = parseSilverInput(entry.claimedInput)

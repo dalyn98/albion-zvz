@@ -20,6 +20,7 @@ import {
   ALLOWED_MIME,
   MAX_SCREENSHOT_BYTES,
   SCREENSHOT_BUCKET,
+  allowedRegearEvidenceMime,
   computeMarketSilverFromItems,
   normalizeBreakdownItems,
   type RawBreakdown,
@@ -29,6 +30,7 @@ import { validateImageUploadFile } from '@/lib/image-upload'
 import {
   SLOT_KEYS,
   type BuildSnapshot,
+  type RegearType,
   type SlotKey,
 } from '@/types'
 import { normalizeYoutubeVideoProofUrl } from '@/lib/regear-video-proof'
@@ -60,7 +62,20 @@ const MAX_UNIT_SILVER = 20_000_000
 function screenshotUploadErrorMessage(
   tErr: Awaited<ReturnType<typeof getTranslations>>,
   error: 'missing' | 'empty' | 'tooLarge' | 'wrongType',
+  requestType: RegearType = 'death',
+  slot: 'primary' | 'secondary' = 'primary',
 ): string {
+  if (requestType === 'overcharge' && slot === 'primary') {
+    switch (error) {
+      case 'missing':
+      case 'empty':
+        return tErr('overchargeGifMissing')
+      case 'tooLarge':
+        return tErr('overchargeGifTooLarge')
+      case 'wrongType':
+        return tErr('overchargeGifWrongType')
+    }
+  }
   switch (error) {
     case 'missing':
     case 'empty':
@@ -255,21 +270,6 @@ export async function updateMyManualRegearScreenshots(
 
     const hasPrimary = newPrimary instanceof File && newPrimary.size > 0
     const hasSecondary = newSecondary instanceof File && newSecondary.size > 0
-    const primaryImage = hasPrimary
-      ? await validateImageUploadFile(newPrimary, {
-          allowedTypes: ALLOWED_MIME,
-          maxBytes: MAX_SCREENSHOT_BYTES,
-        })
-      : null
-    const secondaryImage = hasSecondary
-      ? await validateImageUploadFile(newSecondary, {
-          allowedTypes: ALLOWED_MIME,
-          maxBytes: MAX_SCREENSHOT_BYTES,
-        })
-      : null
-
-    if (primaryImage && !primaryImage.ok) return { error: screenshotUploadErrorMessage(tErr, primaryImage.error) }
-    if (secondaryImage && !secondaryImage.ok) return { error: screenshotUploadErrorMessage(tErr, secondaryImage.error) }
     if (!hasPrimary && !hasSecondary && !removeSecondary) {
       return { error: tErr('noChange') }
     }
@@ -284,7 +284,7 @@ export async function updateMyManualRegearScreenshots(
     const { data: row, error: fetchError } = await db
       .from('regear_requests')
       .select(
-        'id, status, auto_generated, discord_id, guild_member_id, event_id, screenshot_path, screenshot_path_2',
+        'id, status, auto_generated, discord_id, guild_member_id, event_id, request_type, screenshot_path, screenshot_path_2',
       )
       .eq('guild_id', guildId)
       .eq('id', requestId)
@@ -299,6 +299,31 @@ export async function updateMyManualRegearScreenshots(
     })) return { error: tErr('onlyOwnEdit') }
     if (row.status !== 'pending') return { error: tErr('alreadyProcessedCannotEdit') }
     if (row.auto_generated) return { error: tErr('manualOnlyEditable') }
+
+    const requestType: RegearType = row.request_type === 'overcharge' ? 'overcharge' : 'death'
+    const primaryImage = hasPrimary
+      ? await validateImageUploadFile(newPrimary, {
+          allowedTypes: allowedRegearEvidenceMime(requestType, 'primary'),
+          maxBytes: MAX_SCREENSHOT_BYTES,
+        })
+      : null
+    const secondaryImage = hasSecondary
+      ? await validateImageUploadFile(newSecondary, {
+          allowedTypes: ALLOWED_MIME,
+          maxBytes: MAX_SCREENSHOT_BYTES,
+        })
+      : null
+
+    if (primaryImage && !primaryImage.ok) {
+      return {
+        error: screenshotUploadErrorMessage(tErr, primaryImage.error, requestType, 'primary'),
+      }
+    }
+    if (secondaryImage && !secondaryImage.ok) {
+      return {
+        error: screenshotUploadErrorMessage(tErr, secondaryImage.error, requestType, 'secondary'),
+      }
+    }
 
     const eventId = row.event_id as string
     const oldPrimary = (row.screenshot_path as string | null) ?? null

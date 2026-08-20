@@ -27,6 +27,7 @@ import {
   ALLOWED_MIME,
   MAX_SCREENSHOT_BYTES,
   SCREENSHOT_BUCKET,
+  allowedRegearEvidenceMime,
   buildSnapshotFromRole,
   buildSnapshotFromSlot,
   computeMarketSilverFromItems,
@@ -176,7 +177,20 @@ function rolePolicySnapshotColumns(resolution: RegearRolePolicyResolution): {
 function screenshotUploadErrorMessage(
   tErr: Awaited<ReturnType<typeof getTranslations>>,
   error: 'missing' | 'empty' | 'tooLarge' | 'wrongType',
+  requestType: RegearType = 'death',
+  slot: 'primary' | 'secondary' = 'primary',
 ): string {
+  if (requestType === 'overcharge' && slot === 'primary') {
+    switch (error) {
+      case 'missing':
+      case 'empty':
+        return tErr('overchargeGifMissing')
+      case 'tooLarge':
+        return tErr('overchargeGifTooLarge')
+      case 'wrongType':
+        return tErr('overchargeGifWrongType')
+    }
+  }
   switch (error) {
     case 'missing':
     case 'empty':
@@ -421,10 +435,12 @@ async function requestRegearInner(
     ? craftRegearSlots(parseCraftIncludeCapeFormValue(formData.get('craftIncludeCape')))
     : null
   const image = await validateImageUploadFile(file, {
-    allowedTypes: ALLOWED_MIME,
+    allowedTypes: allowedRegearEvidenceMime(requestType, 'primary'),
     maxBytes: MAX_SCREENSHOT_BYTES,
   })
-  if (!image.ok) return { error: screenshotUploadErrorMessage(tErr, image.error) }
+  if (!image.ok) {
+    return { error: screenshotUploadErrorMessage(tErr, image.error, requestType, 'primary') }
+  }
   // 두 번째 스크린샷은 선택 사항 — 제출 된 경우에만 검증.
   const hasFile2 = file2 instanceof File && file2.size > 0
   const image2 = hasFile2
@@ -434,7 +450,16 @@ async function requestRegearInner(
       })
     : null
   if (hasFile2) {
-    if (!image2?.ok) return { error: screenshotUploadErrorMessage(tErr, image2?.error ?? 'wrongType') }
+    if (!image2?.ok) {
+      return {
+        error: screenshotUploadErrorMessage(
+          tErr,
+          image2?.error ?? 'wrongType',
+          requestType,
+          'secondary',
+        ),
+      }
+    }
   }
 
   const db = getAdminClient()
