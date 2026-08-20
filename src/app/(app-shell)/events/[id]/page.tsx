@@ -10,6 +10,7 @@ import EventPartyGrid from '@/components/EventPartyGrid'
 import EventSlotSidebar from '@/components/EventSlotSidebar'
 import EventGuestInviteManager from '@/components/EventGuestInviteManager'
 import EventGuestProfileGate from '@/components/EventGuestProfileGate'
+import CancelEventOperationsButton from '@/components/CancelEventOperationsButton'
 import TentativeSignupSection from '@/components/TentativeSignupSection'
 import EventMyStatusCard, { type EventMyStatusTone } from '@/components/EventMyStatusCard'
 import EventBuildSheetSummary from '@/components/EventBuildSheetSummary'
@@ -20,7 +21,7 @@ import {
   listTentativeSignupsForGuild,
 } from '@/lib/event-tentative-signups'
 import AutoRefresh from '@/components/AutoRefresh'
-import { Clock, MapPin, ArrowLeft, Swords, Info, Pencil, FileText, LogIn, ShieldAlert, BookOpen } from 'lucide-react'
+import { Clock, MapPin, ArrowLeft, Swords, Info, Pencil, FileText, LogIn, ShieldAlert, BookOpen, Ban } from 'lucide-react'
 import Link from 'next/link'
 import { getSession, sessionHas } from '@/lib/session'
 import { getSessionGuildId, getPrimaryTenantId } from '@/lib/tenant'
@@ -446,6 +447,7 @@ export default async function EventDetailPage({
   ])
   if (!renderSnapshot) notFound()
   const { event, parties } = renderSnapshot
+  const eventCancelled = event.status === 'cancelled'
   const autoRegearEnabled =
     regearSupport.supported && autoRegearRaw === 'true'
   // 파싱 실패/잘못된 shape 은 기본값으로 degrade — 설정 페이지에서 동일 파서를
@@ -550,7 +552,8 @@ export default async function EventDetailPage({
     if (
       guestId &&
       application?.status === 'assigned' &&
-      event.battle_started_at
+      event.battle_started_at &&
+      !eventCancelled
     ) {
       const [
         eligibleResult,
@@ -591,6 +594,7 @@ export default async function EventDetailPage({
           gatherLocation: event.gather_location,
           specialNotes: event.special_notes,
           battleStarted: Boolean(event.battle_started_at),
+          cancelled: eventCancelled,
         }}
         inviteToken={hasGuestInvite ? inviteToken : null}
         discordLoginHref={hasGuestInvite ? loginHref : null}
@@ -626,6 +630,7 @@ export default async function EventDetailPage({
   // Plain event creators only see it on events they own; EVENT_MANAGE officers
   // can manage existing events in the guild.
   const canEdit =
+    !eventCancelled &&
     !!interactionSession &&
     (interactionSession.isAdmin ||
       sessionHas(interactionSession, CAP.EVENT_MANAGE) ||
@@ -736,9 +741,12 @@ export default async function EventDetailPage({
   // so users who keep an event tab open do not trigger a full RSC refresh every
   // minute for hours.
   const shouldPoll =
-    !event.battle_started_at ||
-    !isEnded(event.battle_started_at, event.operational_ended_at)
+    !eventCancelled && (
+      !event.battle_started_at ||
+      !isEnded(event.battle_started_at, event.operational_ended_at)
+    )
   const battleEnded =
+    !eventCancelled &&
     !!event.battle_started_at &&
     isEnded(event.battle_started_at, event.operational_ended_at)
   const pollIntervalMs = resolveEventPollIntervalMs(event)
@@ -865,7 +873,7 @@ export default async function EventDetailPage({
           : isBombSquadCallerOnly
             ? t('myStatusCallerBody')
           : t('myStatusNoneBody')
-  const canRequestRegear = regearSupport.supported && canRequestRegearFromEventStatus({
+  const canRequestRegear = !eventCancelled && regearSupport.supported && canRequestRegearFromEventStatus({
     isMember: interactionSession?.isMember === true,
     battleStarted: !!event.battle_started_at,
     category: event.category,
@@ -931,11 +939,19 @@ export default async function EventDetailPage({
                   {t('viewReport')}
                 </Link>
               )}
-              {event.battle_started_at && (
+              {eventCancelled ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-red-500/30 bg-red-500/10 px-2.5 py-1 text-sm font-bold text-red-200">
+                  <Ban size={12} />
+                  {t('cancelled')}
+                </span>
+              ) : event.battle_started_at ? (
                 <span className="inline-flex items-center gap-1.5 bg-rose-500/20 border border-rose-500/40 text-rose-200 text-sm font-bold px-2.5 py-1 rounded-full">
                   <Swords size={12} />
                   {t('inProgress', { time: formatStartedAt(event.battle_started_at, tz) })}
                 </span>
+              ) : null}
+              {canEdit && event.battle_started_at && !eventCancelled && !battleEnded && (
+                <CancelEventOperationsButton eventId={id} />
               )}
               {canEdit && (
                 <EventGuestInviteManager
@@ -957,7 +973,12 @@ export default async function EventDetailPage({
               )}
             </div>
           </div>
-          {event.battle_started_at && (
+          {eventCancelled ? (
+            <div className="flex items-start gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-3">
+              <Ban size={14} className="mt-0.5 flex-shrink-0 text-red-300" />
+              <p className="text-sm leading-relaxed text-red-100">{t('cancelledNotice')}</p>
+            </div>
+          ) : event.battle_started_at ? (
             <div className="bg-rose-500/10 border border-rose-500/30 rounded-lg p-3 flex items-start gap-2">
               <Info size={14} className="text-rose-300 flex-shrink-0 mt-0.5" />
               <p className="text-rose-200 text-sm leading-relaxed">
@@ -973,7 +994,7 @@ export default async function EventDetailPage({
                 )}
               </p>
             </div>
-          )}
+          ) : null}
           {eventTacticSnapshot && (
             <Link
               href={`/events/${id}/tactic`}

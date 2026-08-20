@@ -89,6 +89,7 @@ describe('event render snapshot cache identity', () => {
       fingerprint: '42',
       battle_started_at: null,
       gather_at: '2026-07-21T10:00:00.000Z',
+      status: 'published',
     })
     expect(mocks.rpc).toHaveBeenCalledWith('get_event_state_snapshot', {
       p_guild_id: 'guild-a',

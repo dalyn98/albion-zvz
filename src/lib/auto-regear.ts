@@ -384,6 +384,7 @@ export async function processAutoRegear(
     .from('events')
     .select('id, title, battle_started_at, category, created_at, auto_regear_processed_at, regear_policy, regear_silver_cap, regear_max_deaths_per_member, regear_video_policy, regear_video_payout_rate_percent, regear_video_claim_ceiling_bonus_silver, regear_video_rate_applies_without_proof, regear_auto_policy, regear_policy_version_id, participation_closeout_required')
     .eq('guild_id', guildId)
+    .eq('status', 'published')
     .not('battle_started_at', 'is', null)
     .is('auto_regear_processed_at', null)
     .lte('battle_started_at', cutoffIso)

@@ -17,6 +17,16 @@ describe('event operations security boundaries', () => {
     expect(action).not.toContain('saveEventAfterActionReview')
   })
 
+  it('gates operational cancellation through ownership and tenant-scoped RPC input', () => {
+    const action = source('src/app/actions/event-operations.ts')
+
+    expect(action).toContain('cancelEventOperations')
+    expect(action).toContain("db.rpc('cancel_event_operations'")
+    expect(action).toContain('p_guild_id: guildId')
+    expect(action).toContain('p_actor_discord_id: session.discordId')
+    expect(action).toContain("action: 'event.cancel'")
+  })
+
   it('loads tactics only after report authorization and omits the retired AAR', () => {
     const page = source('src/app/(app-shell)/events/[id]/report/page.tsx')
     const authorizationIndex = page.indexOf('if (!result) notFound()')

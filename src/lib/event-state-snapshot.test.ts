@@ -21,10 +21,12 @@ describe('event state snapshot', () => {
       fingerprint: 'abc',
       battle_started_at: '2026-07-18T00:00:00.000Z',
       gather_at: null,
+      status: 'published',
     })).toEqual({
       fingerprint: 'abc',
       battle_started_at: '2026-07-18T00:00:00.000Z',
       gather_at: null,
+      status: 'published',
     })
   })
 
@@ -36,8 +38,9 @@ describe('event state snapshot', () => {
 
   it('stops polling one hour after battle start', () => {
     const startedAt = '2026-07-18T00:00:00.000Z'
-    expect(shouldPollEventSnapshot({ fingerprint: 'a', battle_started_at: startedAt, gather_at: null }, Date.parse('2026-07-18T00:59:59.999Z'))).toBe(true)
-    expect(shouldPollEventSnapshot({ fingerprint: 'a', battle_started_at: startedAt, gather_at: null }, Date.parse('2026-07-18T01:00:00.000Z'))).toBe(false)
+    expect(shouldPollEventSnapshot({ fingerprint: 'a', battle_started_at: startedAt, gather_at: null, status: 'published' }, Date.parse('2026-07-18T00:59:59.999Z'))).toBe(true)
+    expect(shouldPollEventSnapshot({ fingerprint: 'a', battle_started_at: startedAt, gather_at: null, status: 'published' }, Date.parse('2026-07-18T01:00:00.000Z'))).toBe(false)
+    expect(shouldPollEventSnapshot({ fingerprint: 'a', battle_started_at: startedAt, gather_at: null, status: 'cancelled' }, Date.parse('2026-07-18T00:30:00.000Z'))).toBe(false)
   })
 
   it('refreshes a removed or unpublished event into its not-found state', () => {

@@ -107,7 +107,7 @@ export async function getEventReport(
   // that an Albion fight occurred.
   if (
     !event ||
-    event.status === 'draft' ||
+    event.status !== 'published' ||
     !event.battle_started_at ||
     !isOperationallyEnded(event)
   ) {

@@ -4,6 +4,7 @@ export interface EventStateSnapshot {
   fingerprint: string
   battle_started_at: string | null
   gather_at: string | null
+  status: 'published' | 'cancelled'
 }
 
 export function eventStateFingerprint(revision: unknown): string | null {
@@ -23,6 +24,7 @@ export function parseEventStateSnapshot(value: unknown): EventStateSnapshot | nu
     battle_started_at:
       typeof row.battle_started_at === 'string' ? row.battle_started_at : null,
     gather_at: typeof row.gather_at === 'string' ? row.gather_at : null,
+    status: row.status === 'cancelled' ? 'cancelled' : 'published',
   }
 }
 
@@ -30,6 +32,7 @@ export function shouldPollEventSnapshot(
   snapshot: EventStateSnapshot,
   nowMs = Date.now(),
 ): boolean {
+  if (snapshot.status === 'cancelled') return false
   if (!snapshot.battle_started_at) return true
   const startedAt = Date.parse(snapshot.battle_started_at)
   if (!Number.isFinite(startedAt)) return true

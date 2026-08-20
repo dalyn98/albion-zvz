@@ -37,7 +37,7 @@ interface EventAuthRow {
   guild_id: string
   created_by: string | null
   recruitment_mode: EventRecruitmentMode
-  status: 'draft' | 'published'
+  status: 'draft' | 'published' | 'cancelled'
   battle_started_at: string | null
 }
 
@@ -221,7 +221,7 @@ export async function submitBuildSheetApplication(
     }
     const guildId = await getSessionGuildId(session)
     const event = await loadEventForGuild(eventId, guildId)
-    if (!event || event.status === 'draft') return { error: tErr('eventNotFound') }
+    if (!event || event.status !== 'published') return { error: tErr('eventNotFound') }
     if (!isBuildSheetMode(event.recruitment_mode)) {
       return { error: t('errors.modeRequired') }
     }

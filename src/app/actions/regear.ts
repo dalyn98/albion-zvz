@@ -449,11 +449,12 @@ async function requestRegearInner(
   //    participant list instead of the constantly changing party slots.
   const { data: event, error: eventError } = await db
     .from('events')
-    .select('id, title, battle_started_at, category, regear_policy, regear_silver_cap, regear_max_deaths_per_member, regear_video_policy, regear_video_payout_rate_percent, regear_video_claim_ceiling_bonus_silver, regear_video_rate_applies_without_proof, regear_auto_policy, regear_policy_version_id, guest_regear_enabled, participation_closeout_required')
+    .select('id, title, status, battle_started_at, category, regear_policy, regear_silver_cap, regear_max_deaths_per_member, regear_video_policy, regear_video_payout_rate_percent, regear_video_claim_ceiling_bonus_silver, regear_video_rate_applies_without_proof, regear_auto_policy, regear_policy_version_id, guest_regear_enabled, participation_closeout_required')
     .eq('guild_id', guildId)
     .eq('id', eventId)
     .single()
   if (eventError) return { error: await publicActionError(eventError, 'actions/regear') }
+  if (event.status !== 'published') return { error: tErr('eventCancelled') }
   let requesterDisplayName = session.username
   let requesterCharacterName = session.username
   if (isScopedGuest) {
@@ -1200,6 +1201,7 @@ export async function listMyRegearEligibleEvents(): Promise<{
     .from('events')
     .select('id, title, gather_time, gather_at, gather_location, battle_started_at, category, regear_policy, regear_silver_cap, regear_max_deaths_per_member, regear_video_policy, regear_video_payout_rate_percent, regear_video_claim_ceiling_bonus_silver, regear_video_rate_applies_without_proof, regear_auto_policy, regear_policy_version_id, guest_regear_enabled, participation_closeout_required')
     .eq('guild_id', guildId)
+    .eq('status', 'published')
     .in('id', eventIds)
     .not('battle_started_at', 'is', null)
     .gte('battle_started_at', eligibilityCutoffIso)

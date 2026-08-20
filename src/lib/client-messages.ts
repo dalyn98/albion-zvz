@@ -144,6 +144,7 @@ export const CLIENT_MESSAGE_NAMESPACES = [
 
 export const MARKETING_CLIENT_MESSAGE_NAMESPACES = [
   'common',
+  'eventOperations',
   'publicBattleGroup',
   'publicGuildDirectory',
   'publicMarketing',
@@ -176,6 +177,7 @@ export const DEMO_CLIENT_MESSAGE_NAMESPACES = [
   'craftQueue',
   'demo',
   'event',
+  'eventOperations',
   'eventSidebar',
   'eventTentative',
   'eventTentativeAction',

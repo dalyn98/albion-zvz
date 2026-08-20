@@ -11,6 +11,7 @@ import EventSlotSidebar from '@/components/EventSlotSidebar'
 import SaveAsTemplateButton from '@/components/SaveAsTemplateButton'
 import LoadTemplateButton from '@/components/LoadTemplateButton'
 import DeleteEventButton from '@/components/DeleteEventButton'
+import CancelEventOperationsButton from '@/components/CancelEventOperationsButton'
 import EventBuildSheetSummary from '@/components/EventBuildSheetSummary'
 import BuildSheetPlanner from '@/components/BuildSheetPlanner'
 import BuildSheetAssignmentBoard from '@/components/BuildSheetAssignmentBoard'
@@ -282,7 +283,8 @@ export default async function EditEventPage({
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <h1 className="text-xl sm:text-2xl font-bold text-white">{t('title')}</h1>
             <div className="flex items-center gap-2 flex-wrap">
-              {canFinalizeParticipation &&
+              {event.status === 'published' &&
+                canFinalizeParticipation &&
                 isEnded(event.battle_started_at, event.operational_ended_at) && (
                 <Link
                   href={`/events/${event.id}/report`}
@@ -292,6 +294,11 @@ export default async function EditEventPage({
                   {t('participationCloseoutButton')}
                 </Link>
               )}
+              {event.status === 'published' &&
+                event.battle_started_at &&
+                !isEnded(event.battle_started_at, event.operational_ended_at) && (
+                  <CancelEventOperationsButton eventId={event.id} />
+                )}
               {!event.battle_started_at && (
                 <DeleteEventButton eventId={event.id} redirectTo="/admin/dashboard/events" variant="labeled" />
               )}

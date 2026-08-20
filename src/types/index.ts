@@ -14,6 +14,10 @@ export interface Event {
   // Migration 329: deterministic operational closeout boundary. The legacy
   // `battle_started_at` column means operational start, not verified combat.
   operational_ended_at?: string | null
+  // Terminal soft cancellation preserves the immutable start/snapshots while
+  // preventing new recruitment, closeout, statistics, and regear work.
+  operational_cancelled_at?: string | null
+  operational_cancelled_by?: string | null
   // Migration 030: 이벤트 Discord 채널 공지 시 @멘션할 역할 ID. NULL 이면
   // 멘션 없이 조용히 올린다.
   notify_role_id: string | null
@@ -29,7 +33,7 @@ export interface Event {
   // Migration 059: 발행 상태. 'draft' = 관리자만 보임, 공개 /events 숨김.
   // 'published' = 공개. createEvent 는 draft 로만 만들고, publishEvent 가
   // gather_at 을 검증 후 published 로 전이시킨다.
-  status: 'draft' | 'published'
+  status: 'draft' | 'published' | 'cancelled'
   // Migration 063+064: 이벤트 카테고리. '전투' = 정식 ZvZ, 'FF' = 페임파밍,
   // '갱킹' = 소규모 PvP 갱킹. 홈 목록에서 카테고리별로 분리 표시하고, 개인 알림
   // 설정(notify_combat / notify_ff / notify_ganking)에 따라 DM 대상을 필터링한다.

@@ -577,12 +577,13 @@ export async function updateEvent(id: string, payload: EventPayload): Promise<{ 
     const { data: current } = await db
       .from('events')
       .select(
-        'gather_at, battle_started_at, regear_policy_version_id, regear_policy, regear_silver_cap, regear_max_deaths_per_member, regear_video_policy, regear_video_payout_rate_percent, regear_video_claim_ceiling_bonus_silver, regear_video_rate_applies_without_proof, regear_auto_policy, guest_regear_enabled',
+        'status, gather_at, battle_started_at, regear_policy_version_id, regear_policy, regear_silver_cap, regear_max_deaths_per_member, regear_video_policy, regear_video_payout_rate_percent, regear_video_claim_ceiling_bonus_silver, regear_video_rate_applies_without_proof, regear_auto_policy, guest_regear_enabled',
       )
       .eq('guild_id', guildId)
       .eq('id', id)
       .maybeSingle()
     if (!current) return { error: tErr('eventNotFound') }
+    if (current.status === 'cancelled') return { error: tErr('eventOperationalLocked') }
     const previousGatherAt = (current?.gather_at ?? null) as string | null
     const gatherAtChanged = previousGatherAt !== payload.gather_at
     let regearFields = regearSupported
@@ -783,7 +784,10 @@ export async function publishEvent(id: string): Promise<{ error?: string; warnin
     const tenantConfig = await getTenantDiscordConfig(guildId)
     const channelId = current.notify_channel_id ?? tenantConfig?.eventChannelId ?? null
     if (channelId) {
-      const cachedEvent = current as EventNotificationPayload
+      const cachedEvent: EventNotificationRow = {
+        ...(current as EventNotificationPayload),
+        status: 'published',
+      }
       after(async () => {
         try {
           const dispatch = await dispatchEventNotification(
@@ -859,7 +863,7 @@ async function dispatchEventNotification(
       if (!fetched) return { error: tErr('eventNotFound') }
       data = fetched as EventNotificationRow
     }
-    if (data.status === 'draft') return { error: tErr('eventNotPublished') }
+    if (data.status !== 'published') return { error: tErr('eventNotPublished') }
     // 관리자가 설정 화면에서 알림 문구를 저장하지 않은 경우 호출자(관리자)
     // 의 locale 에 맞는 기본 문구를 사용. 길드별 단일 언어 설정은 없지만,
     // 알림을 트리거하는 사람의 locale 이 길드 운영 언어일 가능성이 가장 높다.

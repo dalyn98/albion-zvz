@@ -4,10 +4,11 @@ import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
-import { Eye, Pencil, Swords, Flame, Archive, Activity, ClipboardCheck } from 'lucide-react'
+import { Eye, Pencil, Swords, Flame, Archive, Activity, ClipboardCheck, Ban } from 'lucide-react'
 import DeleteEventButton from './DeleteEventButton'
 import DuplicateEventButton from './DuplicateEventButton'
 import InlineBattleStartButton from './InlineBattleStartButton'
+import CancelEventOperationsButton from './CancelEventOperationsButton'
 import NotifyEventButton from './NotifyEventButton'
 import SearchBox from './SearchBox'
 import { matchesDate, matchesName, normalizeQuery } from '@/lib/search-match'
@@ -25,6 +26,7 @@ function isTabKey(value: string | null): value is TabKey {
 }
 
 function isEventEnded(event: Event): boolean {
+  if (event.status === 'cancelled') return true
   if (
     event.battle_started_at &&
     isEnded(event.battle_started_at, event.operational_ended_at)
@@ -152,6 +154,7 @@ export default function DashboardEventList({
           <div className="divide-y divide-border border-y border-border">
             {filtered.map((event) => {
               const isDraft = event.status === 'draft'
+              const eventCancelled = event.status === 'cancelled'
               const eventEnded = Boolean(
                 event.battle_started_at &&
                 isEnded(event.battle_started_at, event.operational_ended_at),
@@ -180,6 +183,11 @@ export default function DashboardEventList({
                         <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-200 border border-sky-500/35">
                           {t('badgeDraft')}
                         </span>
+                      ) : eventCancelled ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-500/10 text-red-200 border border-red-500/30">
+                          <Ban size={10} />
+                          {t('badgeCancelled')}
+                        </span>
                       ) : eventEnded ? (
                         <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-700 text-gray-300">
                           <Archive size={10} />
@@ -203,49 +211,53 @@ export default function DashboardEventList({
                         : event.gather_time || t('draftScheduleMissing')}
                       {event.gather_location.trim() ? ` · ${event.gather_location}` : ''}
                     </p>
-                    {readiness && readiness.status !== 'unconfigured' ? (
-                      <div className="mt-2 max-w-md">
-                        <div className="mb-1 flex items-center justify-between gap-3 text-[11px] text-muted">
-                          <span>
-                            {t('readinessAssigned', {
+                    {!eventCancelled && (
+                      readiness && readiness.status !== 'unconfigured' ? (
+                        <div className="mt-2 max-w-md">
+                          <div
+                            className="mb-1 flex items-center justify-between gap-3 text-[11px] text-muted"
+                          >
+                            <span>
+                              {t('readinessAssigned', {
+                                assigned: readiness.assignedSlots,
+                                total: readiness.totalSlots,
+                              })}
+                              {' · '}
+                              {t('readinessOpen', { count: readiness.openSlots })}
+                            </span>
+                            <span className="font-semibold tabular-nums text-foreground">
+                              {readiness.fillPercent}%
+                            </span>
+                          </div>
+                          <div
+                            role="progressbar"
+                            aria-label={t('readinessAria', {
                               assigned: readiness.assignedSlots,
                               total: readiness.totalSlots,
+                              percent: readiness.fillPercent,
                             })}
-                            {' · '}
-                            {t('readinessOpen', { count: readiness.openSlots })}
-                          </span>
-                          <span className="font-semibold tabular-nums text-foreground">
-                            {readiness.fillPercent}%
-                          </span>
+                            aria-valuemin={0}
+                            aria-valuemax={100}
+                            aria-valuenow={readiness.fillPercent}
+                            className="h-1.5 overflow-hidden rounded-full bg-surface-2"
+                          >
+                            <div
+                              className={`h-full rounded-full ${
+                                readiness.status === 'full' ? 'bg-success' : 'bg-accent'
+                              }`}
+                              style={{ width: `${readiness.fillPercent}%` }}
+                            />
+                          </div>
                         </div>
-                        <div
-                          role="progressbar"
-                          aria-label={t('readinessAria', {
-                            assigned: readiness.assignedSlots,
-                            total: readiness.totalSlots,
-                            percent: readiness.fillPercent,
-                          })}
-                          aria-valuemin={0}
-                          aria-valuemax={100}
-                          aria-valuenow={readiness.fillPercent}
-                          className="h-1.5 overflow-hidden rounded-full bg-surface-2"
-                        >
-                          <div
-                            className={`h-full rounded-full ${
-                              readiness.status === 'full' ? 'bg-success' : 'bg-accent'
-                            }`}
-                            style={{ width: `${readiness.fillPercent}%` }}
-                          />
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="mt-2 text-[11px] text-subtle">{t('readinessUnconfigured')}</p>
+                      ) : (
+                        <p className="mt-2 text-[11px] text-subtle">{t('readinessUnconfigured')}</p>
+                      )
                     )}
                   </div>
                   <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap sm:flex-shrink-0">
                     {interactionMode === 'live' && (
                       <>
-                        {eventEnded && (
+                        {eventEnded && !eventCancelled && (
                           <Link
                             href={`/events/${event.id}/report`}
                             className="inline-flex min-h-10 items-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-xs font-semibold text-accent-foreground shadow-card transition-[background-color,box-shadow,transform] duration-150 ease-out hover:bg-accent-hover active:scale-[0.96]"
@@ -259,10 +271,17 @@ export default function DashboardEventList({
                           battleStartedAt={event.battle_started_at}
                           disabledReason={draftDisabledReason}
                         />
+                        {event.status === 'published' &&
+                          event.battle_started_at &&
+                          !eventEnded && (
+                            <CancelEventOperationsButton eventId={event.id} compact />
+                          )}
                         <NotifyEventButton
                           eventId={event.id}
-                          disabled={isDraft}
-                          disabledTitle={draftDisabledReason}
+                          disabled={event.status !== 'published'}
+                          disabledTitle={
+                            eventCancelled ? t('cancelledActionsDisabled') : draftDisabledReason
+                          }
                         />
                       </>
                     )}

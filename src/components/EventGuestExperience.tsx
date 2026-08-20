@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Clock, MapPin, ShieldCheck, Swords, UserRoundCheck } from 'lucide-react'
+import { Ban, Clock, MapPin, ShieldCheck, Swords, UserRoundCheck } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import type { EventCategory, PartyWithSlots, SlotRole } from '@/types'
 import type { EventGuestProfile } from '@/lib/event-guest-profile'
@@ -52,6 +52,7 @@ export default async function EventGuestExperience({
     gatherLocation: string
     specialNotes: string | null
     battleStarted: boolean
+    cancelled: boolean
   }
   inviteToken: string | null
   discordLoginHref: string | null
@@ -73,7 +74,7 @@ export default async function EventGuestExperience({
     application?.status === 'pending' ||
     application?.status === 'assigned' ||
     application?.status === 'reselection_required'
-  const canCancel = isActive && !event.battleStarted
+  const canCancel = isActive && !event.battleStarted && !event.cancelled
 
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 space-y-6 px-4 py-6 sm:py-8">
@@ -114,6 +115,12 @@ export default async function EventGuestExperience({
           <p className="mt-4 text-sm leading-relaxed text-gray-400">
             {t('recruitmentDescription')}
           </p>
+        )}
+        {event.cancelled && (
+          <div className="mt-4 flex items-start gap-2 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-100">
+            <Ban size={15} className="mt-0.5 shrink-0 text-red-300" />
+            <p>{t('cancelledNotice')}</p>
+          </div>
         )}
       </section>
 
@@ -197,7 +204,7 @@ export default async function EventGuestExperience({
           )}
 
           {canCancel && <EventGuestApplicationControls slotId={application.slotId} />}
-          {event.battleStarted && (
+          {event.battleStarted && !event.cancelled && (
             <p className="rounded-lg border border-gray-800 bg-gray-950/70 px-3 py-2 text-xs text-gray-500">
               {t('startedReadOnly')}
             </p>

@@ -18,15 +18,24 @@ interface AssignEventTacticInput {
 }
 
 function revalidateEventOperations(eventId: string): void {
+  revalidatePath('/')
+  revalidatePath('/admin/dashboard')
+  revalidatePath('/admin/dashboard/events')
   revalidatePath(`/admin/dashboard/events/${eventId}`)
   revalidatePath(`/events/${eventId}`)
   revalidatePath(`/events/${eventId}/tactic`)
   revalidatePath(`/events/${eventId}/report`)
+  revalidatePath('/me')
+  revalidatePath('/regear')
 }
 
 function operationErrorKey(message: string):
   | 'unauthorized'
   | 'eventNotFound'
+  | 'eventNotStarted'
+  | 'eventAlreadyEnded'
+  | 'eventHasRegearRequests'
+  | 'eventHasCloseout'
   | 'tacticLocked'
   | 'tacticNotPublished'
   | 'tacticHasNoSteps'
@@ -36,11 +45,52 @@ function operationErrorKey(message: string):
   if (message.includes('event_not_found') || message.includes('Event not found')) {
     return 'eventNotFound'
   }
+  if (message.includes('event_operations_not_started')) return 'eventNotStarted'
+  if (message.includes('event_operations_already_ended')) return 'eventAlreadyEnded'
+  if (message.includes('event_operations_has_regear_requests')) {
+    return 'eventHasRegearRequests'
+  }
+  if (message.includes('event_operations_has_closeout')) return 'eventHasCloseout'
   if (message.includes('event_tactic_snapshot_locked')) return 'tacticLocked'
   if (message.includes('published_tactic_not_found')) return 'tacticNotPublished'
   if (message.includes('published_tactic_has_no_steps')) return 'tacticHasNoSteps'
   if (message.includes('event_tactic_not_combat')) return 'tacticNotCombat'
   return 'serverError'
+}
+
+export async function cancelEventOperations(eventId: string): Promise<ActionResult> {
+  const t = await getTranslations('eventOperations')
+  try {
+    const session = await getSession()
+    if (!session) return { error: t('unauthorized') }
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(eventId)) {
+      return { error: t('eventNotFound') }
+    }
+    const db = await requireEventCreatorForEvent(eventId)
+    const guildId = await getSessionGuildId(session)
+    const { data, error } = await db.rpc('cancel_event_operations', {
+      p_guild_id: guildId,
+      p_event_id: eventId,
+      p_actor_discord_id: session.discordId,
+    })
+    if (error) return { error: t(operationErrorKey(error.message)) }
+
+    revalidateEventOperations(eventId)
+    if (data === true) {
+      await logAdminAction({
+        guildId,
+        adminDiscordId: session.discordId,
+        action: 'event.cancel',
+        targetId: eventId,
+        targetKind: 'event',
+        details: { kind: 'operational_cancel' },
+      })
+    }
+    return {}
+  } catch (error) {
+    const message = error instanceof Error ? error.message : ''
+    return { error: t(operationErrorKey(message)) }
+  }
 }
 
 export async function assignEventTactic(

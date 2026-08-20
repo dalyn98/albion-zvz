@@ -16,7 +16,7 @@ interface Props {
   // published 이벤트 저장 성공 시 상세 페이지로 이동할 때 사용. draft 는
   // 편집 화면에 남아 있어야 게시 전 추가 수정이 가능하다.
   eventId: string
-  eventStatus: 'draft' | 'published'
+  eventStatus: 'draft' | 'published' | 'cancelled'
   showPublishAction?: boolean
   publishSummary?: EventPublishSummary
 }
@@ -215,6 +215,8 @@ export default function EventEditSaveBar({
       first.focus()
     }
   }
+
+  if (eventStatus === 'cancelled') return null
 
   return (
     <div
