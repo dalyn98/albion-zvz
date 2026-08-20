@@ -36,11 +36,17 @@ export function HEAD(): NextResponse {
   return withNoStore(response)
 }
 
-function failureRedirect(request: NextRequest, reason: string, extra?: Record<string, unknown>): NextResponse {
+function failureRedirect(
+  request: NextRequest,
+  reason: string,
+  extra?: Record<string, unknown>,
+  status?: 303,
+): NextResponse {
   recordAuthFailure(request, 'discord_app_login', reason, extra)
   const url = new URL(request.url)
   const response = NextResponse.redirect(
     new URL(buildLoginEntryHref({ returnTo: '/', authError: reason }), url.origin),
+    status ? { status } : undefined,
   )
   response.headers.set('referrer-policy', 'no-referrer')
   return withNoStore(response)
@@ -69,6 +75,7 @@ async function recoverAuthenticatedReplay(
   attemptId: string,
   attempt: DiscordAppLoginAttempt,
   durationMs: number,
+  redirectStatus?: 303,
 ): Promise<NextResponse | null> {
   const session = await getSession()
   if (
@@ -87,7 +94,10 @@ async function recoverAuthenticatedReplay(
   if (requestOrigin !== tenantOrigin) return null
 
   const returnTo = sanitizeInternalReturnTo(attempt.return_to)
-  const response = NextResponse.redirect(new URL(returnTo, tenantOrigin))
+  const response = NextResponse.redirect(
+    new URL(returnTo, tenantOrigin),
+    redirectStatus ? { status: redirectStatus } : undefined,
+  )
   response.headers.set('referrer-policy', 'no-referrer')
   recordAuthSuccess(request, 'discord_app_login', {
     flow_id: attemptId,
@@ -99,13 +109,21 @@ async function recoverAuthenticatedReplay(
   return withNoStore(response)
 }
 
-export async function GET(request: NextRequest) {
+async function consumeDiscordAppLogin(
+  request: NextRequest,
+  credentials: { attemptId: string | null; token: string | null },
+  redirectStatus?: 303,
+) {
   const elapsedMs = createAuthTimer()
-  const url = new URL(request.url)
-  const attemptId = url.searchParams.get('id')
-  const token = url.searchParams.get('token')
+  const attemptId = credentials.attemptId
+  const token = credentials.token
   if (!isValidDiscordAppLoginAttemptId(attemptId) || !isValidDiscordAppLoginToken(token)) {
-    return failureRedirect(request, 'app_login_invalid', { duration_ms: elapsedMs() })
+    return failureRedirect(
+      request,
+      'app_login_invalid',
+      { duration_ms: elapsedMs() },
+      redirectStatus,
+    )
   }
 
   const tokenHash = hashDiscordAppLoginToken(token)
@@ -118,7 +136,12 @@ export async function GET(request: NextRequest) {
     .eq('token_hash', tokenHash)
     .maybeSingle()
   if (attemptError || !attempt) {
-    return failureRedirect(request, 'app_login_invalid', { duration_ms: elapsedMs() })
+    return failureRedirect(
+      request,
+      'app_login_invalid',
+      { duration_ms: elapsedMs() },
+      redirectStatus,
+    )
   }
   if (!isActiveAttempt(attempt, Date.parse(now))) {
     const recovered = await recoverAuthenticatedReplay(
@@ -126,28 +149,44 @@ export async function GET(request: NextRequest) {
       attemptId,
       attempt,
       elapsedMs(),
+      redirectStatus,
     )
     if (recovered) return recovered
-    return failureRedirect(request, 'app_login_invalid', {
-      tenant_id: attempt.guild_id,
-      duration_ms: elapsedMs(),
-    })
+    return failureRedirect(
+      request,
+      'app_login_invalid',
+      {
+        tenant_id: attempt.guild_id,
+        duration_ms: elapsedMs(),
+      },
+      redirectStatus,
+    )
   }
 
   const tenant = await getTenantDiscordConfig(attempt.guild_id)
   if (!tenant) {
-    return failureRedirect(request, 'app_login_invalid', {
-      tenant_id: attempt.guild_id,
-      duration_ms: elapsedMs(),
-    })
+    return failureRedirect(
+      request,
+      'app_login_invalid',
+      {
+        tenant_id: attempt.guild_id,
+        duration_ms: elapsedMs(),
+      },
+      redirectStatus,
+    )
   }
 
   const member = await getGuildMemberByBot(tenant.discordGuildId, attempt.discord_id)
   if (!member?.user || member.user.id !== attempt.discord_id) {
-    return failureRedirect(request, 'not_in_guild', {
-      tenant_id: tenant.id,
-      duration_ms: elapsedMs(),
-    })
+    return failureRedirect(
+      request,
+      'not_in_guild',
+      {
+        tenant_id: tenant.id,
+        duration_ms: elapsedMs(),
+      },
+      redirectStatus,
+    )
   }
 
   const memberSession = await buildDiscordMemberSession({
@@ -171,7 +210,12 @@ export async function GET(request: NextRequest) {
     .select('id')
     .maybeSingle()
   if (consumeError || !consumed) {
-    return failureRedirect(request, 'app_login_invalid', { duration_ms: elapsedMs() })
+    return failureRedirect(
+      request,
+      'app_login_invalid',
+      { duration_ms: elapsedMs() },
+      redirectStatus,
+    )
   }
 
   const returnTo = resolveDiscordMemberPostLoginPath(
@@ -191,7 +235,10 @@ export async function GET(request: NextRequest) {
     requiresBrowserBinding,
   })
   const finishPath = `/api/auth/finish?token=${encodeURIComponent(hopToken)}`
-  const response = NextResponse.redirect(buildTenantHostUrl(tenant.slug, finishPath))
+  const response = NextResponse.redirect(
+    buildTenantHostUrl(tenant.slug, finishPath),
+    redirectStatus ? { status: redirectStatus } : undefined,
+  )
   response.headers.set('referrer-policy', 'no-referrer')
   if (requiresBrowserBinding) {
     response.cookies.set(
@@ -208,4 +255,27 @@ export async function GET(request: NextRequest) {
     duration_ms: elapsedMs(),
   })
   return withNoStore(response)
+}
+
+// Backward compatibility for links issued before the explicit continuation
+// page shipped. New links use POST so previews and mobile webview handoffs
+// cannot consume the credential.
+export async function GET(request: NextRequest) {
+  const url = new URL(request.url)
+  return consumeDiscordAppLogin(request, {
+    attemptId: url.searchParams.get('id'),
+    token: url.searchParams.get('token'),
+  })
+}
+
+export async function POST(request: NextRequest) {
+  const formData = await request.formData().catch(() => null)
+  return consumeDiscordAppLogin(
+    request,
+    {
+      attemptId: typeof formData?.get('id') === 'string' ? String(formData.get('id')) : null,
+      token: typeof formData?.get('token') === 'string' ? String(formData.get('token')) : null,
+    },
+    303,
+  )
 }

@@ -90,7 +90,7 @@ vi.mock('@/lib/auth-telemetry', () => ({
   recordAuthSuccess: mocks.recordAuthSuccess,
 }))
 
-import { GET, HEAD } from './route'
+import { GET, HEAD, POST } from './route'
 
 describe('GET /api/auth/discord/app/consume', () => {
   beforeEach(() => {
@@ -182,6 +182,53 @@ describe('GET /api/auth/discord/app/consume', () => {
         'agm_auth_hop_11111111-1111-4111-8111-111111111111',
       )?.value,
     ).toBe('1')
+  })
+
+  it('uses a 303 redirect when the mobile continuation form explicitly consumes the link', async () => {
+    const response = await POST(
+      new NextRequest(
+        'https://menhera.example.test/api/auth/discord/app/consume',
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            id: '11111111-1111-4111-8111-111111111111',
+            token: 'valid-token',
+          }),
+        },
+      ),
+    )
+
+    expect(response.status).toBe(303)
+    expect(response.headers.get('location')).toBe(
+      'https://menhera.example.test/api/auth/finish?token=hop-token',
+    )
+    expect(mocks.consumeUpdate).toHaveBeenCalledWith({ consumed_at: expect.any(String) })
+  })
+
+  it('keeps the POST redirect method-safe when the continuation link is unknown', async () => {
+    mocks.lookupMaybeSingle.mockResolvedValue({ data: null, error: null })
+
+    const response = await POST(
+      new NextRequest(
+        'https://menhera.example.test/api/auth/discord/app/consume',
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            id: '11111111-1111-4111-8111-111111111111',
+            token: 'valid-token',
+          }),
+        },
+      ),
+    )
+
+    expect(response.status).toBe(303)
+    expect(response.headers.get('location')).toBe(
+      'https://menhera.example.test/login?returnTo=%2F&auth_error=app_login_invalid',
+    )
+    expect(mocks.getGuildMemberByBot).not.toHaveBeenCalled()
+    expect(mocks.consumeUpdate).not.toHaveBeenCalled()
   })
 
   it('issues an unbound host-checked hop when the source cannot share cookies', async () => {

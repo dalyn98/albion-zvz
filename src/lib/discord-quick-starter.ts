@@ -87,6 +87,7 @@ export function buildDiscordQuickStarterComponents(input: {
         type: 2,
         style: 1,
         label: input.labels.events,
+        emoji: { name: QUICK_STARTER_BUTTON_EMOJI.events },
         custom_id: DISCORD_MEMBER_PANEL_CUSTOM_IDS.event,
       },
     })
@@ -100,8 +101,11 @@ export function buildDiscordQuickStarterComponents(input: {
       }],
       accessory: {
         type: 2,
-        style: 3,
+        // Entry actions share one visual weight. Green is reserved for the
+        // final financial confirmation shown after the member reviews it.
+        style: 1,
         label: input.labels.wallet,
+        emoji: { name: '💱' },
         custom_id: DISCORD_MEMBER_PANEL_CUSTOM_IDS.exchange,
       },
     })
@@ -115,8 +119,9 @@ export function buildDiscordQuickStarterComponents(input: {
       }],
       accessory: {
         type: 2,
-        style: 2,
+        style: 1,
         label: input.labels.regear,
+        emoji: { name: QUICK_STARTER_BUTTON_EMOJI.regear },
         custom_id: DISCORD_MEMBER_PANEL_CUSTOM_IDS.regear,
       },
     })

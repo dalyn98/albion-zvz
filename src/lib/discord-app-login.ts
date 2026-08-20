@@ -22,6 +22,10 @@ export interface DiscordAppLoginDestination {
   destination: DiscordQuickStarterDestination
 }
 
+export type DiscordAppLoginLinkState =
+  | { status: 'active'; expiresAt: string }
+  | { status: 'used' | 'expired' | 'invalid' }
+
 export function createDiscordAppLoginToken(): string {
   return randomBytes(DISCORD_APP_LOGIN_TOKEN_BYTES).toString('base64url')
 }
@@ -107,8 +111,41 @@ export async function createDiscordAppLoginLink(input: {
     throw new Error('Failed to create Discord app login attempt')
   }
 
-  const url = new URL('/api/auth/discord/app/consume', tenantUrl(input.tenantSlug, '/'))
+  // Do not point the Discord button at the consuming endpoint directly.
+  // Mobile Discord can open a URL in its webview first and then hand it to the
+  // system browser. A GET that consumes immediately strands the second
+  // browser without a session. The continuation page keeps GET side-effect
+  // free and consumes only after the member explicitly presses Continue.
+  const url = new URL('/discord/continue', tenantUrl(input.tenantSlug, '/'))
   url.searchParams.set('id', data.id)
   url.searchParams.set('token', token)
   return url.toString()
+}
+
+export async function inspectDiscordAppLoginLink(input: {
+  attemptId: unknown
+  token: unknown
+  nowMs?: number
+}): Promise<DiscordAppLoginLinkState> {
+  if (
+    !isValidDiscordAppLoginAttemptId(input.attemptId) ||
+    !isValidDiscordAppLoginToken(input.token)
+  ) {
+    return { status: 'invalid' }
+  }
+
+  const { data, error } = await getAdminClient()
+    .from('discord_app_login_attempts')
+    .select('consumed_at, expires_at')
+    .eq('id', input.attemptId)
+    .eq('token_hash', hashDiscordAppLoginToken(input.token))
+    .maybeSingle()
+  if (error || !data) return { status: 'invalid' }
+  if (data.consumed_at) return { status: 'used' }
+
+  const expiresAtMs = Date.parse(data.expires_at)
+  if (!Number.isFinite(expiresAtMs) || expiresAtMs <= (input.nowMs ?? Date.now())) {
+    return { status: 'expired' }
+  }
+  return { status: 'active', expiresAt: data.expires_at }
 }

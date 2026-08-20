@@ -37,22 +37,25 @@ describe('Discord Components V2 member panel', () => {
             type: 2,
             style: 1,
             label: 'Join Event',
+            emoji: { name: '📅' },
             custom_id: 'agm_member:v1:event',
           }),
         }),
         expect.objectContaining({
           type: 9,
           accessory: expect.objectContaining({
-            style: 3,
+            style: 1,
             label: 'Exchange Points',
+            emoji: { name: '💱' },
             custom_id: 'agm_member:v1:exchange',
           }),
         }),
         expect.objectContaining({
           type: 9,
           accessory: expect.objectContaining({
-            style: 2,
+            style: 1,
             label: 'Request Regear',
+            emoji: { name: '🛡️' },
             custom_id: 'agm_member:v1:regear',
           }),
         }),

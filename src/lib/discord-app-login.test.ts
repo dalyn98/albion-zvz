@@ -4,8 +4,22 @@ const mocks = vi.hoisted(() => {
   const single = vi.fn()
   const select = vi.fn(() => ({ single }))
   const insert = vi.fn(() => ({ select }))
-  const from = vi.fn(() => ({ insert }))
-  return { from, insert, select, single, tenantUrl: vi.fn() }
+  const inspectMaybeSingle = vi.fn()
+  const inspectToken = vi.fn(() => ({ maybeSingle: inspectMaybeSingle }))
+  const inspectId = vi.fn(() => ({ eq: inspectToken }))
+  const inspectSelect = vi.fn(() => ({ eq: inspectId }))
+  const from = vi.fn(() => ({ insert, select: inspectSelect }))
+  return {
+    from,
+    insert,
+    inspectId,
+    inspectMaybeSingle,
+    inspectSelect,
+    inspectToken,
+    select,
+    single,
+    tenantUrl: vi.fn(),
+  }
 })
 
 vi.mock('@/lib/supabase-admin', () => ({
@@ -21,6 +35,7 @@ import {
   createDiscordAppLoginLink,
   createDiscordAppLoginToken,
   hashDiscordAppLoginToken,
+  inspectDiscordAppLoginLink,
   isValidDiscordAppLoginToken,
   parseDiscordAppLoginCustomId,
 } from './discord-app-login'
@@ -30,7 +45,13 @@ describe('Discord app login token', () => {
     for (const mock of Object.values(mocks)) mock.mockReset()
     mocks.select.mockImplementation(() => ({ single: mocks.single }))
     mocks.insert.mockImplementation(() => ({ select: mocks.select }))
-    mocks.from.mockImplementation(() => ({ insert: mocks.insert }))
+    mocks.inspectSelect.mockImplementation(() => ({ eq: mocks.inspectId }))
+    mocks.inspectId.mockImplementation(() => ({ eq: mocks.inspectToken }))
+    mocks.inspectToken.mockImplementation(() => ({ maybeSingle: mocks.inspectMaybeSingle }))
+    mocks.from.mockImplementation(() => ({
+      insert: mocks.insert,
+      select: mocks.inspectSelect,
+    }))
     mocks.single.mockResolvedValue({
       data: { id: '11111111-1111-4111-8111-111111111111' },
       error: null,
@@ -76,8 +97,31 @@ describe('Discord app login token', () => {
     expect(inserted.token_hash).not.toBe(rawToken)
     expect(inserted.expires_at).toMatch(/^\d{4}-\d{2}-\d{2}T/)
     expect(parsed.origin).toBe('https://menhera.example.test')
-    expect(parsed.pathname).toBe('/api/auth/discord/app/consume')
+    expect(parsed.pathname).toBe('/discord/continue')
     expect(parsed.searchParams.get('id')).toBe('11111111-1111-4111-8111-111111111111')
+  })
+
+  it('inspects a mobile handoff without consuming the one-time credential', async () => {
+    mocks.inspectMaybeSingle.mockResolvedValue({
+      data: {
+        consumed_at: null,
+        expires_at: new Date(Date.now() + 60_000).toISOString(),
+      },
+      error: null,
+    })
+    const token = createDiscordAppLoginToken()
+
+    await expect(inspectDiscordAppLoginLink({
+      attemptId: '11111111-1111-4111-8111-111111111111',
+      token,
+    })).resolves.toMatchObject({ status: 'active' })
+
+    expect(mocks.inspectSelect).toHaveBeenCalledWith('consumed_at, expires_at')
+    expect(mocks.inspectId).toHaveBeenCalledWith(
+      'id',
+      '11111111-1111-4111-8111-111111111111',
+    )
+    expect(mocks.insert).not.toHaveBeenCalled()
   })
 })
 
