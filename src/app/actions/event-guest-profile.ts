@@ -73,25 +73,25 @@ export async function saveEventGuestProfile(input: {
 
   const db = getAdminClient()
   const nowIso = new Date().toISOString()
-  const inviteScope = !session
+  const inviteScope = input.inviteToken?.trim()
     ? await resolveEventGuestInviteScope(db, {
         eventId: input.eventId,
         inviteToken: input.inviteToken,
       })
     : null
-  if (
-    session &&
-    (!session.isGuest || session.eventScope !== input.eventId)
-  ) {
-    return { error: t('unauthorized') }
-  }
-  if (!session && !inviteScope) return { error: t('unauthorized') }
+  const sessionGuildId = session ? await getSessionGuildId(session) : null
+  const sessionIsScopedGuest =
+    session?.isGuest === true && session.eventScope === input.eventId
+  if (!sessionIsScopedGuest && !inviteScope) return { error: t('unauthorized') }
 
-  const guildId = session
-    ? await getSessionGuildId(session)
-    : inviteScope!.guildId
-  const guestDiscordId = session?.discordId ?? createAnonymousEventGuestId()
-  const guestAvatar = session?.avatar ?? null
+  const guildId = inviteScope?.guildId ?? sessionGuildId
+  if (!guildId) return { error: t('unauthorized') }
+  const canReuseSessionGuest =
+    session?.isGuest === true && sessionGuildId === guildId
+  const guestDiscordId = canReuseSessionGuest
+    ? session.discordId
+    : createAnonymousEventGuestId()
+  const guestAvatar = canReuseSessionGuest ? session.avatar : null
   const headerStore = await headers()
   const withinBudget = await consumeEventGuestRequestBudget({
     db,
@@ -114,7 +114,7 @@ export async function saveEventGuestProfile(input: {
   if (eventError) return { error: await publicActionError(eventError, 'actions/event-guest-profile') }
   if (!eventRow || eventRow.status !== 'published') return { error: t('eventNotFound') }
 
-  if (session) {
+  if (canReuseSessionGuest) {
     const [{ data: activeGuest }, { data: revokedGuest }] = await Promise.all([
       db
         .from('guests')
@@ -129,7 +129,9 @@ export async function saveEventGuestProfile(input: {
         .eq('discord_id', guestDiscordId)
         .maybeSingle(),
     ])
-    if (!activeGuest || revokedGuest) return { error: t('unauthorized') }
+    if (revokedGuest || (!inviteScope && !activeGuest)) {
+      return { error: t('unauthorized') }
+    }
   }
 
   const serverRaw = await getAppSetting('albion_server', '', guildId)
@@ -145,9 +147,9 @@ export async function saveEventGuestProfile(input: {
     // turn optional existence verification into an identity/login barrier.
   }
   const characterName = exactCharacter?.Name ?? normalizedCharacter.value
-  const nextSession: SessionPayload = session
+  const nextSession: SessionPayload = sessionIsScopedGuest && !inviteScope
     ? {
-        ...session,
+        ...session!,
         username: normalized.value,
         issuedAt: Date.now(),
       }
@@ -166,7 +168,9 @@ export async function saveEventGuestProfile(input: {
         eventScope: input.eventId,
         guildId,
         capabilities: '',
-        authenticatedAt: 0,
+        authenticatedAt: canReuseSessionGuest
+          ? session.authenticatedAt ?? 0
+          : 0,
         issuedAt: Date.now(),
       }
 

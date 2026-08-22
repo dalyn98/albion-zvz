@@ -201,6 +201,172 @@ describe('saveEventGuestProfile', () => {
     })
   })
 
+  it('moves an active guest session from a previous event into a newly invited event', async () => {
+    const { db, upserts } = createDb({
+      guestRow: { discord_id: 'guest-1' },
+    })
+    mocks.getAdminClient.mockReturnValue(db)
+    mocks.getSession.mockResolvedValue({
+      discordId: 'guest-1',
+      username: 'Previous Event Guest',
+      avatar: null,
+      isGuest: true,
+      eventScope: 'event-old',
+      guildId: 'guild-1',
+    })
+    mocks.getSessionGuildId.mockResolvedValue('guild-1')
+    mocks.resolveEventGuestInviteScope.mockResolvedValue({
+      eventId: 'event-1',
+      guildId: 'guild-1',
+      source: 'invite',
+    })
+
+    await expect(
+      saveEventGuestProfile({
+        eventId: 'event-1',
+        displayName: 'Returning Guest',
+        characterName: 'ReturningCharacter',
+        locale: 'ko',
+        inviteToken: 'token-1',
+      }),
+    ).resolves.toEqual({ ok: true, characterVerified: false })
+
+    expect(mocks.resolveEventGuestInviteScope).toHaveBeenCalledWith(db, {
+      eventId: 'event-1',
+      inviteToken: 'token-1',
+    })
+    expect(mocks.signSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        discordId: 'guest-1',
+        isGuest: true,
+        eventScope: 'event-1',
+        guildId: 'guild-1',
+      }),
+    )
+    expect(upserts).toContainEqual({
+      table: 'event_guest_profiles',
+      row: expect.objectContaining({
+        guild_id: 'guild-1',
+        event_id: 'event-1',
+        discord_id: 'guest-1',
+      }),
+      options: { onConflict: 'guild_id,event_id,discord_id' },
+    })
+  })
+
+  it('creates an anonymous event guest when a valid invite is opened with an unrelated member session', async () => {
+    const { db, upserts } = createDb()
+    mocks.getAdminClient.mockReturnValue(db)
+    mocks.getSession.mockResolvedValue({
+      discordId: 'member-1',
+      username: 'Other Guild Member',
+      avatar: 'avatar-hash',
+      isMember: true,
+      isAdmin: false,
+      isGuest: false,
+      eventScope: null,
+      guildId: 'guild-other',
+    })
+    mocks.getSessionGuildId.mockResolvedValue('guild-other')
+    mocks.resolveEventGuestInviteScope.mockResolvedValue({
+      eventId: 'event-1',
+      guildId: 'guild-1',
+      source: 'invite',
+    })
+
+    await expect(
+      saveEventGuestProfile({
+        eventId: 'event-1',
+        displayName: 'Invited Guest',
+        characterName: 'InvitedCharacter',
+        locale: 'en',
+        inviteToken: 'token-1',
+      }),
+    ).resolves.toEqual({ ok: true, characterVerified: false })
+
+    expect(mocks.signSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        discordId: 'guest_anon',
+        isMember: false,
+        isAdmin: false,
+        isGuest: true,
+        eventScope: 'event-1',
+        guildId: 'guild-1',
+      }),
+    )
+    expect(upserts).toContainEqual({
+      table: 'guests',
+      row: expect.objectContaining({
+        guild_id: 'guild-1',
+        discord_id: 'guest_anon',
+      }),
+      options: { onConflict: 'guild_id,discord_id' },
+    })
+  })
+
+  it('rejects an unrelated session when the supplied invite is invalid', async () => {
+    const { db, upserts } = createDb()
+    mocks.getAdminClient.mockReturnValue(db)
+    mocks.getSession.mockResolvedValue({
+      discordId: 'member-1',
+      username: 'Other Guild Member',
+      isMember: true,
+      isGuest: false,
+      eventScope: null,
+      guildId: 'guild-other',
+    })
+    mocks.getSessionGuildId.mockResolvedValue('guild-other')
+    mocks.resolveEventGuestInviteScope.mockResolvedValue(null)
+
+    await expect(
+      saveEventGuestProfile({
+        eventId: 'event-1',
+        displayName: 'Invited Guest',
+        characterName: 'InvitedCharacter',
+        locale: 'en',
+        inviteToken: 'invalid-token',
+      }),
+    ).resolves.toEqual({ error: 'unauthorized' })
+
+    expect(mocks.signSession).not.toHaveBeenCalled()
+    expect(upserts).toEqual([])
+  })
+
+  it('does not let a revoked previous-event guest reuse a valid invite', async () => {
+    const { db, upserts } = createDb({
+      guestRow: { discord_id: 'guest-1' },
+      revokedRow: { discord_id: 'guest-1' },
+    })
+    mocks.getAdminClient.mockReturnValue(db)
+    mocks.getSession.mockResolvedValue({
+      discordId: 'guest-1',
+      username: 'Revoked Guest',
+      avatar: null,
+      isGuest: true,
+      eventScope: 'event-old',
+      guildId: 'guild-1',
+    })
+    mocks.getSessionGuildId.mockResolvedValue('guild-1')
+    mocks.resolveEventGuestInviteScope.mockResolvedValue({
+      eventId: 'event-1',
+      guildId: 'guild-1',
+      source: 'invite',
+    })
+
+    await expect(
+      saveEventGuestProfile({
+        eventId: 'event-1',
+        displayName: 'Revoked Guest',
+        characterName: 'RevokedCharacter',
+        locale: 'en',
+        inviteToken: 'token-1',
+      }),
+    ).resolves.toEqual({ error: 'unauthorized' })
+
+    expect(mocks.signSession).not.toHaveBeenCalled()
+    expect(upserts).toEqual([])
+  })
+
   it('creates a new guest profile after operational start so late signup remains possible', async () => {
     const { db, upserts } = createDb({
       eventRow: {
