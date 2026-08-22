@@ -22,6 +22,9 @@ vi.mock('@/lib/supabase-admin', () => ({
 vi.mock('@/lib/log', () => ({
   log: { error: mocks.logError },
 }))
+vi.mock('@/lib/discord-personal-locale', () => ({
+  resolveDiscordPersonalLocale: vi.fn(async () => 'ko'),
+}))
 
 import {
   buildDiscordSelfRolePanelCustomId,

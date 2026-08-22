@@ -12,7 +12,8 @@ import {
   type DiscordInteractionPayload,
   type DiscordInteractionResponse,
 } from '@/lib/discord-interactions'
-import { resolveSupportedLocale, type Locale } from '@/i18n/locales'
+import type { Locale } from '@/i18n/locales'
+import { resolveDiscordPersonalLocale } from '@/lib/discord-personal-locale'
 import { log } from '@/lib/log'
 import { getAdminClient } from '@/lib/supabase-admin'
 
@@ -170,10 +171,6 @@ export function buildDiscordSelfRolePanelPayload(
   }
 }
 
-function resolveLocale(locale: string | null | undefined): Locale {
-  return resolveSupportedLocale(locale) ?? 'en'
-}
-
 async function loadMessages(locale: Locale): Promise<DiscordSelfRolePanelMessages> {
   const dict = (await import(`../messages/${locale}.json`)).default as Record<string, unknown>
   const ns = (dict.discordSelfRolePanel ?? {}) as Record<string, string>
@@ -209,7 +206,7 @@ async function findActiveTenantId(discordGuildId: string): Promise<string | null
 export async function handleDiscordSelfRolePanelInteraction(
   payload: DiscordInteractionPayload,
 ): Promise<DiscordInteractionResponse> {
-  const messages = await loadMessages(resolveLocale(payload.locale))
+  const messages = await loadMessages(await resolveDiscordPersonalLocale(payload))
   if (
     payload.type !== INTERACTION_TYPE_MESSAGE_COMPONENT ||
     payload.data?.component_type !== 2

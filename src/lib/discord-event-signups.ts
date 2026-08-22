@@ -12,7 +12,7 @@ import {
 } from '@/lib/slot-signup-confirmation'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { log } from '@/lib/log'
-import { mapDiscordLocale } from '@/lib/discord'
+import { resolveDiscordPersonalLocale } from '@/lib/discord-personal-locale'
 import {
   ephemeralReply,
   INTERACTION_TYPE_MESSAGE_COMPONENT,
@@ -545,11 +545,9 @@ function isUuid(value: string): boolean {
 }
 
 async function resolveMessages(
-  payload: Pick<DiscordInteractionPayload, 'locale' | 'guild_locale'>,
+  payload: DiscordInteractionPayload,
 ): Promise<DiscordEventSignupMessages> {
-  const locale = mapDiscordLocale(payload.locale) ??
-    mapDiscordLocale(payload.guild_locale) ??
-    DEFAULT_LOCALE
+  const locale = await resolveDiscordPersonalLocale(payload)
   return loadDiscordEventSignupMessages(locale)
 }
 

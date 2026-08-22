@@ -1,10 +1,8 @@
 import 'server-only'
 
 import {
-  DEFAULT_DISCORD_COMMAND_LOCALE,
   handleSlashCommand,
   loadDiscordBotMessages,
-  resolveDiscordCommandLocale,
 } from '@/lib/discord-commands'
 import {
   buildDiscordMemberPanelExchangeConfirmCustomId,
@@ -24,6 +22,7 @@ import {
   type DiscordInteractionResponse,
 } from '@/lib/discord-interactions'
 import { formatDiscordCommandMessage } from '@/lib/discord-command-suite-messages'
+import { resolveDiscordPersonalLocale } from '@/lib/discord-personal-locale'
 
 const EXCHANGE_AMOUNT_INPUT_ID = 'amount'
 const POSTGRES_INT_MAX = 2_147_483_647
@@ -78,9 +77,12 @@ export async function handleDiscordMemberPanelInteraction(
   payload: DiscordInteractionPayload,
 ): Promise<DiscordInteractionResponse> {
   const action = parseDiscordMemberPanelCustomId(payload.data?.custom_id)
-  const locale = resolveDiscordCommandLocale(payload)
-  const messages = await loadDiscordBotMessages(locale ?? DEFAULT_DISCORD_COMMAND_LOCALE)
-  if (!action) return ephemeralReply(messages.unsupportedInteraction)
+  if (!action) {
+    const fallbackMessages = await loadDiscordBotMessages(
+      await resolveDiscordPersonalLocale(payload),
+    )
+    return ephemeralReply(fallbackMessages.unsupportedInteraction)
+  }
 
   if (action.kind === 'event') {
     return handleSlashCommand(commandPayload({
@@ -97,6 +99,18 @@ export async function handleDiscordMemberPanelInteraction(
       command: 'eligible',
     }))
   }
+
+  if (action.kind === 'exchange_confirm') {
+    return handleSlashCommand(commandPayload({
+      payload,
+      group: 'wallet',
+      command: 'withdraw',
+      options: [{ name: 'amount', type: 4, value: action.amount }],
+    }))
+  }
+
+  const locale = await resolveDiscordPersonalLocale(payload)
+  const messages = await loadDiscordBotMessages(locale)
 
   if (action.kind === 'exchange') {
     if (payload.type !== INTERACTION_TYPE_MESSAGE_COMPONENT) {
@@ -157,15 +171,6 @@ export async function handleDiscordMemberPanelInteraction(
         }],
       },
     )
-  }
-
-  if (action.kind === 'exchange_confirm') {
-    return handleSlashCommand(commandPayload({
-      payload,
-      group: 'wallet',
-      command: 'withdraw',
-      options: [{ name: 'amount', type: 4, value: action.amount }],
-    }))
   }
 
   return messageUpdateReply(messages.memberPanelExchangeCancelled, { components: [] })

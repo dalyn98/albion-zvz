@@ -1,4 +1,11 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+
+vi.mock('@/lib/discord-personal-locale', () => ({
+  resolveDiscordPersonalLocale: vi.fn(async (payload: DiscordInteractionPayload) => {
+    if (payload.locale === 'zh-CN') return 'zh'
+    return 'en'
+  }),
+}))
 import {
   buildDiscordEventBrowseFilterComponents,
   buildDiscordEventGearSelectionComponents,

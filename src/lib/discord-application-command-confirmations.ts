@@ -31,7 +31,7 @@ import {
   formatNumber,
   webButton,
 } from '@/lib/discord-command-suite-shared'
-import { mapDiscordLocale } from '@/lib/discord'
+import { resolveDiscordPersonalLocale } from '@/lib/discord-personal-locale'
 import {
   executePointTransferApplicationCommand,
   type PointTransferCommandInput,
@@ -229,10 +229,6 @@ export async function createDiscordApplicationCommandConfirmation(input: {
   ].join('\n\n'), {
     components: confirmationButtons(row.token, input.messages),
   })
-}
-
-function localeFromPayload(payload: DiscordInteractionPayload) {
-  return mapDiscordLocale(payload.locale) ?? mapDiscordLocale(payload.guild_locale) ?? 'en'
 }
 
 async function loadConfirmationContext(
@@ -569,7 +565,9 @@ export async function handleDiscordApplicationCommandConfirmation(
   payload: DiscordInteractionPayload,
 ): Promise<DiscordInteractionResponse> {
   const parsed = parseDiscordApplicationCommandConfirmationCustomId(payload.data?.custom_id)
-  const messages = await loadDiscordCommandSuiteMessages(localeFromPayload(payload))
+  const messages = await loadDiscordCommandSuiteMessages(
+    await resolveDiscordPersonalLocale(payload),
+  )
   if (!parsed || !UUID_RE.test(parsed.token)) {
     return messageUpdateReply(messages.confirmationUnavailable, { components: [] })
   }

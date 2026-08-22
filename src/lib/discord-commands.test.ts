@@ -137,6 +137,10 @@ const mocks = vi.hoisted(() => {
   }))
   const parseDiscordAppLoginCustomId = vi.fn()
   const approveDiscordBrowserAuthAttempt = vi.fn(async () => true)
+  const resolveDiscordPersonalLocale = vi.fn(async (payload: DiscordInteractionPayload) => {
+    const language = payload.locale?.toLowerCase().split('-')[0]
+    return ['en', 'ko', 'ja', 'zh'].includes(language ?? '') ? language : 'en'
+  })
   const createDiscordAppLoginLink = vi.fn(async (input: {
     tenantSlug: string
     returnTo: string
@@ -212,6 +216,7 @@ const mocks = vi.hoisted(() => {
     pointMemberMaybeSingle,
     parseDiscordAppLoginCustomId,
     roleRewardsUpsert,
+    resolveDiscordPersonalLocale,
     rpc,
     sendAdminNotification,
     getAdminNotificationTranslations,
@@ -321,6 +326,10 @@ vi.mock('@/lib/discord-app-login', () => ({
 
 vi.mock('@/lib/discord-browser-auth', () => ({
   approveDiscordBrowserAuthAttempt: mocks.approveDiscordBrowserAuthAttempt,
+}))
+
+vi.mock('@/lib/discord-personal-locale', () => ({
+  resolveDiscordPersonalLocale: mocks.resolveDiscordPersonalLocale,
 }))
 
 function agmPayload(subcommand: string, overrides: Partial<DiscordInteractionPayload> = {}) {
@@ -577,6 +586,18 @@ describe('agm slash command navigation', () => {
     expect(response.data?.content).toContain('`pickup`')
     expect(response.data?.content).not.toContain('/agm admin')
     expect(mocks.from).not.toHaveBeenCalled()
+  })
+
+  it('uses the saved AGM language for a private reply over the Discord client locale', async () => {
+    mocks.resolveDiscordPersonalLocale.mockResolvedValueOnce('ja')
+
+    const response = await handleSlashCommand(agmPayload('help', { locale: 'ko' }))
+
+    expect(mocks.resolveDiscordPersonalLocale).toHaveBeenCalledWith(
+      expect.objectContaining({ locale: 'ko' }),
+    )
+    expect(response.data?.content).toContain('**AGM コマンド**')
+    expect(response.data?.content).not.toContain('**AGM 명령어**')
   })
 
   it('does not keep the legacy direct wallet command as a valid command', async () => {

@@ -75,6 +75,7 @@ import {
 import {
   checkGuildFeatureUse,
 } from '@/lib/guild-features-server'
+import { resolveDiscordPersonalLocale } from '@/lib/discord-personal-locale'
 
 export { handleDiscordCommandAutocomplete } from '@/lib/discord-command-suite'
 
@@ -496,8 +497,10 @@ function pointAdjustmentErrorMessage(
 export async function handleSlashCommand(
   payload: DiscordInteractionPayload,
 ): Promise<DiscordInteractionResponse> {
-  const tenant = payload.guild_id ? await findTenantByDiscordGuild(payload.guild_id) : null
-  const locale = resolveDiscordCommandLocale(payload)
+  const [tenant, locale] = await Promise.all([
+    payload.guild_id ? findTenantByDiscordGuild(payload.guild_id) : Promise.resolve(null),
+    resolveDiscordPersonalLocale(payload),
+  ])
   const messages = await loadDiscordBotMessages(locale)
 
   if (payload.data?.name !== COMMAND_AGM) {
@@ -1199,7 +1202,7 @@ export async function handleDiscordAppLoginInteraction(
   payload: DiscordInteractionPayload,
 ): Promise<DiscordInteractionResponse> {
   const action = parseDiscordAppLoginCustomId(payload.data?.custom_id)
-  const messages = await loadDiscordBotMessages(resolveDiscordCommandLocale(payload))
+  const messages = await loadDiscordBotMessages(await resolveDiscordPersonalLocale(payload))
   if (!action) return ephemeralReply(messages.unsupportedInteraction)
   if (!payload.guild_id) return ephemeralReply(messages.notInGuild)
 

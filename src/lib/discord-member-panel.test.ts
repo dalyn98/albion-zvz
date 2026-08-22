@@ -3,14 +3,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   handleSlashCommand: vi.fn(),
   loadDiscordBotMessages: vi.fn(),
+  resolveDiscordPersonalLocale: vi.fn(),
 }))
 
 vi.mock('server-only', () => ({}))
 vi.mock('@/lib/discord-commands', () => ({
-  DEFAULT_DISCORD_COMMAND_LOCALE: 'en',
   handleSlashCommand: mocks.handleSlashCommand,
   loadDiscordBotMessages: mocks.loadDiscordBotMessages,
-  resolveDiscordCommandLocale: () => 'ko',
+}))
+vi.mock('@/lib/discord-personal-locale', () => ({
+  resolveDiscordPersonalLocale: mocks.resolveDiscordPersonalLocale,
 }))
 
 import {
@@ -63,6 +65,7 @@ describe('Discord member panel contract', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.loadDiscordBotMessages.mockResolvedValue(messages)
+    mocks.resolveDiscordPersonalLocale.mockResolvedValue('ja')
     mocks.handleSlashCommand.mockResolvedValue({
       type: 4,
       data: { content: 'completed', flags: 64 },
@@ -110,6 +113,10 @@ describe('Discord member panel contract', () => {
         title: '포인트 환전 신청',
       },
     })
+    expect(mocks.resolveDiscordPersonalLocale).toHaveBeenCalledWith(
+      expect.objectContaining({ locale: 'ko' }),
+    )
+    expect(mocks.loadDiscordBotMessages).toHaveBeenCalledWith('ja')
     expect(mocks.handleSlashCommand).not.toHaveBeenCalled()
   })
 
