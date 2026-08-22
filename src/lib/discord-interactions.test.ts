@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  convertDiscordReplyToComponentsV2,
   deferredEphemeralReply,
   ephemeralReply,
   findDiscordModalValue,
@@ -10,6 +11,7 @@ import {
   isDiscordSignatureTimestampFresh,
   messageUpdateReply,
   MESSAGE_FLAG_EPHEMERAL,
+  MESSAGE_FLAG_IS_COMPONENTS_V2,
   MESSAGE_FLAG_SUPPRESS_EMBEDS,
 } from './discord-interactions'
 
@@ -123,6 +125,22 @@ describe('deferred Discord interaction responses', () => {
     expect(message).toEqual({
       content: 'Done',
       components: [],
+      allowed_mentions: { parse: [] },
+    })
+  })
+
+  it('upgrades a deferred reply to Components V2 with the required webhook edit reset', () => {
+    const response = convertDiscordReplyToComponentsV2(ephemeralReply('Done', { components: [] }))
+    expect(response.data).toMatchObject({
+      flags: MESSAGE_FLAG_EPHEMERAL | MESSAGE_FLAG_IS_COMPONENTS_V2,
+      components: [{ type: 10, content: 'Done' }],
+    })
+    expect(response.data).not.toHaveProperty('content')
+
+    expect(interactionResponseToWebhookMessage(response)).toEqual({
+      content: null,
+      flags: MESSAGE_FLAG_IS_COMPONENTS_V2,
+      components: [{ type: 10, content: 'Done' }],
       allowed_mentions: { parse: [] },
     })
   })

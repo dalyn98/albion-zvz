@@ -9,6 +9,7 @@ vi.mock('@/lib/discord-personal-locale', () => ({
 import {
   buildDiscordEventBrowseFilterComponents,
   buildDiscordEventGearSelectionComponents,
+  buildDiscordEventSignupConfirmationCard,
   buildDiscordEventSignupConfirmationComponents,
   buildDiscordEventBrowseNavRow,
   buildDiscordEventSignupComponents,
@@ -22,6 +23,7 @@ import {
 } from './discord-event-signups'
 import {
   INTERACTION_RESPONSE_TYPE_MODAL,
+  type DiscordContainerComponent,
   type DiscordInteractionPayload,
 } from './discord-interactions'
 import { SLOT_ROLES } from '@/types'
@@ -443,6 +445,92 @@ describe('buildDiscordEventSignupConfirmationComponents', () => {
     for (const component of components[0].components) {
       expect(component.custom_id?.length ?? 0).toBeLessThanOrEqual(100)
     }
+  })
+})
+
+describe('buildDiscordEventSignupConfirmationCard', () => {
+  const messages = {
+    confirmApplyButton: 'Confirm',
+    confirmCancelButton: 'Cancel',
+    openButton: 'Open',
+    gearLabels: {
+      weapon: 'Weapon',
+      head: 'Head',
+      armor: 'Armor',
+      shoes: 'Shoes',
+      offhand: 'Offhand',
+      potion: 'Potion',
+      food: 'Food',
+      cape: 'Cape',
+      mount: 'Mount',
+    },
+  }
+
+  it('shows the selected weapon as a localized Components V2 thumbnail', () => {
+    const components = buildDiscordEventSignupConfirmationCard({
+      content: '**Reset Day** `A01` confirmation',
+      eventId: '11111111-1111-4111-8111-111111111111',
+      slotId: '22222222-2222-4222-8222-222222222222',
+      eventUrl: 'https://guild.example/events/11111111-1111-4111-8111-111111111111',
+      slot: {
+        id: '22222222-2222-4222-8222-222222222222',
+        slot_number: 1,
+        role_name: 'Dps',
+        weapon_name: 'Fixed Sword',
+        weapon_id: 'T8_MAIN_SWORD',
+        assigned_discord_id: null,
+        requested_discord_id: null,
+        is_hidden: false,
+        is_solo_bomb: false,
+        parties: { party_number: 1, name: null, is_bomb_squad: false },
+      },
+      picks: {
+        weapon: { id: 'T8_MAIN_AXE@3', name: 'Picked Axe' },
+      },
+      selection: { weaponIndex: 0, armorIndex: null },
+      messages,
+    })
+
+    expect(components).toHaveLength(1)
+    expect(components[0]).toMatchObject({ type: 17, accent_color: 0xd7a84b })
+    const container = components[0] as DiscordContainerComponent
+    expect(container.components[0]).toMatchObject({
+      type: 9,
+      accessory: {
+        type: 11,
+        media: {
+          url: 'https://render.albiononline.com/v1/item/T8_MAIN_AXE%403.png?size=256',
+        },
+        description: 'Weapon: Picked Axe',
+      },
+    })
+    expect(container.components.at(-1)).toMatchObject({ type: 1 })
+  })
+
+  it('keeps the confirmation usable when the slot has no reliable item ID', () => {
+    const components = buildDiscordEventSignupConfirmationCard({
+      content: 'Text-only confirmation',
+      eventId: '11111111-1111-4111-8111-111111111111',
+      slotId: '22222222-2222-4222-8222-222222222222',
+      eventUrl: 'https://guild.example/events/11111111-1111-4111-8111-111111111111',
+      slot: {
+        id: '22222222-2222-4222-8222-222222222222',
+        slot_number: 1,
+        role_name: 'Healer',
+        weapon_name: 'Holy Staff',
+        assigned_discord_id: null,
+        requested_discord_id: null,
+        is_hidden: false,
+        is_solo_bomb: false,
+        parties: { party_number: 1, name: null, is_bomb_squad: false },
+      },
+      picks: null,
+      selection: { weaponIndex: null, armorIndex: null },
+      messages,
+    })
+
+    const container = components[0] as DiscordContainerComponent
+    expect(container.components[0]).toEqual({ type: 10, content: 'Text-only confirmation' })
   })
 })
 

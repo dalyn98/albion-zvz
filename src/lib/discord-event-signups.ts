@@ -13,14 +13,20 @@ import {
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { log } from '@/lib/log'
 import { resolveDiscordPersonalLocale } from '@/lib/discord-personal-locale'
+import { buildAlbionItemImageUrl } from '@/lib/albion-render'
 import {
+  convertDiscordReplyToComponentsV2,
+  ephemeralComponentsV2Reply,
   ephemeralReply,
   INTERACTION_TYPE_MESSAGE_COMPONENT,
   modalReply,
   type DiscordActionRowComponent,
+  type DiscordChannelMessageComponent,
   type DiscordInteractionPayload,
   type DiscordInteractionResponse,
   type DiscordMessageComponent,
+  type DiscordSectionComponent,
+  type DiscordTextDisplayComponent,
 } from '@/lib/discord-interactions'
 
 const CUSTOM_ID_PREFIX = 'agm_evt:v1'
@@ -435,11 +441,15 @@ export async function handleDiscordEventInteraction(
         ? applyBySlotIdWithGearSelection(action.eventId, action.slotId, action.gearSelection, context)
         : ephemeralReply(context.messages.unsupported)
     case 'confirm':
-      return action.slotId && action.gearSelection
-        ? applyConfirmedSlotSignup(action.eventId, action.slotId, action.gearSelection, context)
-        : ephemeralReply(context.messages.unsupported, { components: [] })
+      return convertDiscordReplyToComponentsV2(
+        action.slotId && action.gearSelection
+          ? await applyConfirmedSlotSignup(action.eventId, action.slotId, action.gearSelection, context)
+          : ephemeralReply(context.messages.unsupported, { components: [] }),
+      )
     case 'cancel':
-      return ephemeralReply(context.messages.confirmCancelled, { components: [] })
+      return ephemeralComponentsV2Reply([
+        { type: 10, content: context.messages.confirmCancelled },
+      ])
     case 'slot':
       return action.slotId
         ? applyBySlotId(action.eventId, action.slotId, context)
@@ -1148,6 +1158,68 @@ export function buildDiscordEventSignupConfirmationComponents(input: {
   ]
 }
 
+export function buildDiscordEventSignupConfirmationCard(input: {
+  content: string
+  eventId: string
+  slotId: string
+  eventUrl: string
+  slot: SlotRow
+  picks: SlotSignupPicks
+  selection: DiscordGearSelection
+  messages: Pick<
+    DiscordEventSignupMessages,
+    'confirmApplyButton' | 'confirmCancelButton' | 'openButton' | 'gearLabels'
+  >
+}): DiscordChannelMessageComponent[] {
+  const primaryItem = discordSignupPrimaryItem(input.slot, input.picks)
+  const contentComponent = { type: 10 as const, content: input.content }
+  const summaryComponent: DiscordSectionComponent | DiscordTextDisplayComponent = primaryItem
+    ? {
+        type: 9,
+        components: [contentComponent],
+        accessory: {
+          type: 11,
+          media: {
+            url: buildAlbionItemImageUrl({
+              uniqueName: primaryItem.id,
+              size: 256,
+            }),
+          },
+          description: `${input.messages.gearLabels[primaryItem.kind]}: ${primaryItem.name}`,
+        },
+      }
+    : contentComponent
+
+  return [
+    {
+      type: 17,
+      accent_color: 0xd7a84b,
+      components: [
+        summaryComponent,
+        { type: 14, divider: true, spacing: 1 },
+        ...buildDiscordEventSignupConfirmationComponents(input),
+      ],
+    },
+  ]
+}
+
+function discordSignupPrimaryItem(
+  slot: SlotRow,
+  picks: SlotSignupPicks,
+): { kind: 'weapon' | 'mount'; id: string; name: string } | null {
+  const pickedWeapon = picks?.weapon
+  if (pickedWeapon?.id && pickedWeapon.name) {
+    return { kind: 'weapon', id: pickedWeapon.id, name: pickedWeapon.name }
+  }
+  if (slot.weapon_id?.trim() && slot.weapon_name?.trim()) {
+    return { kind: 'weapon', id: slot.weapon_id.trim(), name: slot.weapon_name.trim() }
+  }
+  if (slot.role_name === 'BM' && slot.mount_id?.trim() && slot.mount_name?.trim()) {
+    return { kind: 'mount', id: slot.mount_id.trim(), name: slot.mount_name.trim() }
+  }
+  return null
+}
+
 export function formatDiscordEventSignupConfirmationContent(input: {
   title: string
   code: string
@@ -1247,23 +1319,24 @@ function showDiscordSignupConfirmation(
   selection: DiscordGearSelection,
   picks: SlotSignupPicks,
 ): DiscordInteractionResponse {
-  return ephemeralReply(
-    formatDiscordEventSignupConfirmationContent({
-      title: access.event.title,
-      code: canonicalCode,
+  const content = formatDiscordEventSignupConfirmationContent({
+    title: access.event.title,
+    code: canonicalCode,
+    slot,
+    picks,
+    messages: context.messages,
+  })
+  return ephemeralComponentsV2Reply(
+    buildDiscordEventSignupConfirmationCard({
+      content,
+      eventId,
+      slotId: slot.id,
+      eventUrl: access.eventUrl,
       slot,
       picks,
+      selection,
       messages: context.messages,
     }),
-    {
-      components: buildDiscordEventSignupConfirmationComponents({
-        eventId,
-        slotId: slot.id,
-        eventUrl: access.eventUrl,
-        selection,
-        messages: context.messages,
-      }),
-    },
   )
 }
 

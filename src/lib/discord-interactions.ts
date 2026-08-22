@@ -117,7 +117,8 @@ export interface DiscordAutocompleteChoice {
 }
 
 export interface DiscordInteractionWebhookMessage {
-  content?: string
+  content?: string | null
+  flags?: number
   components?: DiscordMessageComponent[]
   allowed_mentions?: {
     parse?: ('everyone' | 'roles' | 'users')[]
@@ -179,10 +180,19 @@ export interface DiscordTextDisplayComponent {
   content: string
 }
 
+export interface DiscordThumbnailComponent {
+  type: 11
+  media: {
+    url: string
+  }
+  description?: string
+  spoiler?: boolean
+}
+
 export interface DiscordSectionComponent {
   type: 9
   components: DiscordTextDisplayComponent[]
-  accessory: DiscordButtonComponent
+  accessory: DiscordButtonComponent | DiscordThumbnailComponent
 }
 
 export interface DiscordSeparatorComponent {
@@ -227,14 +237,16 @@ export interface DiscordModalSubmitComponent {
   component?: DiscordModalSubmitComponent
 }
 
-export type DiscordMessageComponent = DiscordActionRowComponent
-
 export type DiscordChannelMessageComponent =
   | DiscordActionRowComponent
   | DiscordSectionComponent
   | DiscordTextDisplayComponent
   | DiscordSeparatorComponent
   | DiscordContainerComponent
+
+// Legacy message flows only expose Action Rows. Keep this narrow so existing
+// callers and tests can safely inspect `.components` without union narrowing.
+export type DiscordMessageComponent = DiscordActionRowComponent
 
 export function findDiscordModalValue(
   components: readonly DiscordModalSubmitComponent[] | undefined,
@@ -335,6 +347,43 @@ export function ephemeralReply(
   }
 }
 
+export function ephemeralComponentsV2Reply(
+  components: DiscordChannelMessageComponent[],
+): DiscordInteractionResponse {
+  return {
+    type: INTERACTION_RESPONSE_TYPE_CHANNEL_MESSAGE,
+    data: {
+      flags: MESSAGE_FLAG_EPHEMERAL | MESSAGE_FLAG_IS_COMPONENTS_V2,
+      components: components as unknown as DiscordMessageComponent[],
+    },
+  }
+}
+
+export function convertDiscordReplyToComponentsV2(
+  response: DiscordInteractionResponse,
+): DiscordInteractionResponse {
+  if (!response.data) return response
+  if ((response.data.flags ?? 0) & MESSAGE_FLAG_IS_COMPONENTS_V2) return response
+
+  const { content: rawContent, ...responseData } = response.data
+  const content = rawContent?.slice(0, DISCORD_INTERACTION_CONTENT_MAX_LENGTH)
+  const components: DiscordChannelMessageComponent[] = [
+    ...(content ? [{ type: 10 as const, content }] : []),
+    ...(response.data.components ?? []),
+  ]
+  return {
+    ...response,
+    data: {
+      ...responseData,
+      flags:
+        (response.data.flags ?? 0) |
+        MESSAGE_FLAG_EPHEMERAL |
+        MESSAGE_FLAG_IS_COMPONENTS_V2,
+      components: components as unknown as DiscordMessageComponent[],
+    },
+  }
+}
+
 export function deferredEphemeralReply(): DiscordInteractionResponse {
   return {
     type: INTERACTION_RESPONSE_TYPE_DEFERRED_CHANNEL_MESSAGE,
@@ -407,7 +456,18 @@ export function interactionResponseToWebhookMessage(
     return null
   }
   return {
-    ...(response.data.content ? { content: response.data.content } : {}),
+    ...((response.data.flags ?? 0) & MESSAGE_FLAG_IS_COMPONENTS_V2
+      ? { content: null }
+      : response.data.content
+        ? { content: response.data.content }
+        : {}),
+    ...((response.data.flags ?? 0) & (MESSAGE_FLAG_SUPPRESS_EMBEDS | MESSAGE_FLAG_IS_COMPONENTS_V2)
+      ? {
+          flags:
+            (response.data.flags ?? 0) &
+            (MESSAGE_FLAG_SUPPRESS_EMBEDS | MESSAGE_FLAG_IS_COMPONENTS_V2),
+        }
+      : {}),
     ...(response.data.components ? { components: response.data.components } : {}),
     allowed_mentions: { parse: [] },
   }
