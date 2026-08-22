@@ -61,4 +61,17 @@ describe('demo event model', () => {
       expect(resolveDemoEventSlotGear(slot).weaponId, slot.weapon).not.toBeNull()
     }
   })
+
+  it('includes a multi-weapon open slot in the interactive event demo', () => {
+    const slot = DEMO_EVENT_DETAIL.parties
+      .flatMap((party) => party.slots)
+      .find((candidate) => candidate.weaponOptions)
+
+    expect(slot?.assigned).toBeUndefined()
+    expect(slot?.weaponOptions).toEqual([
+      'Heavy Crossbow',
+      'Brimstone Staff',
+      'Dagger Pair',
+    ])
+  })
 })

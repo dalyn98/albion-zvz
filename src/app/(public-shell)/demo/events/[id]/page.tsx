@@ -310,6 +310,10 @@ function toDemoSlot(
 ): Slot {
   const role = toSlotRole(slot.role)
   const gear = resolveDemoEventSlotGear(slot)
+  const weaponOptions = slot.weaponOptions?.map((weapon) => {
+    const option = resolveDemoEventSlotGear({ ...slot, weapon })
+    return { id: option.weaponId!, name: option.weapon }
+  }) ?? null
   return {
     id: `${eventId}-${partyId}-slot-${slotIndex + 1}`,
     party_id: partyId,
@@ -335,7 +339,7 @@ function toDemoSlot(
     cape_id: 'T8_CAPEITEM_FW_MARTLOCK',
     mount_name: 'Armored Horse',
     mount_id: 'T8_MOUNT_ARMORED_HORSE',
-    weapon_options: null,
+    weapon_options: weaponOptions,
     head_options: null,
     armor_options: null,
     shoes_options: null,

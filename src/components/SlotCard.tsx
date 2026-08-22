@@ -489,7 +489,13 @@ export default function SlotCard({
 
       <div className="grid grid-cols-4 gap-1">
         <div className="col-span-2 row-span-2 flex items-center justify-center">
-          <GearPreview slot={slot} kind={primaryKind} size={55} isTaken={isTaken} />
+          <GearPreview
+            slot={slot}
+            kind={primaryKind}
+            size={55}
+            isTaken={isTaken}
+            optionsPopover
+          />
         </div>
         {otherKeys.map((key) => (
           <div key={key} className="flex items-center justify-center">

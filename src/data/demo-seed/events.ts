@@ -17,6 +17,7 @@ export type DemoEventSlot = {
   role: DemoSlotRoleKey
   buildLabel: string
   weapon: string
+  weaponOptions?: string[]
   flat: number
   assigned?: string
   isCaller?: boolean
@@ -190,6 +191,7 @@ export const DEMO_EVENT_DETAIL: DemoEventDetail = {
           role: 'engageDps',
           buildLabel: 'Crossbow · 8F',
           weapon: 'Heavy Crossbow',
+          weaponOptions: ['Heavy Crossbow', 'Brimstone Staff', 'Dagger Pair'],
           flat: 8,
         },
       ],
