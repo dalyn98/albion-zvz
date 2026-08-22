@@ -2515,7 +2515,11 @@
   },
   "eventGuestProfile": {
     "title": "嘉賓活動詳情",
-    "description": "在沒有Discord的情況下加入此活動。 公共角色查詢僅支援存在檢查，不能證明所有權。",
+    "description": "請先選擇參與方式，再登記角色資訊。公開角色查詢不能證明角色所有權。",
+    "discordRecommended": "如需補裝，建議選擇",
+    "discordDescription": "如果可能需要申請補裝，請在填寫參與資訊前透過 Discord 進入。無需加入公會的 Discord 伺服器。",
+    "anonymousTitle": "無需 Discord 參與",
+    "anonymousDescription": "立即在此瀏覽器中參與。儲存後，無法將此參與申請轉換為 Discord 帳號。",
     "characterLabel": "Albion字元*",
     "characterPlaceholder": "遊戲內角色名稱",
     "characterHelp": "如果在公共Albion資料中找不到確切的字元，您仍然可以手動提交。",
@@ -2535,7 +2539,7 @@
     "unauthorized": "此客人邀請對本次活動無效。",
     "eventNotFound": "未找到事件。",
     "saveFailed": "無法儲存您的客人個人資料。 請重試。",
-    "discordOptional": "如果您願意，請繼續使用Discord",
+    "discordOptional": "透過 Discord 參與",
     "temporarilyLimited": "請求太多。 請稍後再試。",
     "recruitmentClosed": "本次活動的客人招募已經結束。",
     "albionServerUnavailable": "公會的Albion伺服器設定無法確認。"

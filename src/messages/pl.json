@@ -2515,7 +2515,11 @@
   },
   "eventGuestProfile": {
     "title": "Szczegóły wydarzenia dla gości",
-    "description": "Dołącz do tego wydarzenia bez Discord. Publiczne wyszukiwanie postaci obsługuje tylko sprawdzenie istnienia i nie potwierdza własności.",
+    "description": "Wybierz sposób udziału, a następnie zarejestruj postać. Publiczne wyszukiwanie nie potwierdza własności postaci.",
+    "discordRecommended": "Zalecane, jeśli możesz potrzebować regearu",
+    "discordDescription": "Jeśli możesz ubiegać się o regear, dołącz przez Discord przed wpisaniem danych. Nie musisz dołączać do serwera Discord gildii.",
+    "anonymousTitle": "Dołącz bez Discord",
+    "anonymousDescription": "Dołącz od razu w tej przeglądarce. Po zapisaniu tego zgłoszenia nie będzie można połączyć z kontem Discord.",
     "characterLabel": "Albion znak *",
     "characterPlaceholder": "Nazwa postaci w grze",
     "characterHelp": "Nadal możesz przesłać ręcznie, jeśli dokładny znak nie zostanie znaleziony w publicznych danych Albion.",
@@ -2535,7 +2539,7 @@
     "unauthorized": "To zaproszenie gościa nie jest ważne na to wydarzenie.",
     "eventNotFound": "Wydarzenie nie znaleziono.",
     "saveFailed": "Nie udało się zapisać twojego profilu gościa. Spróbuj ponownie.",
-    "discordOptional": "Kontynuuj z Discord, jeśli wolisz",
+    "discordOptional": "Dołącz przez Discord",
     "temporarilyLimited": "Zbyt wiele próśb. Spróbuj ponownie wkrótce.",
     "recruitmentClosed": "Rekrutacja gości na to wydarzenie została zamknięta.",
     "albionServerUnavailable": "Nie można potwierdzić ustawienia serwera Albion gildii."

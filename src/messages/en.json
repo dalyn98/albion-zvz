@@ -2518,7 +2518,11 @@
   },
   "eventGuestProfile": {
     "title": "Guest event details",
-    "description": "Join this event without Discord. Public character lookup only supports an existence check and does not prove ownership.",
+    "description": "Choose how you want to join, then register your character. Public character lookup does not prove ownership.",
+    "discordRecommended": "Recommended if you may need regear",
+    "discordDescription": "If you may request regear, join with Discord before entering your details. You do not need to join the guild's Discord server.",
+    "anonymousTitle": "Join without Discord",
+    "anonymousDescription": "Join immediately in this browser. After saving, this application cannot be converted to a Discord account.",
     "characterLabel": "Albion character *",
     "characterPlaceholder": "In-game character name",
     "characterHelp": "You can still submit manually if the exact character is not found in public Albion data.",
@@ -2538,7 +2542,7 @@
     "unauthorized": "This guest invite is not valid for this event.",
     "eventNotFound": "Event not found.",
     "saveFailed": "Failed to save your guest profile. Please try again.",
-    "discordOptional": "Continue with Discord if you prefer",
+    "discordOptional": "Join with Discord",
     "temporarilyLimited": "Too many requests. Please try again shortly.",
     "recruitmentClosed": "Guest recruitment for this event has closed.",
     "albionServerUnavailable": "The guild's Albion server setting could not be confirmed."

@@ -2518,7 +2518,11 @@
   },
   "eventGuestProfile": {
     "title": "ゲスト参加情報",
-    "description": "Discord ログインなしでこのイベントに参加できます。公開キャラクター検索は存在確認の補助であり、所有権の証明ではありません。",
+    "description": "参加方法を選んでからキャラクター情報を登録してください。公開キャラクター検索は所有権の証明ではありません。",
+    "discordRecommended": "リギア予定なら推奨",
+    "discordDescription": "リギアを申請する可能性がある場合は、参加情報を入力する前に Discord で入場してください。ギルドの Discord サーバーへの参加は不要です。",
+    "anonymousTitle": "Discord なしで参加",
+    "anonymousDescription": "このブラウザですぐに参加します。保存後、この参加申請を Discord アカウントに切り替えることはできません。",
     "characterLabel": "Albion キャラクター *",
     "characterPlaceholder": "ゲーム内キャラクター名",
     "characterHelp": "公開 Albion データで完全一致しなくても、手入力で申請できます。",
@@ -2538,7 +2542,7 @@
     "unauthorized": "このゲスト招待はこのイベントでは無効です。",
     "eventNotFound": "イベントが見つかりません。",
     "saveFailed": "ゲストプロフィールの保存に失敗しました。もう一度お試しください。",
-    "discordOptional": "必要なら Discord で続行",
+    "discordOptional": "Discord で参加",
     "temporarilyLimited": "リクエストが多すぎます。しばらくしてからもう一度お試しください。",
     "recruitmentClosed": "このイベントのゲスト募集は終了しました。",
     "albionServerUnavailable": "ギルドの Albion サーバー設定を確認できません。"

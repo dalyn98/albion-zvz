@@ -2515,7 +2515,11 @@
   },
   "eventGuestProfile": {
     "title": "Misafir etkinliği detayları",
-    "description": "Discord olmadan bu etkinliğe katılın. Genel karakter araması yalnızca bir varlık kontrolünü destekler ve mülkiyeti kanıtlamaz.",
+    "description": "Katılım yöntemini seçin, ardından karakterinizi kaydedin. Herkese açık arama karakter sahipliğini kanıtlamaz.",
+    "discordRecommended": "Regear gerekebilecekse önerilir",
+    "discordDescription": "Regear talep edebilecekseniz bilgilerinizi girmeden önce Discord ile katılın. Loncanın Discord sunucusuna katılmanız gerekmez.",
+    "anonymousTitle": "Discord olmadan katıl",
+    "anonymousDescription": "Bu tarayıcıda hemen katılın. Kaydettikten sonra bu başvuru bir Discord hesabına bağlanamaz.",
     "characterLabel": "Albion karakter *",
     "characterPlaceholder": "Oyun içi karakter adı",
     "characterHelp": "Tam karakter genel Albion verilerinde bulunmazsa yine de manuel olarak gönderebilirsiniz.",
@@ -2535,7 +2539,7 @@
     "unauthorized": "Bu misafir daveti bu etkinlik için geçerli değil.",
     "eventNotFound": "Etkinlik bulunamadı.",
     "saveFailed": "Misafir profiliniz kaydedilemedi. Lütfen tekrar deneyin.",
-    "discordOptional": "İsterseniz Discord ile devam edin",
+    "discordOptional": "Discord ile katıl",
     "temporarilyLimited": "Çok fazla istek. Lütfen kısa süre içinde tekrar deneyin.",
     "recruitmentClosed": "Bu etkinlik için misafir alımı kapandı.",
     "albionServerUnavailable": "Loncanın Albion sunucu ayarı doğrulanamadı."

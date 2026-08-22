@@ -2515,7 +2515,11 @@
   },
   "eventGuestProfile": {
     "title": "Detalles del evento de invitados",
-    "description": "Únete a este evento sin Discord. La búsqueda de personajes públicos solo admite una comprobación de existencia y no prueba la propiedad.",
+    "description": "Elige cómo quieres participar y después registra tu personaje. La búsqueda pública no demuestra la propiedad del personaje.",
+    "discordRecommended": "Recomendado si podrías necesitar regear",
+    "discordDescription": "Si podrías solicitar regear, entra con Discord antes de completar tus datos. No necesitas unirte al servidor de Discord del gremio.",
+    "anonymousTitle": "Participar sin Discord",
+    "anonymousDescription": "Participa de inmediato en este navegador. Después de guardar, esta solicitud no podrá convertirse en una cuenta de Discord.",
     "characterLabel": "Albion carácter *",
     "characterPlaceholder": "Nombre del personaje en el juego",
     "characterHelp": "Todavía puede enviar manualmente si el carácter exacto no se encuentra en los datos públicos Albion.",
@@ -2535,7 +2539,7 @@
     "unauthorized": "Esta invitación de invitado no es válida para este evento.",
     "eventNotFound": "Evento no encontrado.",
     "saveFailed": "No se pudo guardar su perfil de invitado. Por favor, inténtalo de nuevo.",
-    "discordOptional": "Continúa con Discord si lo prefieres",
+    "discordOptional": "Participar con Discord",
     "temporarilyLimited": "Demasiadas solicitudes. Por favor, inténtelo de nuevo en breve.",
     "recruitmentClosed": "El reclutamiento de invitados para este evento se ha cerrado.",
     "albionServerUnavailable": "No se pudo confirmar la configuración del servidor Albion del gremio."

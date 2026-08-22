@@ -2515,7 +2515,11 @@
   },
   "eventGuestProfile": {
     "title": "تفاصيل حدث الضيف",
-    "description": "انضم إلى هذا الحدث بدون Discord. يدعم البحث عن الشخصية العامة فقط التحقق من الوجود ولا يثبت الملكية.",
+    "description": "اختر طريقة المشاركة ثم سجّل شخصيتك. البحث العام لا يثبت ملكية الشخصية.",
+    "discordRecommended": "موصى به إذا كنت قد تحتاج إلى regear",
+    "discordDescription": "إذا كنت قد تطلب regear، فادخل عبر Discord قبل إدخال بياناتك. لا يلزم الانضمام إلى خادم Discord الخاص بالنقابة.",
+    "anonymousTitle": "المشاركة بدون Discord",
+    "anonymousDescription": "شارك فورًا في هذا المتصفح. بعد الحفظ، لا يمكن ربط هذا الطلب بحساب Discord.",
     "characterLabel": "Albion حرف *",
     "characterPlaceholder": "اسم الشخصية داخل اللعبة",
     "characterHelp": "لا يزال بإمكانك الإرسال يدويا إذا لم يتم العثور على الحرف الدقيق في البيانات العامة Albion.",
@@ -2535,7 +2539,7 @@
     "unauthorized": "دعوة الضيف هذه غير صالحة لهذا الحدث.",
     "eventNotFound": "لم يتم العثور على الحدث.",
     "saveFailed": "فشل حفظ ملف تعريف الضيف الخاص بك. يرجى المحاولة مرة أخرى.",
-    "discordOptional": "تابع مع Discord إذا كنت تفضل ذلك",
+    "discordOptional": "المشاركة عبر Discord",
     "temporarilyLimited": "الكثير من الطلبات. يرجى المحاولة مرة أخرى بعد قليل.",
     "recruitmentClosed": "تم إغلاق توظيف الضيوف لهذا الحدث.",
     "albionServerUnavailable": "تعذر تأكيد إعداد خادم النقابة Albion."

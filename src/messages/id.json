@@ -2515,7 +2515,11 @@
   },
   "eventGuestProfile": {
     "title": "Detail acara tamu",
-    "description": "Bergabunglah dengan acara ini tanpa Discord. Pencarian karakter publik hanya mendukung pemeriksaan keberadaan dan tidak membuktikan kepemilikan.",
+    "description": "Pilih cara bergabung, lalu daftarkan karakter Anda. Pencarian publik tidak membuktikan kepemilikan karakter.",
+    "discordRecommended": "Disarankan jika Anda mungkin memerlukan regear",
+    "discordDescription": "Jika Anda mungkin mengajukan regear, masuk dengan Discord sebelum mengisi data. Anda tidak perlu bergabung ke server Discord guild.",
+    "anonymousTitle": "Bergabung tanpa Discord",
+    "anonymousDescription": "Langsung bergabung di browser ini. Setelah disimpan, pendaftaran ini tidak dapat dihubungkan ke akun Discord.",
     "characterLabel": "Albion karakter *",
     "characterPlaceholder": "Nama karakter dalam game",
     "characterHelp": "Anda masih dapat mengirimkan secara manual jika karakter yang tepat tidak ditemukan dalam data Albion publik.",
@@ -2535,7 +2539,7 @@
     "unauthorized": "Undangan tamu ini tidak berlaku untuk acara ini.",
     "eventNotFound": "Acara tidak ditemukan.",
     "saveFailed": "Gagal menyimpan profil tamu Anda. Silakan coba lagi.",
-    "discordOptional": "Lanjutkan dengan Discord jika Anda mau",
+    "discordOptional": "Bergabung dengan Discord",
     "temporarilyLimited": "Terlalu banyak permintaan. Silakan coba lagi sebentar lagi.",
     "recruitmentClosed": "Rekrutmen tamu untuk acara ini telah ditutup.",
     "albionServerUnavailable": "Pengaturan server Albion guild tidak dapat dikonfirmasi."

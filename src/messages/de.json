@@ -2515,7 +2515,11 @@
   },
   "eventGuestProfile": {
     "title": "Details zur Gastveranstaltung",
-    "description": "Nehmen Sie ohne Discord an dieser Veranstaltung teil. Die öffentliche Charaktersuche unterstützt nur eine Existenzprüfung und beweist nicht die Zugehörigkeit.",
+    "description": "Wählen Sie zuerst Ihre Teilnahmeart und registrieren Sie dann Ihren Charakter. Die öffentliche Charaktersuche beweist keinen Besitz.",
+    "discordRecommended": "Empfohlen, wenn Sie Regear benötigen könnten",
+    "discordDescription": "Wenn Sie möglicherweise Regear beantragen, treten Sie vor der Eingabe Ihrer Daten über Discord bei. Sie müssen dem Discord-Server der Gilde nicht beitreten.",
+    "anonymousTitle": "Ohne Discord teilnehmen",
+    "anonymousDescription": "Nehmen Sie sofort in diesem Browser teil. Nach dem Speichern kann diese Anmeldung keinem Discord-Konto zugeordnet werden.",
     "characterLabel": "Albion Zeichen *",
     "characterPlaceholder": "Charaktername im Spiel",
     "characterHelp": "Sie können weiterhin manuell einreichen, wenn das genaue Zeichen nicht in öffentlichen Albion-Daten zu finden ist.",
@@ -2535,7 +2539,7 @@
     "unauthorized": "Diese Gasteinladung ist für diese Veranstaltung nicht gültig.",
     "eventNotFound": "Ereignis nicht gefunden.",
     "saveFailed": "Ihr Gastprofil konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
-    "discordOptional": "Fahren Sie mit Discord fort, wenn Sie es vorziehen",
+    "discordOptional": "Mit Discord teilnehmen",
     "temporarilyLimited": "Zu viele Anfragen. Bitte versuchen Sie es in Kürze erneut.",
     "recruitmentClosed": "Die Gästerekrutierung für diese Veranstaltung ist abgeschlossen.",
     "albionServerUnavailable": "Die Servereinstellung Albion der Gilde konnte nicht bestätigt werden."

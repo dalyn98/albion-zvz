@@ -2518,7 +2518,11 @@
   },
   "eventGuestProfile": {
     "title": "访客参与信息",
-    "description": "无需 Discord 登录即可参加此活动。公开角色查询仅用于辅助确认角色存在，并不能证明所有权。",
+    "description": "请先选择参与方式，再登记角色信息。公开角色查询不能证明角色所有权。",
+    "discordRecommended": "如需补装，建议选择",
+    "discordDescription": "如果可能需要申请补装，请在填写参与信息前通过 Discord 进入。无需加入公会的 Discord 服务器。",
+    "anonymousTitle": "无需 Discord 参与",
+    "anonymousDescription": "立即在此浏览器中参与。保存后，无法将此参与申请转换为 Discord 账号。",
     "characterLabel": "Albion 角色 *",
     "characterPlaceholder": "游戏内角色名",
     "characterHelp": "即使未在 Albion 公开数据中精确找到，也可以手动输入并申请。",
@@ -2538,7 +2542,7 @@
     "unauthorized": "此访客邀请不适用于该活动。",
     "eventNotFound": "未找到活动。",
     "saveFailed": "访客资料保存失败，请重试。",
-    "discordOptional": "如有需要，使用 Discord 继续",
+    "discordOptional": "通过 Discord 参与",
     "temporarilyLimited": "请求过多，请稍后再试。",
     "recruitmentClosed": "此活动的访客招募已结束。",
     "albionServerUnavailable": "无法确认公会的 Albion 服务器设置。"

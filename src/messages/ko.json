@@ -2518,7 +2518,11 @@
   },
   "eventGuestProfile": {
     "title": "게스트 참가 정보",
-    "description": "Discord 로그인 없이 이 이벤트에만 참가할 수 있습니다. 캐릭터 검색 결과는 존재 확인 보조 자료이며 소유권 인증이 아닙니다.",
+    "description": "참가 방식을 선택한 뒤 캐릭터 정보를 등록하세요. 공개 캐릭터 검색 결과는 소유권 인증이 아닙니다.",
+    "discordRecommended": "리기어 예정 시 권장",
+    "discordDescription": "리기어 신청까지 고려한다면 참가 정보를 작성하기 전에 Discord로 입장하세요. 길드 Discord 서버 가입은 필요하지 않습니다.",
+    "anonymousTitle": "Discord 없이 참가하기",
+    "anonymousDescription": "이 브라우저에서 바로 참가합니다. 저장 후에는 이 참가 신청을 Discord 계정으로 전환할 수 없습니다.",
     "characterLabel": "알비온 캐릭터 *",
     "characterPlaceholder": "인게임 캐릭터 이름",
     "characterHelp": "공개 Albion 데이터에서 정확히 찾지 못해도 수동 정보로 신청할 수 있습니다.",
@@ -2538,7 +2542,7 @@
     "unauthorized": "이 이벤트에 유효한 게스트 초대가 아닙니다.",
     "eventNotFound": "이벤트를 찾을 수 없습니다.",
     "saveFailed": "게스트 프로필 저장에 실패했습니다. 다시 시도해 주세요.",
-    "discordOptional": "원하면 Discord로 입장",
+    "discordOptional": "Discord로 참가하기",
     "temporarilyLimited": "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.",
     "recruitmentClosed": "이 이벤트의 게스트 모집이 종료되었습니다.",
     "albionServerUnavailable": "길드의 알비온 서버 설정을 확인할 수 없습니다."
