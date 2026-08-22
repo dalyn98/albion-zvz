@@ -660,6 +660,7 @@ function AlbionIdentityPanel({
   const resourceTrusted = canUseGuildResourceFeatures({
     relation: identity.relation,
     trustStatus: identity.trustStatus,
+    resourceAccessOverride: identity.resourceAccessOverride,
   })
   const reviewPending = identity.trustStatus === 'roster_matched'
   const disputed = identity.trustStatus === 'disputed'

@@ -94,6 +94,7 @@ function accountToMemberIdentity(
   const resourceTrusted = canUseGuildResourceFeatures({
     relation: identity.relation,
     trustStatus: identity.trustStatus,
+    resourceAccessOverride: identity.resourceAccessOverride,
   })
   return {
     discordId,
@@ -101,7 +102,11 @@ function accountToMemberIdentity(
     playerId: identity.playerId,
     nickname: identity.nickname,
     guildId: identity.currentGuildId,
-    verifiedAt: resourceTrusted ? (identity.trustedAt ?? identity.verifiedAt) : null,
+    verifiedAt: resourceTrusted
+      ? (identity.trustedAt ??
+        identity.verifiedAt ??
+        identity.resourceAccessOverrideGrantedAt)
+      : null,
   }
 }
 
@@ -112,9 +117,10 @@ export function resolveAlbionOnboardingGate(input: {
 }): AlbionOnboardingGateState {
   const accountRevoked = input.accountIdentity?.trustStatus === 'revoked'
   const accountTrusted = input.accountIdentity
-    ? canUseGuildResourceFeatures({
+      ? canUseGuildResourceFeatures({
         relation: input.accountIdentity.relation,
         trustStatus: input.accountIdentity.trustStatus,
+        resourceAccessOverride: input.accountIdentity.resourceAccessOverride,
       })
     : false
   const allianceEventAllowed = input.accountIdentity
@@ -231,6 +237,7 @@ export async function requireAlbionVerified(
     canUseGuildResourceFeatures({
       relation: accountIdentity.relation,
       trustStatus: accountIdentity.trustStatus,
+      resourceAccessOverride: accountIdentity.resourceAccessOverride,
     })
   ) {
     return null
@@ -264,6 +271,7 @@ export async function requireManualRegearAllowed(
     canUseManualRegearFeature({
       relation: accountIdentity.relation,
       trustStatus: accountIdentity.trustStatus,
+      resourceAccessOverride: accountIdentity.resourceAccessOverride,
       allianceRegearEnabled,
     })
   ) {

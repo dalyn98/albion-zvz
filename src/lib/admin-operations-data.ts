@@ -20,6 +20,7 @@ import {
 import { log } from './log'
 import { getAdminClient } from './supabase-admin'
 import { loadGuildWeeklyStats, type GuildWeeklyStats } from './guild-weekly-stats'
+import { listMatchingAlbionResourceExceptionDiscordIds } from './albion-identity-resource-exception'
 
 const SETTINGS_KEYS = [
   'albion_home_guild_id',
@@ -115,11 +116,13 @@ function isFresh(
 function hasRecognizedAlbionIdentity(
   member: ActiveMemberIdentityRow,
   link: TenantLinkIdentityRow | undefined,
+  resourceAccessOverride: boolean,
 ): boolean {
   if (link) {
     return isRecognizedAlbionIdentity({
       relation: normalizeAlbionIdentityRelation(link.relation),
       trustStatus: normalizeAlbionIdentityTrustStatus(link.trust_status),
+      resourceAccessOverride,
     })
   }
   return Boolean(member.albion_verified_at)
@@ -421,11 +424,18 @@ export async function loadAdminOperationsSnapshot(
   const identityLinkMap = new Map(
     identityLinks.map((link) => [link.discord_id, link]),
   )
+  const resourceExceptionDiscordIds =
+    await listMatchingAlbionResourceExceptionDiscordIds({
+      guildId,
+      discordIds: activeMembers.map((member) => member.discord_id),
+      db,
+    })
   const unverifiedMembers = activeMembers.filter(
     (member) =>
       !hasRecognizedAlbionIdentity(
         member,
         identityLinkMap.get(member.discord_id),
+        resourceExceptionDiscordIds.has(member.discord_id),
       ),
   ).length
   const recruitmentStatusRaw = settingMap.get(

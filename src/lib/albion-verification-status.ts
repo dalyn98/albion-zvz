@@ -48,8 +48,11 @@ export function classifyAlbionVerification(input: {
   server: string | null | undefined
   relation: AlbionIdentityRelation
   trustStatus: AlbionIdentityTrustStatus
+  resourceAccessOverride?: boolean
 }): AlbionVerificationCategory {
   if (!input.server) return 'onboarding_pending'
+  if (input.trustStatus === 'revoked') return 'unverified'
+  if (input.resourceAccessOverride) return 'guild_verified'
   if (input.trustStatus === 'disputed') return 'needs_review'
   if (canUseGuildResourceFeatures(input)) return 'guild_verified'
   if (canUseAllianceEventFeatures(input)) return 'alliance_verified'

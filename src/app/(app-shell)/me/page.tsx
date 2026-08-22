@@ -189,6 +189,7 @@ export default async function MePage({
     ? canUseGuildResourceFeatures({
         relation: accountAlbionIdentity.relation,
         trustStatus: accountAlbionIdentity.trustStatus,
+        resourceAccessOverride: accountAlbionIdentity.resourceAccessOverride,
       })
     : isAlbionVerified(albionIdentity)
   const albionNeedsReview = accountAlbionIdentity
@@ -199,6 +200,7 @@ export default async function MePage({
     ? canUseManualRegearFeature({
         relation: accountAlbionIdentity.relation,
         trustStatus: accountAlbionIdentity.trustStatus,
+        resourceAccessOverride: accountAlbionIdentity.resourceAccessOverride,
         allianceRegearEnabled,
       })
     : albionVerified

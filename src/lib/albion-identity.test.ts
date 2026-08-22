@@ -40,6 +40,8 @@ function accountIdentity(
     trustedAt: '2026-05-02T00:00:00.000Z',
     lastSyncedAt: null,
     lastManualSyncAt: null,
+    resourceAccessOverride: false,
+    resourceAccessOverrideGrantedAt: null,
     ...overrides,
   }
 }
@@ -102,6 +104,30 @@ describe('resolveAlbionOnboardingGate', () => {
     expect(state.siteAccessVerified).toBe(false)
     expect(state.resourceTrusted).toBe(false)
     expect(state.allianceEventAllowed).toBe(true)
+  })
+
+  it('treats a matching permanent exception as verified without rewriting external relation', () => {
+    const state = resolveAlbionOnboardingGate({
+      discordId: DISCORD_ID,
+      legacyIdentity: legacyIdentity(),
+      accountIdentity: accountIdentity({
+        relation: 'external',
+        trustStatus: 'claimed',
+        currentGuildId: 'external-guild',
+        currentGuildName: 'External Guild',
+        verifiedAt: null,
+        trustedAt: null,
+        resourceAccessOverride: true,
+        resourceAccessOverrideGrantedAt: '2026-05-04T00:00:00.000Z',
+      }),
+    })
+
+    expect(state.siteAccessVerified).toBe(true)
+    expect(state.resourceTrusted).toBe(true)
+    expect(state.identity).toMatchObject({
+      guildId: 'external-guild',
+      verifiedAt: '2026-05-04T00:00:00.000Z',
+    })
   })
 
   it('keeps legacy verified members past the site gate even if the account link needs review', () => {

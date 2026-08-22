@@ -116,6 +116,31 @@ describe('account Albion identity trust model', () => {
     ).toBe(false)
   })
 
+  it('allows only an explicit character-bound resource exception to bypass guild relation', () => {
+    expect(
+      canUseGuildResourceFeatures({
+        relation: 'external',
+        trustStatus: 'claimed',
+        resourceAccessOverride: true,
+      }),
+    ).toBe(true)
+    expect(
+      canUseManualRegearFeature({
+        relation: 'external',
+        trustStatus: 'claimed',
+        resourceAccessOverride: true,
+        allianceRegearEnabled: false,
+      }),
+    ).toBe(true)
+    expect(
+      canUseGuildResourceFeatures({
+        relation: 'external',
+        trustStatus: 'revoked',
+        resourceAccessOverride: true,
+      }),
+    ).toBe(false)
+  })
+
   it('flags duplicate character claims as disputed before resource access', () => {
     const trust = resolveInitialTenantTrust({
       relation: 'home_guild',

@@ -74,6 +74,25 @@ describe('Albion verification status classification', () => {
     ).toBe('unverified')
   })
 
+  it('classifies an explicit permanent exception as guild verified', () => {
+    expect(
+      classifyAlbionVerification({
+        server: 'east',
+        relation: 'external',
+        trustStatus: 'claimed',
+        resourceAccessOverride: true,
+      }),
+    ).toBe('guild_verified')
+    expect(
+      classifyAlbionVerification({
+        server: 'east',
+        relation: 'external',
+        trustStatus: 'revoked',
+        resourceAccessOverride: true,
+      }),
+    ).toBe('unverified')
+  })
+
   it('recognizes guild-verified and alliance-verified identities for member lists', () => {
     expect(isRecognizedAlbionIdentity({ relation: 'home_guild', trustStatus: 'trusted' })).toBe(true)
     expect(isRecognizedAlbionIdentity({ relation: 'alliance', trustStatus: 'claimed' })).toBe(true)

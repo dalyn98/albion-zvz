@@ -34,6 +34,7 @@ import type { RegearType } from '@/types'
 import type { RegearRejectReasonCode } from '@/lib/regear-reject-reasons'
 import type { AccountAlbionIdentityView } from '@/lib/account-albion-identity'
 import type { MemberVideoProofEntry } from '@/lib/member-video-proofs'
+import { listMatchingAlbionResourceExceptionDiscordIds } from '@/lib/albion-identity-resource-exception'
 
 // 길드원 열람(목록/상세)은 로그인만 되어 있으면 모두 가능하게 열어주고,
 // 포인트 조정 같은 mutation은 별도 액션에서 더 강한 권한 게이트를 둔다.
@@ -98,6 +99,7 @@ interface StableMemberDirectoryListRow {
   avatar: string | null
   is_admin: boolean | null
   discord_updated_at: string | null
+  character_trust_status: string | null
 }
 
 export interface MemberEventEntry {
@@ -258,16 +260,13 @@ export async function listGuildMembers(): Promise<{
       db
         .from('guild_member_directory_v1')
         .select(
-          'guild_member_id, joined_at, display_name, discord_id, discord_display_name, avatar, is_admin, discord_updated_at',
+          'guild_member_id, joined_at, display_name, discord_id, discord_display_name, avatar, is_admin, discord_updated_at, character_trust_status',
         )
         .eq('guild_id', guildId)
         .eq('tenant_status', 'active')
         .eq('status', 'active')
         .is('discord_access_revoked_at', null)
-        .not('discord_id', 'is', null)
-        // 일반 명부는 신뢰된 현재 캐릭터가 있는 회원만 노출한다. 미연결·분쟁·
-        // 탈퇴 상태는 운영진 명부에서만 확인한다.
-        .in('character_trust_status', ['roster_matched', 'trusted']),
+        .not('discord_id', 'is', null),
       db
         .from('slots')
         .select(
@@ -319,7 +318,21 @@ export async function listGuildMembers(): Promise<{
       }
     }
 
-    const directoryRows = (directoryRes.data ?? []) as StableMemberDirectoryListRow[]
+    const rawDirectoryRows = (directoryRes.data ?? []) as StableMemberDirectoryListRow[]
+    const resourceExceptionDiscordIds =
+      await listMatchingAlbionResourceExceptionDiscordIds({
+        guildId,
+        discordIds: rawDirectoryRows.map((row) => row.discord_id),
+        db,
+      })
+    // 일반 명부는 신뢰된 현재 캐릭터 또는 정확히 매칭되는 슈퍼어드민 예외가
+    // 있는 회원만 노출한다. 미연결·분쟁·탈퇴 상태는 운영진 명부에서만 본다.
+    const directoryRows = rawDirectoryRows.filter(
+      (row) =>
+        row.character_trust_status === 'roster_matched' ||
+        row.character_trust_status === 'trusted' ||
+        resourceExceptionDiscordIds.has(row.discord_id),
+    )
     const discordIds = directoryRows.map((row) => row.discord_id)
     const preferencesRes = discordIds.length === 0
       ? { data: [] as Array<{ subject: string; preferred_language: string | null }>, error: null }

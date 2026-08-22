@@ -45,6 +45,7 @@ import {
   type RegearOriginFilter,
 } from '@/lib/regear-origin-filter'
 import { getAdminClient } from '@/lib/supabase-admin'
+import { listMatchingAlbionResourceExceptionDiscordIds } from '@/lib/albion-identity-resource-exception'
 
 export interface BalanceExposure {
   discordId: string
@@ -578,6 +579,7 @@ export interface VerificationMember {
   duplicateClaim: DuplicateClaimSource | null
   // guild_id 가 홈 길드와 일치하는지 — UI 에서 "길드 매칭" 배지로 사용.
   guildMatchesHome: boolean
+  resourceAccessOverride: boolean
 }
 
 export interface VerificationStats {
@@ -664,6 +666,12 @@ export async function getAlbionVerificationStats(): Promise<{
         },
       ]),
     )
+    const resourceExceptionDiscordIds =
+      await listMatchingAlbionResourceExceptionDiscordIds({
+        guildId,
+        discordIds: (avatarsRes.data ?? []).map((row) => row.discord_id as string),
+        db,
+      })
 
     const rows = (avatarsRes.data ?? []).filter((a) => !a.withdrawn_at)
     const home = homeGuildId.trim()
@@ -688,6 +696,7 @@ export async function getAlbionVerificationStats(): Promise<{
       const fallbackTrust: AlbionIdentityTrustStatus = a.albion_verified_at ? 'trusted' : 'claimed'
       const trustStatus = link?.trustStatus ?? fallbackTrust
       const relation = link?.relation ?? (guildMatchesHome ? 'home_guild' : memberGuildId ? 'external' : 'unknown')
+      const resourceAccessOverride = resourceExceptionDiscordIds.has(a.discord_id as string)
       const entry: VerificationMember = {
         discordId: a.discord_id as string,
         username: (a.username as string) ?? tCommon('unknownName'),
@@ -707,8 +716,14 @@ export async function getAlbionVerificationStats(): Promise<{
         lastSyncedAt: link?.lastSyncedAt ?? null,
         duplicateClaim: null,
         guildMatchesHome,
+        resourceAccessOverride,
       }
-      switch (classifyAlbionVerification({ server, relation, trustStatus })) {
+      switch (classifyAlbionVerification({
+        server,
+        relation,
+        trustStatus,
+        resourceAccessOverride,
+      })) {
         case 'onboarding_pending':
           onboardingPending += 1
           pendingMembers.push(entry)

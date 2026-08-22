@@ -39,6 +39,10 @@ import {
   impersonationCookieOptions,
   signImpersonation,
 } from '@/lib/super-admin-impersonation'
+import {
+  grantAlbionIdentityResourceException,
+  revokeAlbionIdentityResourceException,
+} from '@/lib/super-admin-albion-exceptions'
 
 function revalidateSystemNotices() {
   updateTag(SYSTEM_NOTICES_TAG)
@@ -343,6 +347,70 @@ export async function updateSiteNicknameOverride(formData: FormData): Promise<vo
   revalidatePath('/members')
   revalidatePath('/', 'layout')
   redirect(`${basePath}/users?discordId=${encodeURIComponent(discordId)}`)
+}
+
+function revalidateAlbionResourceExceptionSurfaces(discordId: string): void {
+  const basePath = getSuperAdminPath()
+  revalidatePath(`${basePath}/albion-exceptions`)
+  revalidatePath(`${basePath}/audit`)
+  revalidatePath('/admin/dashboard')
+  revalidatePath('/admin/dashboard/stats')
+  revalidatePath(`/members/${discordId}`)
+  revalidatePath('/me')
+  revalidatePath('/me/profile')
+  revalidatePath('/me/siphon')
+  revalidatePath('/', 'layout')
+}
+
+export async function grantAlbionResourceExceptionAction(
+  formData: FormData,
+): Promise<void> {
+  const session = await requireSuperAdmin()
+  const result = await grantAlbionIdentityResourceException({
+    guildId: String(formData.get('guildId') ?? ''),
+    discordId: String(formData.get('discordId') ?? ''),
+    reason: String(formData.get('reason') ?? ''),
+    actorDiscordId: session.discordId,
+  })
+
+  await logSuperAdminAction({
+    superAdminDiscordId: session.discordId,
+    action: 'albion.resource-exception.grant',
+    targetTenantId: result.guildId,
+    targetDiscordId: result.discordId,
+    details: {
+      server: result.server,
+      playerId: result.playerId,
+      playerName: result.playerName,
+      reason: result.reason,
+    },
+  })
+  revalidateAlbionResourceExceptionSurfaces(result.discordId)
+}
+
+export async function revokeAlbionResourceExceptionAction(
+  formData: FormData,
+): Promise<void> {
+  const session = await requireSuperAdmin()
+  const result = await revokeAlbionIdentityResourceException({
+    guildId: String(formData.get('guildId') ?? ''),
+    discordId: String(formData.get('discordId') ?? ''),
+    reason: String(formData.get('reason') ?? ''),
+  })
+
+  await logSuperAdminAction({
+    superAdminDiscordId: session.discordId,
+    action: 'albion.resource-exception.revoke',
+    targetTenantId: result.guildId,
+    targetDiscordId: result.discordId,
+    details: {
+      server: result.server,
+      playerId: result.playerId,
+      playerName: result.playerName,
+      reason: result.reason,
+    },
+  })
+  revalidateAlbionResourceExceptionSurfaces(result.discordId)
 }
 
 export async function mergeMemberAccountsAction(formData: FormData): Promise<void> {

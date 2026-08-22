@@ -26,6 +26,8 @@ export type SuperAdminAction =
   | 'zvz.season.rebuild'
   | 'support.known_issue.upsert'
   | 'support.known_issue.status'
+  | 'albion.resource-exception.grant'
+  | 'albion.resource-exception.revoke'
 
 export interface AuditEntry {
   superAdminDiscordId: string

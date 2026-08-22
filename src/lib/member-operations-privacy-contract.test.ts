@@ -50,7 +50,10 @@ describe('retired member trial and absence boundary', () => {
       membersAction.indexOf('export interface WithdrawnMemberSummary'),
     )
     expect(listBody).toContain(".from('guild_member_directory_v1')")
-    expect(listBody).toContain(".in('character_trust_status', ['roster_matched', 'trusted'])")
+    expect(listBody).toContain('listMatchingAlbionResourceExceptionDiscordIds')
+    expect(listBody).toContain("row.character_trust_status === 'roster_matched'")
+    expect(listBody).toContain("row.character_trust_status === 'trusted'")
+    expect(listBody).toContain('resourceExceptionDiscordIds.has(row.discord_id)')
     expect(listBody).toContain(".not('assigned_guild_member_id', 'is', null)")
     expect(listBody).toContain('member.discord_updated_at ?? member.joined_at')
     expect(listBody).not.toContain(".from('guests')")

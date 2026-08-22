@@ -65,6 +65,7 @@ import type {
   EventRegearPolicy,
   EventRegearVideoPolicy,
 } from '@/types'
+import { listMatchingAlbionResourceExceptionDiscordIds } from '@/lib/albion-identity-resource-exception'
 
 // 외부 모듈(regear-tracked-deaths 등) 이 기존 import 경로를 유지하도록 re-export.
 export { equipmentToBuildSnapshot, type EquipmentItem } from '@/lib/auto-regear-equipment'
@@ -894,9 +895,19 @@ export async function processAutoRegear(
 
       const requesterGateByDiscord = new Map<
         string,
-        { relation: AlbionIdentityRelation; trustStatus: AlbionIdentityTrustStatus }
+        {
+          relation: AlbionIdentityRelation
+          trustStatus: AlbionIdentityTrustStatus
+          resourceAccessOverride: boolean
+        }
       >()
       const victimDiscordIds = Array.from(new Set(victimRows.map((v) => v.discord_id)))
+      const resourceExceptionDiscordIds =
+        await listMatchingAlbionResourceExceptionDiscordIds({
+          guildId,
+          discordIds: victimDiscordIds,
+          db,
+        })
       if (victimDiscordIds.length > 0) {
         const { data: accountRows, error: accountErr } = await db
           .from('account_albion_tenant_links')
@@ -914,6 +925,7 @@ export async function processAutoRegear(
           requesterGateByDiscord.set(row.discord_id, {
             relation: row.relation,
             trustStatus: row.trust_status,
+            resourceAccessOverride: resourceExceptionDiscordIds.has(row.discord_id),
           })
         }
       }
@@ -943,6 +955,7 @@ export async function processAutoRegear(
           !canUseGuildResourceFeatures({
             relation: requesterGate.relation,
             trustStatus: requesterGate.trustStatus,
+            resourceAccessOverride: requesterGate.resourceAccessOverride,
           })
         ) {
           skippedNotHomeGuild += 1

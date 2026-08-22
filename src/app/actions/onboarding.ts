@@ -185,6 +185,7 @@ export async function confirmAlbionIdentity(input: {
     ? canUseGuildResourceFeatures({
         relation: accountClaim.relation,
         trustStatus: accountClaim.trustStatus,
+        resourceAccessOverride: accountClaim.resourceAccessOverride,
       })
     : verified
   const allianceEventAllowed = accountModelAvailable
@@ -303,7 +304,11 @@ export async function refreshMyAlbionIdentity(): Promise<{
   if (
     result.nicknameChanged &&
     view?.nickname &&
-    canUseGuildResourceFeatures({ relation: view.relation, trustStatus: view.trustStatus })
+    canUseGuildResourceFeatures({
+      relation: view.relation,
+      trustStatus: view.trustStatus,
+      resourceAccessOverride: view.resourceAccessOverride,
+    })
   ) {
     const syncResult = await syncDiscordGuildNickname({
       guildId,

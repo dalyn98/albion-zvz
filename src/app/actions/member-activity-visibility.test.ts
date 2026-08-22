@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   getAdminClient: vi.fn(),
   revalidatePath: vi.fn(),
   buildPublicActivityUrl: vi.fn((token: string) => `https://public.test/u/${token}`),
+  listMatchingAlbionResourceExceptionDiscordIds: vi.fn(),
 }))
 
 vi.mock('@/lib/session', () => ({
@@ -25,6 +26,11 @@ vi.mock('next/cache', () => ({
 
 vi.mock('@/lib/member-activity-public-url', () => ({
   buildPublicActivityUrl: mocks.buildPublicActivityUrl,
+}))
+
+vi.mock('@/lib/albion-identity-resource-exception', () => ({
+  listMatchingAlbionResourceExceptionDiscordIds:
+    mocks.listMatchingAlbionResourceExceptionDiscordIds,
 }))
 
 import {
@@ -117,6 +123,10 @@ describe('setMyActivityVisibility', () => {
     mocks.getAdminClient.mockReset()
     mocks.revalidatePath.mockReset()
     mocks.buildPublicActivityUrl.mockClear()
+    mocks.listMatchingAlbionResourceExceptionDiscordIds.mockReset()
+    mocks.listMatchingAlbionResourceExceptionDiscordIds.mockResolvedValue(
+      new Set<string>(),
+    )
     mocks.getSession.mockResolvedValue({
       discordId: 'user-1',
       isMember: true,

@@ -12,6 +12,10 @@ import {
 import { log } from '@/lib/log'
 import { getTenantDiscordConfig } from '@/lib/tenant'
 import { removeGuestRecordForMember } from '@/lib/guest-membership-transition'
+import {
+  getAlbionIdentityResourceException,
+  matchesAlbionResourceException,
+} from '@/lib/albion-identity-resource-exception'
 
 export type AlbionIdentityRelation = 'home_guild' | 'alliance' | 'external' | 'unknown'
 
@@ -38,6 +42,8 @@ export interface AccountAlbionIdentityView {
   trustedAt: string | null
   lastSyncedAt: string | null
   lastManualSyncAt: string | null
+  resourceAccessOverride: boolean
+  resourceAccessOverrideGrantedAt: string | null
 }
 
 export interface TenantTrustInput {
@@ -60,6 +66,7 @@ export interface RelationInput {
 export interface ResourceGateInput {
   relation: AlbionIdentityRelation
   trustStatus: AlbionIdentityTrustStatus
+  resourceAccessOverride?: boolean
 }
 
 export interface ManualRegearGateInput extends ResourceGateInput {
@@ -82,6 +89,7 @@ interface ClaimResult {
   relation: AlbionIdentityRelation
   trustStatus: AlbionIdentityTrustStatus
   verifiedAt: string | null
+  resourceAccessOverride: boolean
   error?: string
 }
 
@@ -117,7 +125,9 @@ export function resolveInitialTenantTrust(input: TenantTrustInput): AlbionIdenti
 }
 
 export function canUseGuildResourceFeatures(input: ResourceGateInput): boolean {
-  return input.relation === 'home_guild' && input.trustStatus === 'trusted'
+  return input.trustStatus !== 'revoked' &&
+    (input.resourceAccessOverride === true ||
+      (input.relation === 'home_guild' && input.trustStatus === 'trusted'))
 }
 
 export function canUseManualRegearFeature(input: ManualRegearGateInput): boolean {
@@ -164,6 +174,7 @@ export async function getAccountAlbionIdentityView(
         'trusted_at',
         'last_synced_at',
         'last_manual_sync_at',
+        'revoked_at',
       ].join(', '),
     )
     .eq('guild_id', guildId)
@@ -178,11 +189,28 @@ export async function getAccountAlbionIdentityView(
   const trustStatus = isAlbionIdentityTrustStatus(row.trust_status)
     ? row.trust_status
     : 'claimed'
+  const server = isAlbionServer(row.albion_server) ? row.albion_server : null
+  const playerId = (row.albion_player_id as string | null) ?? null
+  const resourceException = await getAlbionIdentityResourceException(
+    guildId,
+    discordId,
+    db,
+  )
+  const resourceAccessOverride = resourceException
+    ? matchesAlbionResourceException(resourceException, {
+        guildId,
+        discordId,
+        server,
+        playerId,
+        trustStatus,
+        revokedAt: (row.revoked_at as string | null) ?? null,
+      })
+    : false
 
   return {
     profileId: (row.profile_id as string | null) ?? null,
-    server: isAlbionServer(row.albion_server) ? row.albion_server : null,
-    playerId: (row.albion_player_id as string | null) ?? null,
+    server,
+    playerId,
     nickname: (row.albion_player_name as string | null) ?? null,
     currentGuildId: (row.current_guild_id as string | null) ?? null,
     currentGuildName: (row.current_guild_name as string | null) ?? null,
@@ -195,6 +223,10 @@ export async function getAccountAlbionIdentityView(
     trustedAt: (row.trusted_at as string | null) ?? null,
     lastSyncedAt: (row.last_synced_at as string | null) ?? null,
     lastManualSyncAt: (row.last_manual_sync_at as string | null) ?? null,
+    resourceAccessOverride,
+    resourceAccessOverrideGrantedAt: resourceAccessOverride
+      ? resourceException?.grantedAt ?? null
+      : null,
   }
 }
 
@@ -252,7 +284,13 @@ export async function recordAlbionIdentityClaim(input: ClaimInput): Promise<Clai
     nowIso,
   })
   if (!profileId) {
-    return { profileId: null, relation, trustStatus, verifiedAt }
+    return {
+      profileId: null,
+      relation,
+      trustStatus,
+      verifiedAt,
+      resourceAccessOverride: false,
+    }
   }
 
   const { error: linkError } = await db
@@ -282,7 +320,13 @@ export async function recordAlbionIdentityClaim(input: ClaimInput): Promise<Clai
       { onConflict: 'guild_id,discord_id' },
     )
   if (isMissingAccountTable(linkError)) {
-    return { profileId: null, relation, trustStatus, verifiedAt }
+    return {
+      profileId: null,
+      relation,
+      trustStatus,
+      verifiedAt,
+      resourceAccessOverride: false,
+    }
   }
   if (linkError) {
     log.error('[account-albion] tenant link upsert failed', linkError, {
@@ -290,8 +334,31 @@ export async function recordAlbionIdentityClaim(input: ClaimInput): Promise<Clai
       discord_id: input.discordId,
       player_id: playerId,
     })
-    return { profileId, relation, trustStatus, verifiedAt, error: linkError.message }
+    return {
+      profileId,
+      relation,
+      trustStatus,
+      verifiedAt,
+      resourceAccessOverride: false,
+      error: linkError.message,
+    }
   }
+
+  const resourceException = await getAlbionIdentityResourceException(
+    input.guildId,
+    input.discordId,
+    db,
+  )
+  const resourceAccessOverride = resourceException
+    ? matchesAlbionResourceException(resourceException, {
+        guildId: input.guildId,
+        discordId: input.discordId,
+        server: input.server,
+        playerId,
+        trustStatus,
+        revokedAt: null,
+      })
+    : false
 
   await writeIdentityAudit({
     guildId: input.guildId,
@@ -303,7 +370,13 @@ export async function recordAlbionIdentityClaim(input: ClaimInput): Promise<Clai
     reason: statusReason,
   })
 
-  return { profileId, relation, trustStatus, verifiedAt }
+  return {
+    profileId,
+    relation,
+    trustStatus,
+    verifiedAt,
+    resourceAccessOverride,
+  }
 }
 
 export async function refreshMemberAlbionIdentity(
@@ -354,6 +427,7 @@ export async function refreshMemberAlbionIdentity(
   const resourceAllowed = canUseGuildResourceFeatures({
     relation: claim.relation,
     trustStatus: claim.trustStatus,
+    resourceAccessOverride: claim.resourceAccessOverride,
   })
   if (resourceAllowed) {
     await removeGuestRecordForMember(db, {

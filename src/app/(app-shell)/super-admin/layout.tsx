@@ -37,6 +37,7 @@ function buildNav(basePath: string): NavItem[] {
     { href: basePath, label: '대시보드', Icon: LayoutDashboard },
     { href: `${basePath}/tenants`, label: '테넌트', Icon: Building2 },
     { href: `${basePath}/users`, label: '사용자', Icon: Users },
+    { href: `${basePath}/albion-exceptions`, label: 'Albion 인증 예외', Icon: ShieldAlert },
     { href: `${basePath}/account-merge`, label: '계정 병합', Icon: Users },
     { href: `${basePath}/ownership-disputes`, label: '길드 대표권 분쟁', Icon: Scale },
     { href: `${basePath}/zvz-seasons`, label: 'ZvZ 시즌', Icon: CalendarRange },

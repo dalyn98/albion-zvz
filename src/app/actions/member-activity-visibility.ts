@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { buildPublicActivityUrl } from '@/lib/member-activity-public-url'
 import { requireCurrentMutationSession } from '@/lib/auth'
+import { listMatchingAlbionResourceExceptionDiscordIds } from '@/lib/albion-identity-resource-exception'
 
 const PUBLIC_ACTIVITY_TRUST_STATUSES = ['roster_matched', 'trusted'] as const
 
@@ -30,7 +31,14 @@ export async function setMyActivityVisibility(
   }
   const db = getAdminClient()
   const nextToken = enabled ? undefined : crypto.randomUUID()
-  const { data, error } = await db
+  const resourceExceptionDiscordIds =
+    await listMatchingAlbionResourceExceptionDiscordIds({
+      guildId,
+      discordIds: [session.discordId],
+      db,
+    }).catch(() => null)
+  if (!resourceExceptionDiscordIds) return { ok: false, error: 'save_failed' }
+  let query = db
     .from('account_albion_tenant_links')
     .update({
       public_activity_enabled: enabled,
@@ -46,9 +54,12 @@ export async function setMyActivityVisibility(
     })
     .eq('guild_id', guildId)
     .eq('discord_id', session.discordId)
-    .in('trust_status', PUBLIC_ACTIVITY_TRUST_STATUSES)
     .not('albion_player_id', 'is', null)
     .is('revoked_at', null)
+  if (!resourceExceptionDiscordIds.has(session.discordId)) {
+    query = query.in('trust_status', PUBLIC_ACTIVITY_TRUST_STATUSES)
+  }
+  const { data, error } = await query
     .select('public_activity_token, public_activity_enabled')
     .maybeSingle()
 
@@ -76,6 +87,13 @@ export async function setMyLeaderboardVisibility(
     return { ok: false, error: 'unauthorized' }
   }
   const db = getAdminClient()
+  const resourceExceptionDiscordIds =
+    await listMatchingAlbionResourceExceptionDiscordIds({
+      guildId,
+      discordIds: [session.discordId],
+      db,
+    }).catch(() => null)
+  if (!resourceExceptionDiscordIds) return { ok: false, error: 'save_failed' }
   let query = db
     .from('account_albion_tenant_links')
     .update({
@@ -85,9 +103,11 @@ export async function setMyLeaderboardVisibility(
     })
     .eq('guild_id', guildId)
     .eq('discord_id', session.discordId)
-    .in('trust_status', PUBLIC_ACTIVITY_TRUST_STATUSES)
     .not('albion_player_id', 'is', null)
     .is('revoked_at', null)
+  if (!resourceExceptionDiscordIds.has(session.discordId)) {
+    query = query.in('trust_status', PUBLIC_ACTIVITY_TRUST_STATUSES)
+  }
   if (enabled) {
     query = query.eq('public_activity_enabled', true)
   }

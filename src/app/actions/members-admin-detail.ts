@@ -53,6 +53,7 @@ import type { RegearType } from '@/types'
 import { isRegearRejectReasonCode } from '@/lib/regear-reject-reasons'
 import { selectPagedRowsOrThrow, type SupabasePagedQuery } from '@/lib/supabase-pagination'
 import { requireLiveSession } from '@/lib/auth'
+import { listMatchingAlbionResourceExceptionDiscordIds } from '@/lib/albion-identity-resource-exception'
 import {
   isActiveMemberDirectoryState,
   isMemberSubject,
@@ -642,11 +643,10 @@ export async function getPublicMemberActivityByToken(token: string): Promise<{
   const { data, error } = await db
     .from('account_albion_tenant_links')
     .select(
-      'guild_id, discord_id, public_leaderboard_enabled, tenants!inner(slug, name, status)',
+      'guild_id, discord_id, trust_status, public_leaderboard_enabled, tenants!inner(slug, name, status)',
     )
     .eq('public_activity_token', token)
     .eq('public_activity_enabled', true)
-    .in('trust_status', ['roster_matched', 'trusted'])
     .not('albion_player_id', 'is', null)
     .eq('tenants.status', 'active')
     .is('revoked_at', null)
@@ -656,11 +656,23 @@ export async function getPublicMemberActivityByToken(token: string): Promise<{
   if (!data) return { detail: null, guildName: null }
 
   const guildId = data.guild_id as string
+  const discordId = data.discord_id as string
+  const resourceExceptionDiscordIds =
+    await listMatchingAlbionResourceExceptionDiscordIds({
+      guildId,
+      discordIds: [discordId],
+      db,
+    })
+  const publicIdentityAllowed =
+    data.trust_status === 'roster_matched' ||
+    data.trust_status === 'trusted' ||
+    resourceExceptionDiscordIds.has(discordId)
+  if (!publicIdentityAllowed) return { detail: null, guildName: null }
   const tenant = Array.isArray(data.tenants) ? data.tenants[0] : data.tenants
   const slug = (tenant?.slug as string | null) ?? ''
   const name = (tenant?.name as string | null) ?? ''
   const result = await fetchMemberDetail(
-    data.discord_id as string,
+    discordId,
     guildId,
     {
       activity: true,
