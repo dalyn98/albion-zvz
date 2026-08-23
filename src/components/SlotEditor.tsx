@@ -712,6 +712,13 @@ export default function SlotEditor({
                 onSpecChange={(patch) => setSpec(activeGearKey, patch)}
               />
 
+              <ConditionalOptionsSection
+                weaponOptions={slot.options.weapon}
+                dependentOptions={slot.options}
+                conditional={slot.conditional_options ?? {}}
+                onChange={(next) => onChange({ ...slot, conditional_options: next })}
+              />
+
               <details className="group rounded-2xl border border-gray-800 bg-gray-950/35">
                 <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 rounded-2xl px-4 py-3 transition-colors hover:bg-gray-900/70 [&::-webkit-details-marker]:hidden">
                   <span className="min-w-0 flex-1">
@@ -803,13 +810,6 @@ export default function SlotEditor({
                       </span>
                     </label>
                   )}
-
-                  <ConditionalOptionsSection
-                    weaponOptions={slot.options.weapon}
-                    dependentOptions={slot.options}
-                    conditional={slot.conditional_options ?? {}}
-                    onChange={(next) => onChange({ ...slot, conditional_options: next })}
-                  />
                 </div>
               </details>
             </div>

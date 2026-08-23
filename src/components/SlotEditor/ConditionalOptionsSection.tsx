@@ -1,9 +1,9 @@
 'use client'
 
 // Migration 139: 무기 픽이 의존하는 종류 (방어구/신발/...) 후보를 좁히는 룰을
-// 편집한다. weapon 자체는 의존성 시작점이라 대상에서 제외. 무기 옵션이 2개 이상
-// + 의존 종류에 multi 옵션이 있을 때만 의미 있는 화면이라 그렇지 않으면 자체적
-// 으로 noop. 매핑이 없으면 베이스 *_options 가 그대로 후보 (RPC 폴백과 동일).
+// 편집한다. 관리자가 빌드를 실제로 생각하는 순서와 같도록 무기별 카드 안에
+// 머리/갑옷/신발 등의 허용 후보를 묶는다. weapon 자체는 의존성 시작점이라
+// 대상에서 제외. 매핑이 없으면 베이스 *_options 가 그대로 후보 (RPC 폴백과 동일).
 
 import { useLocale, useTranslations } from 'next-intl'
 import { useItemNameResolver } from '@/lib/item-names-client'
@@ -118,24 +118,37 @@ export function ConditionalOptionsSection({
   )
 
   return (
-    <details className="rounded-xl border border-gray-800 bg-gray-950/40 p-3">
-      <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-2 text-[12px] font-semibold text-amber-400 [&::-webkit-details-marker]:hidden">
-        <span>{t('conditionalOptions.sectionTitle')}</span>
+    <section className="rounded-2xl border border-amber-500/25 bg-amber-500/[0.04] p-4 shadow-[0_10px_30px_rgba(0,0,0,0.14)]">
+      <div className="flex min-h-10 items-center justify-between gap-2">
+        <h3 className="text-sm font-bold text-amber-300 text-balance">
+          {t('conditionalOptions.sectionTitle')}
+        </h3>
         <span className="rounded-full bg-gray-800 px-2 py-1 text-[10px] font-semibold text-gray-400 tabular-nums">
           {t('conditionalOptions.rulesCount', { count: configuredRuleCount })}
         </span>
-      </summary>
-      <p className="mt-1 text-[10px] leading-relaxed text-gray-500 text-pretty">
+      </div>
+      <p className="mt-1 text-xs leading-relaxed text-gray-400 text-pretty">
         {t('conditionalOptions.sectionHint')}
       </p>
-      <div className="pt-2 space-y-3">
-        {dependentKinds.map((kind) => (
-          <div key={kind} className="rounded-lg border border-gray-800 bg-gray-900/40 p-2 space-y-2">
-            <div className="text-[11px] font-semibold text-amber-300/90">
-              {t('conditionalOptions.kindLabel', { kind: tGear(kind) })}
+      <div className="mt-4 space-y-3">
+        {weaponOptions.map((weapon) => (
+          <div
+            key={weapon.id}
+            className="rounded-xl border border-gray-700/80 bg-gray-950/55 p-3 shadow-[0_6px_20px_rgba(0,0,0,0.12)]"
+          >
+            <div className="mb-3 flex items-center gap-2">
+              <ItemImage itemId={weapon.id} itemName={weapon.name} size={36} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-white">
+                  {getLocalizedItemName(weapon.id, locale, weapon.name)}
+                </p>
+                <p className="truncate font-mono text-[10px] text-gray-500">
+                  {weapon.id}
+                </p>
+              </div>
             </div>
-            <div className="space-y-2">
-              {weaponOptions.map((weapon) => {
+            <div className="space-y-3">
+              {dependentKinds.map((kind) => {
                 const narrowed = isUsing(kind, weapon.id)
                 const kindOptions = optionsForKind(kind)
                 const enabledCount = kindOptions.filter((option) => (
@@ -143,19 +156,13 @@ export function ConditionalOptionsSection({
                 )).length
                 return (
                   <div
-                    key={weapon.id}
-                    className="rounded-md border border-gray-800 bg-gray-950/40 p-2"
+                    key={kind}
+                    className="rounded-lg bg-gray-900/70 p-2.5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]"
                   >
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <ItemImage itemId={weapon.id} itemName={weapon.name} size={28} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-white text-[12px] font-medium truncate">
-                          {getLocalizedItemName(weapon.id, locale, weapon.name)}
-                        </p>
-                        <p className="text-gray-500 text-[10px] font-mono truncate">
-                          {weapon.id}
-                        </p>
-                      </div>
+                    <div className="mb-2 flex min-h-10 items-center gap-2">
+                      <p className="min-w-0 flex-1 text-xs font-semibold text-amber-200/90">
+                        {t('conditionalOptions.kindLabel', { kind: tGear(kind) })}
+                      </p>
                       <span className="text-[10px] text-gray-500 tabular-nums">
                         {t('conditionalOptions.candidateCount', {
                           selected: enabledCount,
@@ -166,12 +173,12 @@ export function ConditionalOptionsSection({
                         <button
                           type="button"
                           onClick={() => resetMapping(kind, weapon.id)}
-                          className="min-h-10 rounded-lg border border-gray-700 bg-gray-800 px-2 text-[10px] font-semibold text-gray-300 transition-[background-color,scale] duration-150 hover:text-white active:scale-[0.96]"
+                          className="min-h-10 rounded-lg border border-gray-700 bg-gray-800 px-2 text-[10px] font-semibold text-gray-300 transition-[background-color,color,scale] duration-150 hover:text-white active:scale-[0.96]"
                         >
                           {t('conditionalOptions.resetButton')}
                         </button>
                       ) : (
-                        <span className="text-[10px] text-emerald-300/80 font-medium">
+                        <span className="text-[10px] font-medium text-emerald-300/80">
                           {t('conditionalOptions.usingDefault')}
                         </span>
                       )}
@@ -186,7 +193,7 @@ export function ConditionalOptionsSection({
                             type="button"
                             onClick={() => toggleOption(kind, weapon.id, opt)}
                             aria-pressed={enabled}
-                            className={`flex min-h-10 items-center gap-1 rounded-lg border px-2 py-1 text-[10px] transition-[background-color,color,scale] duration-150 active:scale-[0.96] ${
+                            className={`flex min-h-10 items-center gap-1 rounded-lg border px-2 py-1 text-[10px] transition-[background-color,border-color,color,scale] duration-150 active:scale-[0.96] ${
                               enabled
                                 ? 'bg-amber-500/15 border-amber-500/40 text-amber-200'
                                 : 'bg-gray-900 border-gray-800 text-gray-500 hover:text-gray-300'
@@ -216,6 +223,6 @@ export function ConditionalOptionsSection({
           </div>
         ))}
       </div>
-    </details>
+    </section>
   )
 }

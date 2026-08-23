@@ -1643,7 +1643,7 @@
     "activeGearTitle": "{gear}设置",
     "modeLabel": "物品选择方式",
     "slotSettingsTitle": "槽位详细设置",
-    "slotSettingsHint": "备注、补装排除、条件候选等不常修改的设置",
+    "slotSettingsHint": "备注、补装排除等不常修改的设置",
     "previewEmpty": "选择装备后此处将显示配装预览。",
     "roleLabel": "角色",
     "noRoleOption": "无角色",
@@ -1716,8 +1716,8 @@
       "hint": "无指挥的报名槽位 — 报名者自行构建配装（仅爆装组）"
     },
     "conditionalOptions": {
-      "sectionTitle": "条件候选（按武器收窄）",
-      "sectionHint": "选定武器后，可按武器收窄包括食物、药剂和披风在内的候选。留空则沿用基础候选。",
+      "sectionTitle": "按武器设置装备选项",
+      "sectionHint": "先为每类装备添加多个候选，再按武器设置允许的头盔、护甲、鞋子及其他选项。如不更改，则继续使用基础候选。",
       "kindLabel": "{kind}",
       "usingDefault": "使用基础候选",
       "resetButton": "恢复默认",

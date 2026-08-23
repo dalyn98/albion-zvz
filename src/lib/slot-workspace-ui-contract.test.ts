@@ -130,6 +130,18 @@ describe('slot workspace UI contract', () => {
     expect(picker).toContain('inputRef.current?.focus({ preventScroll: true })')
   })
 
+  it('groups conditional loadout choices by weapon and keeps them outside advanced settings', () => {
+    const editor = source('src/components/SlotEditor.tsx')
+    const conditional = source('src/components/SlotEditor/ConditionalOptionsSection.tsx')
+
+    expect(conditional.indexOf('weaponOptions.map((weapon)')).toBeLessThan(
+      conditional.indexOf('dependentKinds.map((kind)'),
+    )
+    expect(editor.indexOf('<ConditionalOptionsSection')).toBeLessThan(
+      editor.indexOf('<details className="group rounded-2xl'),
+    )
+  })
+
   it('uses a dedicated desktop drag handle with drop feedback and mobile move controls', () => {
     const row = source('src/components/SlotWorkspaceRow.tsx')
     expect(row).toContain('data-slot-drag-handle')

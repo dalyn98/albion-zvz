@@ -1643,7 +1643,7 @@
     "activeGearTitle": "{gear} settings",
     "modeLabel": "Item selection mode",
     "slotSettingsTitle": "Slot details",
-    "slotSettingsHint": "Notes, regear exclusions, conditional options, and other less frequent settings",
+    "slotSettingsHint": "Notes, regear exclusions, and other less frequent settings",
     "previewEmpty": "Pick some gear and the build preview appears here.",
     "roleLabel": "Role",
     "noRoleOption": "No role",
@@ -1716,8 +1716,8 @@
       "hint": "Slot signed up without a caller — applicants build their own loadout (bomb squad only)"
     },
     "conditionalOptions": {
-      "sectionTitle": "Conditional choices (narrow by weapon pick)",
-      "sectionHint": "Once the weapon is picked, narrow dependent candidates including food, potion, and cape. Leave empty to keep the base options.",
+      "sectionTitle": "Gear choices by weapon",
+      "sectionHint": "First add the multi-choice candidates for each gear type, then choose the head, armor, shoes, and other options allowed for each weapon. Leave them unchanged to use the base options.",
       "kindLabel": "{kind}",
       "usingDefault": "Using base options",
       "resetButton": "Reset",

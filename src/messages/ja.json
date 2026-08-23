@@ -1643,7 +1643,7 @@
     "activeGearTitle": "{gear}設定",
     "modeLabel": "アイテム選択方式",
     "slotSettingsTitle": "スロット詳細設定",
-    "slotSettingsHint": "メモ、リギア除外、条件付き候補など、変更頻度の低い設定",
+    "slotSettingsHint": "メモ、リギア除外など、変更頻度の低い設定",
     "previewEmpty": "装備を選ぶとビルドプレビューがここに表示されます。",
     "roleLabel": "役割",
     "noRoleOption": "役割を選択しない",
@@ -1716,8 +1716,8 @@
       "hint": "コーラーなしで本人が直接ビルドを作成して申請するスロット（ボムスクワッド専用）"
     },
     "conditionalOptions": {
-      "sectionTitle": "条件付き候補（武器ピックに応じて絞り込み）",
-      "sectionHint": "武器ピックが決まったら、料理・ポーション・マントを含む候補を武器別に絞り込みます。空欄なら基本候補のまま使用",
+      "sectionTitle": "武器別の装備候補",
+      "sectionHint": "先に各装備の複数候補を追加し、武器ごとに許可する頭装備・胴装備・靴などの候補を設定します。変更しなければ基本候補をそのまま使用します。",
       "kindLabel": "{kind}",
       "usingDefault": "基本候補を使用",
       "resetButton": "基本へ",
