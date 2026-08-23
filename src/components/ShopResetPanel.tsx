@@ -65,7 +65,7 @@ export default function ShopResetPanel() {
           type="button"
           onClick={handleReset}
           disabled={pending}
-          className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border border-red-500/50 bg-red-950/50 px-3 py-1.5 text-xs font-semibold text-red-100 transition-colors hover:border-red-400 hover:bg-red-900/70 disabled:border-gray-800 disabled:bg-gray-900 disabled:text-gray-600"
+          className="inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-red-500/50 bg-red-950/50 px-3 py-2 text-xs font-semibold text-red-100 transition-[background-color,border-color,scale] hover:border-red-400 hover:bg-red-900/70 active:scale-[0.96] disabled:border-gray-800 disabled:bg-gray-900 disabled:text-gray-600 disabled:active:scale-100"
           title={t('resetTitle')}
         >
           {pending ? <Loader2 size={12} className="animate-spin" /> : <RotateCcw size={12} />}
@@ -74,7 +74,11 @@ export default function ShopResetPanel() {
       </div>
 
       {summary !== null && (
-        <div className="mt-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs text-emerald-300">
+        <div
+          role="status"
+          aria-live="polite"
+          className="mt-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-300"
+        >
           {t('resetSummary', {
             rows: summary.inventoryRowsDeleted.toLocaleString(),
             logs: summary.logsDeleted.toLocaleString(),
@@ -83,7 +87,11 @@ export default function ShopResetPanel() {
           })}
         </div>
       )}
-      {error && <p className="mt-3 text-xs text-red-300">{error}</p>}
+      {error && (
+        <p role="alert" className="mt-3 text-xs text-red-300">
+          {error}
+        </p>
+      )}
     </div>
   )
 }

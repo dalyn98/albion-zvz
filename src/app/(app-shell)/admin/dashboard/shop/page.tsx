@@ -22,6 +22,7 @@ import {
   ShopImportFormLazy as ShopImportForm,
   ShopImportTierFilterFormLazy as ShopImportTierFilterForm,
   ShopInventoryEditorLazy as ShopInventoryEditor,
+  ShopResetPanelLazy as ShopResetPanel,
   ShopSilverRateFormLazy as ShopSilverRateForm,
 } from '@/components/AdminShopClientSections'
 import type { InventoryRow } from '@/components/ShopInventoryEditor'
@@ -228,6 +229,7 @@ async function ShopSyncView({
         timezone={tenantTimezone}
         isImportStale={importSnapshot.isImportStale}
       />
+      {canResetShop && <ShopResetPanel />}
       <details className="rounded-xl border border-gray-800 bg-gray-900 p-4">
         <summary className="cursor-pointer text-sm font-semibold text-gray-200">
           {t('logAdvancedSummary')}
