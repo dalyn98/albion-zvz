@@ -1241,7 +1241,10 @@
     "claimerTotalClaim": "Total klaim {amount}",
     "claimerScreenshotCount": "{n} tangkapan layar",
     "claimerBulkApproveButton": "Menyetujui penggugat",
-    "claimerBulkApproveTitle": "Menyetujui semua {n} klaim yang tertunda dari penggugat ini ({amount} pembayaran)"
+    "claimerBulkApproveTitle": "Menyetujui semua {n} klaim yang tertunda dari penggugat ini ({amount} pembayaran)",
+    "overchargeEvidenceLabel": "OC item destruction GIF",
+    "overchargeEvidenceAlt": "OC item destruction evidence GIF",
+    "viewOverchargeEvidence": "View item destruction GIF"
   },
   "adminExchangeReview": {
     "pageTitle": "Pembayaran silver dalam game",
@@ -5574,7 +5577,11 @@
     "allianceVideoSubmitFailedToast": "Permintaan regear telah diajukan, tetapi tugas konten aliansi tidak dapat ditautkan. Periksa Manajemen Tingkat Partisipasi.",
     "allianceVideoLinkedTitle": "Ditautkan ke tugas video konten aliansi",
     "allianceVideoLinkedPending": "Tautan ini tidak dapat diubah saat video sedang menunggu peninjauan petugas.",
-    "allianceVideoLinkedApproved": "Tautan ini tidak dapat diubah karena tugas video konten aliansi sudah disetujui."
+    "allianceVideoLinkedApproved": "Tautan ini tidak dapat diubah karena tugas video konten aliansi sudah disetujui.",
+    "overchargeGifPrimaryLabel": "OC item destruction GIF (required)",
+    "overchargeGifHint": "Attach a GIF up to 10 MB that shows the item being destroyed after overcharging.",
+    "overchargeGifRequired": "Evidence 1 for an overcharge claim must be a GIF file.",
+    "screenshotWrongType": "This image format is not supported."
   },
   "killboardVerify": {
     "guildNameMissing": "Nama guild tidak dikonfigurasi; verifikasi otomatis dilewati.",
@@ -7433,7 +7440,10 @@
     "memberTradeInvalidPrice": "Titik satuan harus berupa bilangan bulat positif.",
     "memberTradeDisputeReasonRequired": "Masukkan alasan perselisihan.",
     "memberTradeBuyerNotMember": "Pembeli bukan lagi anggota serikat.",
-    "memberTradeOfferNotPending": "Penawaran harga ini tidak tertunda."
+    "memberTradeOfferNotPending": "Penawaran harga ini tidak tertunda.",
+    "overchargeGifMissing": "Attach an item destruction GIF for the overcharge claim.",
+    "overchargeGifTooLarge": "The overcharge evidence GIF must be 10 MB or smaller.",
+    "overchargeGifWrongType": "Evidence 1 for an overcharge claim must be a GIF file."
   },
   "errors": {
     "title": "Ada yang salah",
@@ -10196,7 +10206,7 @@
     "eventNotPublished": "Acara ini belum dipublikasikan.",
     "battleStarted": "Acara ini sudah dimulai, jadi pendaftaran baru ditutup.",
     "notEligible": "Anda tidak memenuhi syarat untuk mendaftar ke acara ini. Periksa status verifikasi anggota Anda.",
-    "albionVerificationRequired": "Verifikasi Albion diperlukan. Selesaikan di halaman acara: {url}",
+    "albionVerificationRequired": "Verifikasi Albion diperlukan. Selesaikan di halaman acara",
     "intentButton": "Pendaftaran sementara",
     "codeButton": "Terapkan dengan kode",
     "browseButton": "Jelajahi slot",
@@ -10230,7 +10240,7 @@
     "codeModalLabel": "Kode slot",
     "codeModalPlaceholder": "Contoh: A01",
     "codeInvalid": "Masukkan kode slot yang valid seperti A01.",
-    "codeRequiresWeb": "Slot ini membutuhkan pilihan gear. Terapkan di halaman acara: {url}",
+    "codeRequiresWeb": "Slot ini membutuhkan pilihan gear. Terapkan di halaman acara",
     "slotApplied": "Diterapkan ke `{code}` untuk **{title}**.",
     "slotPending": "Permintaan dikirim untuk `{code}`. Seorang shotcaller atau manajer harus menyetujuinya.",
     "slotTaken": "Slot itu sudah terisi atau memiliki permintaan yang tertunda.",
@@ -10238,7 +10248,8 @@
     "statusAssigned": "Anda ditugaskan ke `{code}` · {role}.",
     "statusPending": "Permintaan Anda untuk `{code}` · {role} sedang menunggu persetujuan.",
     "statusTentative": "Peran sementara: {roles}",
-    "statusNone": "Belum ada pendaftaran. Lihat slot kosong terlebih dahulu, atau gunakan kode slot atau pendaftaran sementara."
+    "statusNone": "Belum ada pendaftaran. Lihat slot kosong terlebih dahulu, atau gunakan kode slot atau pendaftaran sementara.",
+    "webSessionHint": "The button below keeps your current Discord guild and sign-in context."
   },
   "permissions": {
     "heading": "Izin",
@@ -11016,5 +11027,19 @@
     "refundButton": "Pengembalian dana pembeli",
     "demoReasonDeliveryConflict": "Para pihak tidak setuju mengenai apakah barang-barang tersebut dikirimkan setelah perdagangan ditandai selesai.",
     "demoReasonCancelBeforeDelivery": "Pembeli meminta pembatalan sebelum pengiriman."
+  },
+  "discordWebHandoff": {
+    "eyebrow": "Discord web handoff",
+    "title": "Your sign-in is ready to continue",
+    "description": "Sign in with the guild and member identity verified in Discord, then return directly to the task you selected.",
+    "continueButton": "Keep me signed in and continue",
+    "securityHint": "This one-time connection expires automatically after 5 minutes.",
+    "mobileTitle": "Continue safely on mobile",
+    "mobileDescription": "To use an external browser, open this address there first, then press Continue below.",
+    "discordHint": "Use Discord's top-right menu to open this page in your browser, then press Continue below.",
+    "genericHint": "Use the current app's menu to open this page in an external browser, then press Continue below.",
+    "expiredTitle": "This connection has expired",
+    "expiredDescription": "For security, a connection cannot be reopened after it is used or expires.",
+    "retryHint": "Return to the member panel in Discord and press the task button again."
   }
 }

@@ -1241,7 +1241,10 @@
     "claimerTotalClaim": "pedido total {amount}",
     "claimerScreenshotCount": "{n} capturas de tela",
     "claimerBulkApproveButton": "Aprovar o requerente",
-    "claimerBulkApproveTitle": "Aprove todas as pedidos pendentes {n} deste requerente (pagamento{amount})"
+    "claimerBulkApproveTitle": "Aprove todas as pedidos pendentes {n} deste requerente (pagamento{amount})",
+    "overchargeEvidenceLabel": "OC item destruction GIF",
+    "overchargeEvidenceAlt": "OC item destruction evidence GIF",
+    "viewOverchargeEvidence": "View item destruction GIF"
   },
   "adminExchangeReview": {
     "pageTitle": "Pagamentos de prata no jogo",
@@ -5574,7 +5577,11 @@
     "allianceVideoSubmitFailedToast": "A solicitação regear foi enviada, mas o dever de conteúdo da aliança não pôde ser vinculado. Verifique o Gerenciamento da Taxa de Participação.",
     "allianceVideoLinkedTitle": "Vinculado a um dever de vídeo de conteúdo da aliança",
     "allianceVideoLinkedPending": "Este link não pode ser alterado enquanto o vídeo estiver aguardando a revisão do oficial.",
-    "allianceVideoLinkedApproved": "Este link não pode ser alterado porque o dever de vídeo de conteúdo da aliança já foi aprovado."
+    "allianceVideoLinkedApproved": "Este link não pode ser alterado porque o dever de vídeo de conteúdo da aliança já foi aprovado.",
+    "overchargeGifPrimaryLabel": "OC item destruction GIF (required)",
+    "overchargeGifHint": "Attach a GIF up to 10 MB that shows the item being destroyed after overcharging.",
+    "overchargeGifRequired": "Evidence 1 for an overcharge claim must be a GIF file.",
+    "screenshotWrongType": "This image format is not supported."
   },
   "killboardVerify": {
     "guildNameMissing": "O nome da guilda não está configurado; a verificação automática foi ignorada.",
@@ -7433,7 +7440,10 @@
     "memberTradeInvalidPrice": "Os pontos da unidade devem ser um número inteiro positivo.",
     "memberTradeDisputeReasonRequired": "Digite um motivo de disputa.",
     "memberTradeBuyerNotMember": "O comprador não é mais um membro da guilda.",
-    "memberTradeOfferNotPending": "Esta oferta de preço não está pendente."
+    "memberTradeOfferNotPending": "Esta oferta de preço não está pendente.",
+    "overchargeGifMissing": "Attach an item destruction GIF for the overcharge claim.",
+    "overchargeGifTooLarge": "The overcharge evidence GIF must be 10 MB or smaller.",
+    "overchargeGifWrongType": "Evidence 1 for an overcharge claim must be a GIF file."
   },
   "errors": {
     "title": "Algo deu errado",
@@ -10196,7 +10206,7 @@
     "eventNotPublished": "Este evento ainda não foi publicado.",
     "battleStarted": "Este evento já começou, então novas inscrições estão encerradas.",
     "notEligible": "Você não é elegível para se inscrever neste evento. Verifique seu status de verificação de membro.",
-    "albionVerificationRequired": "Albion verificação é necessária. Termine na página do evento: {url}",
+    "albionVerificationRequired": "Albion verificação é necessária. Termine na página do evento",
     "intentButton": "Inscrição provisória",
     "codeButton": "Aplicar por código",
     "browseButton": "Procurar slots",
@@ -10230,7 +10240,7 @@
     "codeModalLabel": "Código de slot",
     "codeModalPlaceholder": "Exemplo: A01",
     "codeInvalid": "Digite um código de slot válido, como A01.",
-    "codeRequiresWeb": "Este slot requer escolhas equipamento. Inscreva-se na página do evento: {url}",
+    "codeRequiresWeb": "Este slot requer escolhas equipamento. Inscreva-se na página do evento",
     "slotApplied": "Aplicado a `{code}` para **{title}**.",
     "slotPending": "Solicitação enviada para `{code}`. Um shotcaller ou gerente deve aprová-lo.",
     "slotTaken": "Esse espaço já está preenchido ou tem uma solicitação pendente.",
@@ -10238,7 +10248,8 @@
     "statusAssigned": "Você está designado para `{code}` · {role}.",
     "statusPending": "Sua solicitação para `{code}` · {role} está pendente de aprovação.",
     "statusTentative": "Funções provisórias: {roles}",
-    "statusNone": "Ainda não há inscrição. Consulte primeiro os lugares disponíveis ou use um código de lugar ou a inscrição provisória."
+    "statusNone": "Ainda não há inscrição. Consulte primeiro os lugares disponíveis ou use um código de lugar ou a inscrição provisória.",
+    "webSessionHint": "The button below keeps your current Discord guild and sign-in context."
   },
   "permissions": {
     "heading": "Permissões",
@@ -11016,5 +11027,19 @@
     "refundButton": "Comprador de reembolso",
     "demoReasonDeliveryConflict": "As partes discordam sobre se os itens foram entregues depois que a negociação foi marcada como concluída.",
     "demoReasonCancelBeforeDelivery": "O comprador solicitou o cancelamento antes da entrega."
+  },
+  "discordWebHandoff": {
+    "eyebrow": "Discord web handoff",
+    "title": "Your sign-in is ready to continue",
+    "description": "Sign in with the guild and member identity verified in Discord, then return directly to the task you selected.",
+    "continueButton": "Keep me signed in and continue",
+    "securityHint": "This one-time connection expires automatically after 5 minutes.",
+    "mobileTitle": "Continue safely on mobile",
+    "mobileDescription": "To use an external browser, open this address there first, then press Continue below.",
+    "discordHint": "Use Discord's top-right menu to open this page in your browser, then press Continue below.",
+    "genericHint": "Use the current app's menu to open this page in an external browser, then press Continue below.",
+    "expiredTitle": "This connection has expired",
+    "expiredDescription": "For security, a connection cannot be reopened after it is used or expires.",
+    "retryHint": "Return to the member panel in Discord and press the task button again."
   }
 }

@@ -1241,7 +1241,10 @@
     "claimerTotalClaim": "إجمالي الطلب {amount}",
     "claimerScreenshotCount": "{n} لقطات شاشة",
     "claimerBulkApproveButton": "الموافقة على المدعي",
-    "claimerBulkApproveTitle": "الموافقة على جميع الطلبات المعلقة {n} المعلقة من هذا المدعي ({amount} payout)"
+    "claimerBulkApproveTitle": "الموافقة على جميع الطلبات المعلقة {n} المعلقة من هذا المدعي ({amount} payout)",
+    "overchargeEvidenceLabel": "OC item destruction GIF",
+    "overchargeEvidenceAlt": "OC item destruction evidence GIF",
+    "viewOverchargeEvidence": "View item destruction GIF"
   },
   "adminExchangeReview": {
     "pageTitle": "مدفوعات الفضة داخل اللعبة",
@@ -5574,7 +5577,11 @@
     "allianceVideoSubmitFailedToast": "تم تقديم طلب regear، ولكن لا يمكن ربط واجب محتوى التحالف. تحقق من إدارة معدل المشاركة.",
     "allianceVideoLinkedTitle": "مرتبط بواجب فيديو محتوى التحالف",
     "allianceVideoLinkedPending": "لا يمكن تغيير هذا الرابط أثناء انتظار الفيديو لمراجعة الضابط.",
-    "allianceVideoLinkedApproved": "لا يمكن تغيير هذا الرابط لأن واجب فيديو محتوى التحالف قد تمت الموافقة عليه بالفعل."
+    "allianceVideoLinkedApproved": "لا يمكن تغيير هذا الرابط لأن واجب فيديو محتوى التحالف قد تمت الموافقة عليه بالفعل.",
+    "overchargeGifPrimaryLabel": "OC item destruction GIF (required)",
+    "overchargeGifHint": "Attach a GIF up to 10 MB that shows the item being destroyed after overcharging.",
+    "overchargeGifRequired": "Evidence 1 for an overcharge claim must be a GIF file.",
+    "screenshotWrongType": "This image format is not supported."
   },
   "killboardVerify": {
     "guildNameMissing": "لم يتم تكوين اسم النقابة؛ تم تخطي التحقق التلقائي.",
@@ -7433,7 +7440,10 @@
     "memberTradeInvalidPrice": "يجب أن تكون نقاط الوحدة رقما صحيحا موجبا.",
     "memberTradeDisputeReasonRequired": "أدخل سبب النزاع.",
     "memberTradeBuyerNotMember": "لم يعد المشتري عضوا في النقابة.",
-    "memberTradeOfferNotPending": "عرض السعر هذا ليس معلقا."
+    "memberTradeOfferNotPending": "عرض السعر هذا ليس معلقا.",
+    "overchargeGifMissing": "Attach an item destruction GIF for the overcharge claim.",
+    "overchargeGifTooLarge": "The overcharge evidence GIF must be 10 MB or smaller.",
+    "overchargeGifWrongType": "Evidence 1 for an overcharge claim must be a GIF file."
   },
   "errors": {
     "title": "حدث خطأ ما",
@@ -10196,7 +10206,7 @@
     "eventNotPublished": "لم يتم نشر هذا الحدث بعد.",
     "battleStarted": "لقد بدأ هذا الحدث بالفعل، لذلك تم إغلاق التسجيلات الجديدة.",
     "notEligible": "أنت غير مؤهل للتقدم لهذا الحدث. تحقق من حالة التحقق من عضويتك.",
-    "albionVerificationRequired": "مطلوب التحقق من Albion. أنهيه في صفحة الحدث: {url}",
+    "albionVerificationRequired": "مطلوب التحقق من Albion. أنهيه في صفحة الحدث",
     "intentButton": "تسجيل مبدئي",
     "codeButton": "تقدم بطلب عن طريق الرمز",
     "browseButton": "تصفح الخانات",
@@ -10230,7 +10240,7 @@
     "codeModalLabel": "رمز الخانة",
     "codeModalPlaceholder": "مثال: A01",
     "codeInvalid": "أدخل رمز خانة صالح مثل A01.",
-    "codeRequiresWeb": "تتطلب هذه الخانة خيارات Gear. تقدم بطلب في صفحة الحدث: {url}",
+    "codeRequiresWeb": "تتطلب هذه الخانة خيارات Gear. تقدم بطلب في صفحة الحدث",
     "slotApplied": "مطبق على `{code}` ل **{title}**.",
     "slotPending": "تم إرسال الطلب ل `{code}`. يجب على Shotcaller أو المدير الموافقة عليه.",
     "slotTaken": "تم ملء هذه الخانة بالفعل أو لديها طلب معلق.",
@@ -10238,7 +10248,8 @@
     "statusAssigned": "تم تعيينك إلى `{code}` · {role}.",
     "statusPending": "طلبك ل `{code}` · {role} في انتظار الموافقة.",
     "statusTentative": "الأدوار المبدئية: {roles}",
-    "statusNone": "لا يوجد تسجيل بعد. تصفح الخانات الشاغرة أولًا، أو استخدم رمز الخانة أو التسجيل المبدئي."
+    "statusNone": "لا يوجد تسجيل بعد. تصفح الخانات الشاغرة أولًا، أو استخدم رمز الخانة أو التسجيل المبدئي.",
+    "webSessionHint": "The button below keeps your current Discord guild and sign-in context."
   },
   "permissions": {
     "heading": "الأذونات",
@@ -11016,5 +11027,19 @@
     "refundButton": "استرداد المشتري",
     "demoReasonDeliveryConflict": "يختلف الطرفان حول ما إذا كانت العناصر قد تم تسليمها بعد أن تم وضع علامة على التجارة كاملة.",
     "demoReasonCancelBeforeDelivery": "طلب المشتري الإلغاء قبل التسليم."
+  },
+  "discordWebHandoff": {
+    "eyebrow": "Discord web handoff",
+    "title": "Your sign-in is ready to continue",
+    "description": "Sign in with the guild and member identity verified in Discord, then return directly to the task you selected.",
+    "continueButton": "Keep me signed in and continue",
+    "securityHint": "This one-time connection expires automatically after 5 minutes.",
+    "mobileTitle": "Continue safely on mobile",
+    "mobileDescription": "To use an external browser, open this address there first, then press Continue below.",
+    "discordHint": "Use Discord's top-right menu to open this page in your browser, then press Continue below.",
+    "genericHint": "Use the current app's menu to open this page in an external browser, then press Continue below.",
+    "expiredTitle": "This connection has expired",
+    "expiredDescription": "For security, a connection cannot be reopened after it is used or expires.",
+    "retryHint": "Return to the member panel in Discord and press the task button again."
   }
 }

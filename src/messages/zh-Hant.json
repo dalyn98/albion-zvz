@@ -1241,7 +1241,10 @@
     "claimerTotalClaim": "總申請{amount}",
     "claimerScreenshotCount": "{n}截圖",
     "claimerBulkApproveButton": "批准申請者",
-    "claimerBulkApproveTitle": "批准該申請者的所有{n}待定申請（{amount}付款）"
+    "claimerBulkApproveTitle": "批准該申請者的所有{n}待定申請（{amount}付款）",
+    "overchargeEvidenceLabel": "OC item destruction GIF",
+    "overchargeEvidenceAlt": "OC item destruction evidence GIF",
+    "viewOverchargeEvidence": "View item destruction GIF"
   },
   "adminExchangeReview": {
     "pageTitle": "遊戲內銀幣發放",
@@ -5574,7 +5577,11 @@
     "allianceVideoSubmitFailedToast": "補裝請求已提交，但無法關聯聯盟內容義務。 檢查參與率管理。",
     "allianceVideoLinkedTitle": "連結到聯盟內容影片職責",
     "allianceVideoLinkedPending": "當影片等待幹部審查時，此連結無法更改。",
-    "allianceVideoLinkedApproved": "此連結無法更改，因為聯盟內容影片任務已獲批准。"
+    "allianceVideoLinkedApproved": "此連結無法更改，因為聯盟內容影片任務已獲批准。",
+    "overchargeGifPrimaryLabel": "OC item destruction GIF (required)",
+    "overchargeGifHint": "Attach a GIF up to 10 MB that shows the item being destroyed after overcharging.",
+    "overchargeGifRequired": "Evidence 1 for an overcharge claim must be a GIF file.",
+    "screenshotWrongType": "This image format is not supported."
   },
   "killboardVerify": {
     "guildNameMissing": "未設定公會名稱；自動驗證被跳過。",
@@ -7433,7 +7440,10 @@
     "memberTradeInvalidPrice": "單位點必須是正整數。",
     "memberTradeDisputeReasonRequired": "輸入爭議原因。",
     "memberTradeBuyerNotMember": "買家不再是公會成員。",
-    "memberTradeOfferNotPending": "此報價未待定。"
+    "memberTradeOfferNotPending": "此報價未待定。",
+    "overchargeGifMissing": "Attach an item destruction GIF for the overcharge claim.",
+    "overchargeGifTooLarge": "The overcharge evidence GIF must be 10 MB or smaller.",
+    "overchargeGifWrongType": "Evidence 1 for an overcharge claim must be a GIF file."
   },
   "errors": {
     "title": "出了點問題",
@@ -10196,7 +10206,7 @@
     "eventNotPublished": "此活動尚未釋出。",
     "battleStarted": "這個活動已經開始了，所以新的註冊已經關閉。",
     "notEligible": "您沒有資格申請此活動。 檢查您的成員驗證狀態。",
-    "albionVerificationRequired": "Albion需要驗證。 在活動頁面上完成：{url}",
+    "albionVerificationRequired": "Albion需要驗證。 在活動頁面上完成",
     "intentButton": "參加意向登記",
     "codeButton": "按程式申請",
     "browseButton": "瀏覽插槽",
@@ -10230,7 +10240,7 @@
     "codeModalLabel": "插槽程式",
     "codeModalPlaceholder": "示例：A01",
     "codeInvalid": "輸入有效的插槽程式，例如A01。",
-    "codeRequiresWeb": "這個插槽需要裝備選項。 在活動頁面上申請：{url}",
+    "codeRequiresWeb": "這個插槽需要裝備選項。 在活動頁面上申請",
     "slotApplied": "適用於`{code}`，用於**{title}**。",
     "slotPending": "請求已傳送`{code}`。 指揮或經理必須批准它。",
     "slotTaken": "該時段已滿或有待處理的請求。",
@@ -10238,7 +10248,8 @@
     "statusAssigned": "您被分配到`{code}` · {role}。",
     "statusPending": "您對`{code}` · {role}的請求正在等待批准。",
     "statusTentative": "參加意向角色：{roles}",
-    "statusNone": "尚無報名記錄。請先查看空位報名，也可使用位置代碼或登記參加意向。"
+    "statusNone": "尚無報名記錄。請先查看空位報名，也可使用位置代碼或登記參加意向。",
+    "webSessionHint": "The button below keeps your current Discord guild and sign-in context."
   },
   "permissions": {
     "heading": "權限",
@@ -11016,5 +11027,19 @@
     "refundButton": "退款給買家",
     "demoReasonDeliveryConflict": "雙方對交易標記完成後是否交付物品存在分歧。",
     "demoReasonCancelBeforeDelivery": "買家在交貨前要求取消。"
+  },
+  "discordWebHandoff": {
+    "eyebrow": "Discord web handoff",
+    "title": "Your sign-in is ready to continue",
+    "description": "Sign in with the guild and member identity verified in Discord, then return directly to the task you selected.",
+    "continueButton": "Keep me signed in and continue",
+    "securityHint": "This one-time connection expires automatically after 5 minutes.",
+    "mobileTitle": "Continue safely on mobile",
+    "mobileDescription": "To use an external browser, open this address there first, then press Continue below.",
+    "discordHint": "Use Discord's top-right menu to open this page in your browser, then press Continue below.",
+    "genericHint": "Use the current app's menu to open this page in an external browser, then press Continue below.",
+    "expiredTitle": "This connection has expired",
+    "expiredDescription": "For security, a connection cannot be reopened after it is used or expires.",
+    "retryHint": "Return to the member panel in Discord and press the task button again."
   }
 }

@@ -1241,7 +1241,10 @@
     "claimerTotalClaim": "Całkowite wniosek {amount}",
     "claimerScreenshotCount": "{n} zrzuty ekranu",
     "claimerBulkApproveButton": "Zatwierdź wnioskodawcę",
-    "claimerBulkApproveTitle": "Zatwierdź wszystkie {n} oczekujące wnioski od tego wnioskodawcy ({amount} wypłata)"
+    "claimerBulkApproveTitle": "Zatwierdź wszystkie {n} oczekujące wnioski od tego wnioskodawcy ({amount} wypłata)",
+    "overchargeEvidenceLabel": "OC item destruction GIF",
+    "overchargeEvidenceAlt": "OC item destruction evidence GIF",
+    "viewOverchargeEvidence": "View item destruction GIF"
   },
   "adminExchangeReview": {
     "pageTitle": "Wypłaty srebra w grze",
@@ -5574,7 +5577,11 @@
     "allianceVideoSubmitFailedToast": "Żądanie regear zostało złożone, ale obowiązek treści sojuszu nie mógł zostać połączony. Sprawdź Zarządzanie Wskaźnikami Uczestnictwa.",
     "allianceVideoLinkedTitle": "Powiązany z obowiązkiem wideo treści sojuszu",
     "allianceVideoLinkedPending": "Ten link nie może zostać zmieniony, gdy film oczekuje na weryfikację przez oficera.",
-    "allianceVideoLinkedApproved": "Ten link nie może zostać zmieniony, ponieważ obowiązek treści wideo sojuszu jest już zatwierdzony."
+    "allianceVideoLinkedApproved": "Ten link nie może zostać zmieniony, ponieważ obowiązek treści wideo sojuszu jest już zatwierdzony.",
+    "overchargeGifPrimaryLabel": "OC item destruction GIF (required)",
+    "overchargeGifHint": "Attach a GIF up to 10 MB that shows the item being destroyed after overcharging.",
+    "overchargeGifRequired": "Evidence 1 for an overcharge claim must be a GIF file.",
+    "screenshotWrongType": "This image format is not supported."
   },
   "killboardVerify": {
     "guildNameMissing": "Nazwa gildii nie jest skonfigurowana; automatyczna weryfikacja została pominięta.",
@@ -7433,7 +7440,10 @@
     "memberTradeInvalidPrice": "Punkty jednostkowe muszą być dodatnią liczbą całkowitą.",
     "memberTradeDisputeReasonRequired": "Wprowadź przyczynę sporu.",
     "memberTradeBuyerNotMember": "Kupujący nie jest już członkiem gildii.",
-    "memberTradeOfferNotPending": "Ta oferta cenowa nie jest w toku."
+    "memberTradeOfferNotPending": "Ta oferta cenowa nie jest w toku.",
+    "overchargeGifMissing": "Attach an item destruction GIF for the overcharge claim.",
+    "overchargeGifTooLarge": "The overcharge evidence GIF must be 10 MB or smaller.",
+    "overchargeGifWrongType": "Evidence 1 for an overcharge claim must be a GIF file."
   },
   "errors": {
     "title": "Coś poszło nie tak",
@@ -10196,7 +10206,7 @@
     "eventNotPublished": "To wydarzenie nie zostało jeszcze opublikowane.",
     "battleStarted": "To wydarzenie już się rozpoczęło, więc nowe zapisy są zamknięte.",
     "notEligible": "Nie kwalifikujesz się do aplikowania na to wydarzenie. Sprawdź status weryfikacji członka.",
-    "albionVerificationRequired": "Wymagana jest weryfikacja Albion. Zakończ to na stronie wydarzenia: {url}",
+    "albionVerificationRequired": "Wymagana jest weryfikacja Albion. Zakończ to na stronie wydarzenia",
     "intentButton": "Zgłoszenie wstępne",
     "codeButton": "Zastosuj za pomocą kodu",
     "browseButton": "Przeglądaj sloty",
@@ -10230,7 +10240,7 @@
     "codeModalLabel": "Kod slotu",
     "codeModalPlaceholder": "Przykład: A01",
     "codeInvalid": "Wprowadź prawidłowy kod slotu, taki jak A01.",
-    "codeRequiresWeb": "Ten slot wymaga wyborów ekwipunek. Aplikuj na stronie wydarzenia: {url}",
+    "codeRequiresWeb": "Ten slot wymaga wyborów ekwipunek. Aplikuj na stronie wydarzenia",
     "slotApplied": "Zastosowany do `{code}` dla **{title}**.",
     "slotPending": "Wysłano żądanie dla `{code}`. caller lub menedżer musi to zatwierdzić.",
     "slotTaken": "To miejsce jest już wypełnione lub ma oczekujące żądanie.",
@@ -10238,7 +10248,8 @@
     "statusAssigned": "Jesteś przypisany do `{code}` · {role}.",
     "statusPending": "Twoja prośba o `{code}` · {role} oczekuje na zatwierdzenie.",
     "statusTentative": "Wstępne role: {roles}",
-    "statusNone": "Brak zgłoszenia. Najpierw przejrzyj wolne sloty albo użyj kodu slotu lub zgłoszenia wstępnego."
+    "statusNone": "Brak zgłoszenia. Najpierw przejrzyj wolne sloty albo użyj kodu slotu lub zgłoszenia wstępnego.",
+    "webSessionHint": "The button below keeps your current Discord guild and sign-in context."
   },
   "permissions": {
     "heading": "Uprawnienia",
@@ -11016,5 +11027,19 @@
     "refundButton": "Zwrot kupującego",
     "demoReasonDeliveryConflict": "Strony nie zgadzają się co do tego, czy przedmioty zostały dostarczone po tym, jak transakcja została oznaczona jako ukończona.",
     "demoReasonCancelBeforeDelivery": "Kupujący zażądał anulowania przed dostawą."
+  },
+  "discordWebHandoff": {
+    "eyebrow": "Discord web handoff",
+    "title": "Your sign-in is ready to continue",
+    "description": "Sign in with the guild and member identity verified in Discord, then return directly to the task you selected.",
+    "continueButton": "Keep me signed in and continue",
+    "securityHint": "This one-time connection expires automatically after 5 minutes.",
+    "mobileTitle": "Continue safely on mobile",
+    "mobileDescription": "To use an external browser, open this address there first, then press Continue below.",
+    "discordHint": "Use Discord's top-right menu to open this page in your browser, then press Continue below.",
+    "genericHint": "Use the current app's menu to open this page in an external browser, then press Continue below.",
+    "expiredTitle": "This connection has expired",
+    "expiredDescription": "For security, a connection cannot be reopened after it is used or expires.",
+    "retryHint": "Return to the member panel in Discord and press the task button again."
   }
 }

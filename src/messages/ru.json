@@ -1241,7 +1241,10 @@
     "claimerTotalClaim": "Общая заявка {amount}",
     "claimerScreenshotCount": "{n} скриншоты",
     "claimerBulkApproveButton": "Утвердить заявитела",
-    "claimerBulkApproveTitle": "Утвердить все {n} ожидающие рассмотрения заявки от этого заявителя ({amount} выплата)"
+    "claimerBulkApproveTitle": "Утвердить все {n} ожидающие рассмотрения заявки от этого заявителя ({amount} выплата)",
+    "overchargeEvidenceLabel": "OC item destruction GIF",
+    "overchargeEvidenceAlt": "OC item destruction evidence GIF",
+    "viewOverchargeEvidence": "View item destruction GIF"
   },
   "adminExchangeReview": {
     "pageTitle": "Выплаты серебра в игре",
@@ -5574,7 +5577,11 @@
     "allianceVideoSubmitFailedToast": "Запрос regear был отправлен, но обязанность контента альянса не может быть связана. Проверьте Управление Уровнем Участия.",
     "allianceVideoLinkedTitle": "Связан с видеообязанностью по содержанию альянса",
     "allianceVideoLinkedPending": "Эта ссылка не может быть изменена, пока видео ожидает рассмотрения офицером.",
-    "allianceVideoLinkedApproved": "Эта ссылка не может быть изменена, потому что обязанность видео контента альянса уже одобрена."
+    "allianceVideoLinkedApproved": "Эта ссылка не может быть изменена, потому что обязанность видео контента альянса уже одобрена.",
+    "overchargeGifPrimaryLabel": "OC item destruction GIF (required)",
+    "overchargeGifHint": "Attach a GIF up to 10 MB that shows the item being destroyed after overcharging.",
+    "overchargeGifRequired": "Evidence 1 for an overcharge claim must be a GIF file.",
+    "screenshotWrongType": "This image format is not supported."
   },
   "killboardVerify": {
     "guildNameMissing": "Имя гильдии не настроено; автоматическая проверка была пропущена.",
@@ -7433,7 +7440,10 @@
     "memberTradeInvalidPrice": "Единичные баллы должны быть положительным целым числом.",
     "memberTradeDisputeReasonRequired": "Введите причину спора.",
     "memberTradeBuyerNotMember": "Покупатель больше не является членом гильдии.",
-    "memberTradeOfferNotPending": "Это ценовое предложение не находится на рассмотрении."
+    "memberTradeOfferNotPending": "Это ценовое предложение не находится на рассмотрении.",
+    "overchargeGifMissing": "Attach an item destruction GIF for the overcharge claim.",
+    "overchargeGifTooLarge": "The overcharge evidence GIF must be 10 MB or smaller.",
+    "overchargeGifWrongType": "Evidence 1 for an overcharge claim must be a GIF file."
   },
   "errors": {
     "title": "Что-то пошло не так",
@@ -10196,7 +10206,7 @@
     "eventNotPublished": "Это событие еще не опубликовано.",
     "battleStarted": "Это мероприятие уже началось, поэтому новые регистрации закрыты.",
     "notEligible": "Вы не имеете права подавать заявку на это мероприятие. Проверьте статус проверки участника.",
-    "albionVerificationRequired": "Требуется проверка Albion. Завершите это на странице мероприятия: {url}",
+    "albionVerificationRequired": "Требуется проверка Albion. Завершите это на странице мероприятия",
     "intentButton": "Предварительная запись",
     "codeButton": "Применить по коду",
     "browseButton": "Просмотр слотов",
@@ -10230,7 +10240,7 @@
     "codeModalLabel": "Код слота",
     "codeModalPlaceholder": "Пример: A01",
     "codeInvalid": "Введите действительный код слота, например A01.",
-    "codeRequiresWeb": "Этот слот требует выбора снаряжение. Подать заявку на странице мероприятия: {url}",
+    "codeRequiresWeb": "Этот слот требует выбора снаряжение. Подать заявку на странице мероприятия",
     "slotApplied": "Применяется к `{code}` для **{title}**.",
     "slotPending": "Запрос отправлен для `{code}`. коллер или менеджер должен одобрить его.",
     "slotTaken": "Этот слот уже заполнен или имеет ожидающий запрос.",
@@ -10238,7 +10248,8 @@
     "statusAssigned": "Вы назначены `{code}` · {role}.",
     "statusPending": "Ваш запрос на `{code}` · {role} ожидает утверждения.",
     "statusTentative": "Предварительные роли: {roles}",
-    "statusNone": "Записи пока нет. Сначала просмотрите свободные слоты либо используйте код слота или предварительную запись."
+    "statusNone": "Записи пока нет. Сначала просмотрите свободные слоты либо используйте код слота или предварительную запись.",
+    "webSessionHint": "The button below keeps your current Discord guild and sign-in context."
   },
   "permissions": {
     "heading": "Разрешения",
@@ -11016,5 +11027,19 @@
     "refundButton": "Возврат денег покупателю",
     "demoReasonDeliveryConflict": "Стороны не согласны с тем, были ли товары доставлены после того, как сделка была отмечена как завершена.",
     "demoReasonCancelBeforeDelivery": "Покупатель запросил отмену до доставки."
+  },
+  "discordWebHandoff": {
+    "eyebrow": "Discord web handoff",
+    "title": "Your sign-in is ready to continue",
+    "description": "Sign in with the guild and member identity verified in Discord, then return directly to the task you selected.",
+    "continueButton": "Keep me signed in and continue",
+    "securityHint": "This one-time connection expires automatically after 5 minutes.",
+    "mobileTitle": "Continue safely on mobile",
+    "mobileDescription": "To use an external browser, open this address there first, then press Continue below.",
+    "discordHint": "Use Discord's top-right menu to open this page in your browser, then press Continue below.",
+    "genericHint": "Use the current app's menu to open this page in an external browser, then press Continue below.",
+    "expiredTitle": "This connection has expired",
+    "expiredDescription": "For security, a connection cannot be reopened after it is used or expires.",
+    "retryHint": "Return to the member panel in Discord and press the task button again."
   }
 }
