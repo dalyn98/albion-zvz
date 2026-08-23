@@ -60,10 +60,12 @@ describeIntegration('event operational cancellation', () => {
       .single()
     expect(cancelled).toMatchObject({
       status: 'cancelled',
-      battle_started_at: startedAt,
       operational_cancelled_by: 'admin-1',
       exclude_from_participation_stats: true,
     })
+    expect(new Date(cancelled?.battle_started_at ?? '').getTime()).toBe(
+      new Date(startedAt).getTime(),
+    )
     expect(cancelled?.operational_cancelled_at).toEqual(expect.any(String))
     expect(cancelled?.auto_regear_processed_at).toEqual(expect.any(String))
 
