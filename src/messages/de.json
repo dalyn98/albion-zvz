@@ -10197,13 +10197,13 @@
     "battleStarted": "Dieses Event hat bereits begonnen, also sind neue Anmeldungen geschlossen.",
     "notEligible": "Sie sind nicht berechtigt, sich für diese Veranstaltung zu bewerben. Überprüfen Sie Ihren Mitgliederverifizierungsstatus.",
     "albionVerificationRequired": "Albion Überprüfung ist erforderlich. Beenden Sie es auf der Veranstaltungsseite: {url}",
-    "intentButton": "Absicht beitreten",
+    "intentButton": "Vorläufig anmelden",
     "codeButton": "Nach Code bewerben",
     "browseButton": "Slots durchsuchen",
     "statusButton": "Mein Status",
     "openButton": "Web öffnen",
     "intentSelectPlaceholder": "Wählen Sie mögliche Rollen",
-    "intentSaved": "Gespeichert Ihre Absicht für **{title}**: {roles}",
+    "intentSaved": "Vorläufige Anmeldung für **{title}** gespeichert: {roles}",
     "browseSelectPlaceholder": "Leere Slots nach Rolle filtern",
     "browseTitle": "**{title}** leere Slots · {role} · Seite {page}/{pages}",
     "browseEmpty": "Keine leeren Slots entsprechen diesem Filter. Öffnen Sie die Veranstaltungsseite für die vollständige Liste.",
@@ -10237,8 +10237,8 @@
     "alreadyInEvent": "Sie haben bereits einen Slot oder eine ausstehende Anfrage in diesem Fall.",
     "statusAssigned": "Sie sind `{code}` · {role} zugeordnet.",
     "statusPending": "Ihre Anfrage für `{code}` · {role} steht noch zur Genehmigung an.",
-    "statusTentative": "Teilnehmende Absichtsrollen: {roles}",
-    "statusNone": "Noch keine Anmeldung für diese Veranstaltung gefunden. Verwenden Sie Join Intent, Code oder Browse Slots."
+    "statusTentative": "Vorläufige Rollen: {roles}",
+    "statusNone": "Noch keine Anmeldung. Sehen Sie zuerst freie Slots an oder nutzen Sie einen Slot-Code bzw. die vorläufige Anmeldung."
   },
   "permissions": {
     "heading": "Berechtigungen",

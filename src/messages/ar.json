@@ -10197,13 +10197,13 @@
     "battleStarted": "لقد بدأ هذا الحدث بالفعل، لذلك تم إغلاق التسجيلات الجديدة.",
     "notEligible": "أنت غير مؤهل للتقدم لهذا الحدث. تحقق من حالة التحقق من عضويتك.",
     "albionVerificationRequired": "مطلوب التحقق من Albion. أنهيه في صفحة الحدث: {url}",
-    "intentButton": "انضم إلى النية",
+    "intentButton": "تسجيل مبدئي",
     "codeButton": "تقدم بطلب عن طريق الرمز",
     "browseButton": "تصفح الخانات",
     "statusButton": "وضعي",
     "openButton": "شبكة مفتوحة",
     "intentSelectPlaceholder": "اختر الأدوار الممكنة",
-    "intentSaved": "حفظ نيتك من أجل **{title}**: {roles}",
+    "intentSaved": "تم حفظ التسجيل المبدئي لـ **{title}**: {roles}",
     "browseSelectPlaceholder": "تصفية الخانات الفارغة حسب الدور",
     "browseTitle": "**{title}** خانات فارغة · {role} · صفحة {page}/{pages}",
     "browseEmpty": "لا توجد خانات فارغة تتطابق مع هذا الفلتر. افتح صفحة الحدث للقائمة الكاملة.",
@@ -10237,8 +10237,8 @@
     "alreadyInEvent": "لديك بالفعل خانة أو طلب معلق في هذا الحدث.",
     "statusAssigned": "تم تعيينك إلى `{code}` · {role}.",
     "statusPending": "طلبك ل `{code}` · {role} في انتظار الموافقة.",
-    "statusTentative": "انضم إلى أدوار النية: {roles}",
-    "statusNone": "لم يتم العثور على تسجيل لهذا الحدث حتى الآن. استخدم نية الانضمام أو الرمز أو خانات التصفح."
+    "statusTentative": "الأدوار المبدئية: {roles}",
+    "statusNone": "لا يوجد تسجيل بعد. تصفح الخانات الشاغرة أولًا، أو استخدم رمز الخانة أو التسجيل المبدئي."
   },
   "permissions": {
     "heading": "الأذونات",

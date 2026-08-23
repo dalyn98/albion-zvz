@@ -10197,13 +10197,13 @@
     "battleStarted": "這個活動已經開始了，所以新的註冊已經關閉。",
     "notEligible": "您沒有資格申請此活動。 檢查您的成員驗證狀態。",
     "albionVerificationRequired": "Albion需要驗證。 在活動頁面上完成：{url}",
-    "intentButton": "加入意圖",
+    "intentButton": "參加意向登記",
     "codeButton": "按程式申請",
     "browseButton": "瀏覽插槽",
     "statusButton": "我的狀態",
     "openButton": "開啟網路",
     "intentSelectPlaceholder": "選擇可能的角色",
-    "intentSaved": "儲存了您的意圖**{title}**：{roles}",
+    "intentSaved": "已儲存 **{title}** 的參加意向：{roles}",
     "browseSelectPlaceholder": "按角色篩選空位",
     "browseTitle": "**{title}**空插槽·{role}·頁面{page}/{pages}",
     "browseEmpty": "沒有與此過濾器匹配的空插槽。 開啟活動頁面檢視完整名冊。",
@@ -10237,8 +10237,8 @@
     "alreadyInEvent": "在此事件中，您已經有一個時段或待處理的請求。",
     "statusAssigned": "您被分配到`{code}` · {role}。",
     "statusPending": "您對`{code}` · {role}的請求正在等待批准。",
-    "statusTentative": "加入意圖角色：{roles}",
-    "statusNone": "尚未找到此活動的註冊。 使用加入意圖、程式或瀏覽插槽。"
+    "statusTentative": "參加意向角色：{roles}",
+    "statusNone": "尚無報名記錄。請先查看空位報名，也可使用位置代碼或登記參加意向。"
   },
   "permissions": {
     "heading": "權限",

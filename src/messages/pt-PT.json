@@ -10197,13 +10197,13 @@
     "battleStarted": "Este evento já começou, então novas inscrições estão encerradas.",
     "notEligible": "Você não é elegível para se inscrever neste evento. Verifique seu status de verificação de membro.",
     "albionVerificationRequired": "Albion verificação é necessária. Termine na página do evento: {url}",
-    "intentButton": "Junte-se à intenção",
+    "intentButton": "Inscrição provisória",
     "codeButton": "Aplicar por código",
     "browseButton": "Procurar slots",
     "statusButton": "Meu status",
     "openButton": "Web aberta",
     "intentSelectPlaceholder": "Escolha possíveis funções",
-    "intentSaved": "Salvou sua intenção para **{title}**: {roles}",
+    "intentSaved": "Inscrição provisória guardada para **{title}**: {roles}",
     "browseSelectPlaceholder": "Filtrar slots vazios por função",
     "browseTitle": "**{title}** vagas vazias · {role} · página {page}/{pages}",
     "browseEmpty": "Nenhum slot vazio corresponde a este filtro. Abra a página do evento para a lista completa.",
@@ -10237,8 +10237,8 @@
     "alreadyInEvent": "Você já tem um slot ou solicitação pendente neste evento.",
     "statusAssigned": "Você está designado para `{code}` · {role}.",
     "statusPending": "Sua solicitação para `{code}` · {role} está pendente de aprovação.",
-    "statusTentative": "Junte-se às funções de intenção: {roles}",
-    "statusNone": "Nenhuma inscrição encontrada para este evento ainda. Use intenção de adesão, código ou slots de navegação."
+    "statusTentative": "Funções provisórias: {roles}",
+    "statusNone": "Ainda não há inscrição. Consulte primeiro os lugares disponíveis ou use um código de lugar ou a inscrição provisória."
   },
   "permissions": {
     "heading": "Permissões",

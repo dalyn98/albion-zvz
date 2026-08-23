@@ -10197,13 +10197,13 @@
     "battleStarted": "To wydarzenie już się rozpoczęło, więc nowe zapisy są zamknięte.",
     "notEligible": "Nie kwalifikujesz się do aplikowania na to wydarzenie. Sprawdź status weryfikacji członka.",
     "albionVerificationRequired": "Wymagana jest weryfikacja Albion. Zakończ to na stronie wydarzenia: {url}",
-    "intentButton": "Dołącz do zamiaru",
+    "intentButton": "Zgłoszenie wstępne",
     "codeButton": "Zastosuj za pomocą kodu",
     "browseButton": "Przeglądaj sloty",
     "statusButton": "Mój status",
     "openButton": "Otwórz sieć",
     "intentSelectPlaceholder": "Wybierz możliwe role",
-    "intentSaved": "Zapisałem twój zamiar dla **{title}**: {roles}",
+    "intentSaved": "Zapisano zgłoszenie wstępne na **{title}**: {roles}",
     "browseSelectPlaceholder": "Filtruj puste sloty według roli",
     "browseTitle": "**{title}** puste sloty · {role} · strona {page}/{pages}",
     "browseEmpty": "Brak pustych slotów pasujących do tego filtra. Otwórz stronę wydarzenia, aby uzyskać pełny skład.",
@@ -10237,8 +10237,8 @@
     "alreadyInEvent": "Masz już miejsce lub oczekujące żądanie w tym wydarzeniu.",
     "statusAssigned": "Jesteś przypisany do `{code}` · {role}.",
     "statusPending": "Twoja prośba o `{code}` · {role} oczekuje na zatwierdzenie.",
-    "statusTentative": "Dołącz do ról intencji: {roles}",
-    "statusNone": "Nie znaleziono jeszcze rejestracji na to wydarzenie. Użyj intencji dołączenia, kodu lub przeglądaj sloty."
+    "statusTentative": "Wstępne role: {roles}",
+    "statusNone": "Brak zgłoszenia. Najpierw przejrzyj wolne sloty albo użyj kodu slotu lub zgłoszenia wstępnego."
   },
   "permissions": {
     "heading": "Uprawnienia",

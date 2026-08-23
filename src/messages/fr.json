@@ -10197,13 +10197,13 @@
     "battleStarted": "Cet événement a déjà commencé, donc les nouvelles inscriptions sont fermées.",
     "notEligible": "Vous n'êtes pas éligible pour postuler à cet événement. Vérifiez l'état de vérification de votre membre.",
     "albionVerificationRequired": "Albion la vérification est requise. Terminez-le sur la page de l'événement : {url}",
-    "intentButton": "Rejoindre l'intention",
+    "intentButton": "Inscription provisoire",
     "codeButton": "Postuler par code",
     "browseButton": "Parcourir les emplacements horaires",
     "statusButton": "Mon statut",
     "openButton": "Web ouvert",
     "intentSelectPlaceholder": "Choisissez des rôles possibles",
-    "intentSaved": "Enregistré votre intention pour **{title}** : {roles}",
+    "intentSaved": "Inscription provisoire enregistrée pour **{title}** : {roles}",
     "browseSelectPlaceholder": "Filtrer les emplacements vides par rôle",
     "browseTitle": "**{title}** emplacements vides · {role} · page {page}/{pages}",
     "browseEmpty": "Aucun emplacement vide ne correspond à ce filtre. Ouvrez la page de l'événement pour la liste complète.",
@@ -10237,8 +10237,8 @@
     "alreadyInEvent": "Vous avez déjà un emplacement ou une demande en attente dans cet événement.",
     "statusAssigned": "Vous êtes affecté à `{code}` · {role}.",
     "statusPending": "Votre demande pour `{code}` · {role} est en attente d'approbation.",
-    "statusTentative": "Rejoignez les rôles d'intention : {roles}",
-    "statusNone": "Aucune inscription n'a encore été trouvée pour cet événement. Utilisez l'intention de rejoindre, le code ou les emplacements de navigation."
+    "statusTentative": "Rôles provisoires : {roles}",
+    "statusNone": "Aucune inscription. Consultez d'abord les places libres, ou utilisez un code de place ou l'inscription provisoire."
   },
   "permissions": {
     "heading": "Autorisations",

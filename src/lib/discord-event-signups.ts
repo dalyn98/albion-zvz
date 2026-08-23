@@ -279,7 +279,7 @@ export async function loadDiscordEventSignupMessages(
     battleStarted: ns.battleStarted ?? 'This event has already started.',
     notEligible: ns.notEligible ?? 'You are not eligible to apply to this event.',
     albionVerificationRequired: ns.albionVerificationRequired ?? 'Albion verification is required. Open the event page: {url}',
-    intentButton: ns.intentButton ?? 'Intent',
+    intentButton: ns.intentButton ?? 'Tentative signup',
     codeButton: ns.codeButton ?? 'Code',
     browseButton: ns.browseButton ?? 'Browse',
     statusButton: ns.statusButton ?? 'My status',
@@ -341,6 +341,17 @@ export function buildDiscordEventSignupComponents(input: {
         {
           type: 2,
           style: 1,
+          label: input.labels.browseButton,
+          custom_id: customId('browse', input.eventId),
+        },
+      ],
+    },
+    {
+      type: 1,
+      components: [
+        {
+          type: 2,
+          style: 2,
           label: input.labels.intentButton,
           custom_id: customId('intent', input.eventId),
         },
@@ -349,12 +360,6 @@ export function buildDiscordEventSignupComponents(input: {
           style: 2,
           label: input.labels.codeButton,
           custom_id: customId('code', input.eventId),
-        },
-        {
-          type: 2,
-          style: 2,
-          label: input.labels.browseButton,
-          custom_id: customId('browse', input.eventId),
         },
         {
           type: 2,

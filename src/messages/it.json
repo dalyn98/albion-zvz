@@ -10197,13 +10197,13 @@
     "battleStarted": "Questo evento è già iniziato, quindi le nuove iscrizioni sono chiuse.",
     "notEligible": "Non sei idoneo a candidarti a questo evento. Controlla lo stato di verifica del tuo membro.",
     "albionVerificationRequired": "Albion è richiesta la verifica. Finiscilo sulla pagina dell'evento: {url}",
-    "intentButton": "Unisciti all'intento",
+    "intentButton": "Iscrizione provvisoria",
     "codeButton": "Applica per codice",
     "browseButton": "Sfoglia le slot",
     "statusButton": "Il mio stato",
     "openButton": "Web aperto",
     "intentSelectPlaceholder": "Scegli i ruoli possibili",
-    "intentSaved": "Salvato il tuo intento per **{title}**: {roles}",
+    "intentSaved": "Iscrizione provvisoria salvata per **{title}**: {roles}",
     "browseSelectPlaceholder": "Filtra gli slot vuoti per ruolo",
     "browseTitle": "**{title}** slot vuoti · {role} · pagina {page}/{pages}",
     "browseEmpty": "Nessuno slot vuoto corrisponde a questo filtro. Apri la pagina dell'evento per il roster completo.",
@@ -10237,8 +10237,8 @@
     "alreadyInEvent": "Hai già uno slot o una richiesta in sospeso in questo evento.",
     "statusAssigned": "Sei assegnato a `{code}` · {role}.",
     "statusPending": "La tua richiesta per `{code}` · {role} è in attesa di approvazione.",
-    "statusTentative": "Unisciti ai ruoli di intento: {roles}",
-    "statusNone": "Nessuna registrazione trovata per questo evento ancora. Usa l'intento di join, il codice o gli slot di navigazione."
+    "statusTentative": "Ruoli provvisori: {roles}",
+    "statusNone": "Nessuna iscrizione. Consulta prima gli slot liberi oppure usa un codice slot o l'iscrizione provvisoria."
   },
   "permissions": {
     "heading": "Autorizzazioni",

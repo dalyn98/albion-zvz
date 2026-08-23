@@ -29,7 +29,7 @@ import {
 import { SLOT_ROLES } from '@/types'
 
 describe('buildDiscordEventSignupComponents', () => {
-  it('builds a compact event signup panel without enumerating every slot', () => {
+  it('makes empty-slot browsing the main action and tentative signup a secondary option', () => {
     const components = buildDiscordEventSignupComponents({
       eventId: '11111111-1111-4111-8111-111111111111',
       eventUrl: 'https://guild.example/events/11111111-1111-4111-8111-111111111111',
@@ -42,14 +42,22 @@ describe('buildDiscordEventSignupComponents', () => {
       },
     })
 
-    expect(components).toHaveLength(1)
-    expect(components[0].components).toHaveLength(5)
+    expect(components).toHaveLength(2)
+    expect(components[0].components).toHaveLength(1)
     expect(components[0].components[0]).toMatchObject({
       type: 2,
       style: 1,
+      label: 'Browse',
+      custom_id: 'agm_evt:v1:browse:11111111-1111-4111-8111-111111111111',
+    })
+    expect(components[1].components).toHaveLength(4)
+    expect(components[1].components[0]).toMatchObject({
+      type: 2,
+      style: 2,
+      label: 'Intent',
       custom_id: 'agm_evt:v1:intent:11111111-1111-4111-8111-111111111111',
     })
-    expect(components[0].components[4]).toMatchObject({
+    expect(components[1].components[3]).toMatchObject({
       type: 2,
       style: 5,
       url: 'https://guild.example/events/11111111-1111-4111-8111-111111111111',

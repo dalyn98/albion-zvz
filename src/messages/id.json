@@ -10197,13 +10197,13 @@
     "battleStarted": "Acara ini sudah dimulai, jadi pendaftaran baru ditutup.",
     "notEligible": "Anda tidak memenuhi syarat untuk mendaftar ke acara ini. Periksa status verifikasi anggota Anda.",
     "albionVerificationRequired": "Verifikasi Albion diperlukan. Selesaikan di halaman acara: {url}",
-    "intentButton": "Niat bergabung",
+    "intentButton": "Pendaftaran sementara",
     "codeButton": "Terapkan dengan kode",
     "browseButton": "Jelajahi slot",
     "statusButton": "Status saya",
     "openButton": "Buka web",
     "intentSelectPlaceholder": "Pilih kemungkinan peran",
-    "intentSaved": "Menyimpan niat Anda untuk **{title}**: {roles}",
+    "intentSaved": "Pendaftaran sementara untuk **{title}** disimpan: {roles}",
     "browseSelectPlaceholder": "Filter slot kosong berdasarkan peran",
     "browseTitle": "**{title}** slot kosong · {role} · halaman {page}/{pages}",
     "browseEmpty": "Tidak ada slot kosong yang cocok dengan filter ini. Buka halaman acara untuk daftar lengkap.",
@@ -10237,8 +10237,8 @@
     "alreadyInEvent": "Anda sudah memiliki slot atau permintaan yang tertunda dalam acara ini.",
     "statusAssigned": "Anda ditugaskan ke `{code}` · {role}.",
     "statusPending": "Permintaan Anda untuk `{code}` · {role} sedang menunggu persetujuan.",
-    "statusTentative": "Bergabunglah dengan peran niat: {roles}",
-    "statusNone": "Belum ada pendaftaran yang ditemukan untuk acara ini. Gunakan intent bergabung, kode, atau slot penjelajahan."
+    "statusTentative": "Peran sementara: {roles}",
+    "statusNone": "Belum ada pendaftaran. Lihat slot kosong terlebih dahulu, atau gunakan kode slot atau pendaftaran sementara."
   },
   "permissions": {
     "heading": "Izin",

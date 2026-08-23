@@ -10197,13 +10197,13 @@
     "battleStarted": "Bu etkinlik çoktan başladı, bu nedenle yeni kayıtlar kapatıldı.",
     "notEligible": "Bu etkinliğe başvurmaya uygun değilsiniz. Üye doğrulama durumunuzu kontrol edin.",
     "albionVerificationRequired": "Albion doğrulama gereklidir. Etkinlik sayfasında bitirin: {url}_",
-    "intentButton": "Niyete katıl",
+    "intentButton": "Geçici kayıt",
     "codeButton": "Kodla uygula",
     "browseButton": "Slotlara göz atın",
     "statusButton": "Durumum",
     "openButton": "Açık web",
     "intentSelectPlaceholder": "Olası rolleri seçin",
-    "intentSaved": "**{title}** için niyetinizi kaydetti: {roles}",
+    "intentSaved": "**{title}** için geçici kayıt kaydedildi: {roles}",
     "browseSelectPlaceholder": "Boş slotları role göre filtreleyin",
     "browseTitle": "**{title}** boş slotlar · {role} · sayfa {page}/{pages}",
     "browseEmpty": "Bu filtreyle eşleşen boş slot yok. Tam kadro için etkinlik sayfasını açın.",
@@ -10237,8 +10237,8 @@
     "alreadyInEvent": "Bu etkinlikte zaten bir zaman diliminiz veya bekleyen isteğiniz var.",
     "statusAssigned": "`{code}` · {role}_'ye atandınız.",
     "statusPending": "`{code}` · {role} için talebiniz onay bekliyor.",
-    "statusTentative": "Niyet rollerine katılın: {roles}",
-    "statusNone": "Bu etkinlik için henüz kayıt bulunamadı. Katılma niyeti, kod veya gözat slotlarını kullanın."
+    "statusTentative": "Geçici roller: {roles}",
+    "statusNone": "Henüz kayıt yok. Önce boş slotlara göz atın veya slot kodu ya da geçici kayıt kullanın."
   },
   "permissions": {
     "heading": "İzinler",

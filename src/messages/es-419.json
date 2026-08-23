@@ -10197,13 +10197,13 @@
     "battleStarted": "Este evento ya ha comenzado, por lo que las nuevas inscripciones están cerradas.",
     "notEligible": "Usted no es elegible para solicitar este evento. Compruebe el estado de verificación de su miembro.",
     "albionVerificationRequired": "Se requiere la verificación de Albion. Termínalo en la página del evento: {url}",
-    "intentButton": "Unirse a la intención",
+    "intentButton": "Inscripción provisional",
     "codeButton": "Aplicar por código",
     "browseButton": "Explorar espacios",
     "statusButton": "Mi estado",
     "openButton": "Web abierta",
     "intentSelectPlaceholder": "Elige posibles roles",
-    "intentSaved": "Guardó su intención para **{title}**: {roles}",
+    "intentSaved": "Inscripción provisional guardada para **{title}**: {roles}",
     "browseSelectPlaceholder": "Filtrar espacios vacíos por rol",
     "browseTitle": "**{title}** espacios vacíos · {role} · página {page}/{pages}",
     "browseEmpty": "Ninguna slot vacía coincide con este filtro. Abra la página del evento para ver la lista completa.",
@@ -10237,8 +10237,8 @@
     "alreadyInEvent": "Ya tienes un espacio o una solicitud pendiente en este evento.",
     "statusAssigned": "Estás asignado a `{code}` · {role}.",
     "statusPending": "Su solicitud para `{code}` · {role} está pendiente de aprobación.",
-    "statusTentative": "Únete a los roles de intención: {roles}",
-    "statusNone": "Aún no se ha encontrado ninguna inscripción para este evento. Utilice la intención de unión, el código o los slots de navegación."
+    "statusTentative": "Roles provisionales: {roles}",
+    "statusNone": "Aún no hay inscripción. Revisa primero los espacios libres o usa un código de espacio o la inscripción provisional."
   },
   "permissions": {
     "heading": "Permisos",
