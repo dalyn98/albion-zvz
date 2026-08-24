@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
   expireMemberTradeOrders,
+  expireStaleCronRuns,
   pruneCronRunHistory,
 } from '@/lib/cron-maintenance'
 
@@ -12,6 +13,15 @@ describe('cron maintenance', () => {
       expired: 3,
     })
     expect(rpc).toHaveBeenCalledWith('expire_member_trade_orders')
+  })
+
+  it('marks lease-expired running cron rows as failed through the maintenance RPC', async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: 3, error: null })
+
+    await expect(expireStaleCronRuns({ rpc } as never)).resolves.toEqual({
+      expired: 3,
+    })
+    expect(rpc).toHaveBeenCalledWith('expire_stale_cron_runs')
   })
 
   it('prunes only completed cron runs older than 30 days in bounded chunks', async () => {

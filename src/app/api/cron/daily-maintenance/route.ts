@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { expireOverdueCraftTasks } from '@/lib/craft-tasks'
 import {
   expireMemberTradeOrders,
+  expireStaleCronRuns,
   pruneCronRunHistory,
 } from '@/lib/cron-maintenance'
 import { withCronRun } from '@/lib/cron-run'
@@ -38,6 +39,7 @@ export async function GET(request: Request) {
       )
       tasks.craft = await runTask(() => expireOverdueCraftTasks())
       tasks.memberTrades = await runTask(() => expireMemberTradeOrders(db))
+      tasks.staleCronRuns = await runTask(() => expireStaleCronRuns(db))
       tasks.cronRuns = await runTask(() => pruneCronRunHistory(db))
 
       const ok = Object.values(tasks).every(

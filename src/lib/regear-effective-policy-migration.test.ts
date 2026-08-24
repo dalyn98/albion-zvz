@@ -27,7 +27,13 @@ const adminEventAction = source('src/app/actions/admin-event.ts')
 const discordCommerceAdmin = source(
   'src/lib/discord-command-commerce-admin.ts',
 )
-const imminentCron = source('src/app/api/cron/event-imminent/route.ts')
+const automaticStart = source('src/lib/event-auto-start.ts')
+const guestStartValidationSql = source(
+  'supabase/migrations/419_guest_aware_event_start_snapshot_validation.sql',
+)
+const staleCronSql = source(
+  'supabase/migrations/420_expire_stale_cron_runs.sql',
+)
 const eventRenderSnapshot = source('src/lib/event-render-snapshot.ts')
 
 describe('effective regear policy migrations and read paths', () => {
@@ -190,7 +196,25 @@ describe('effective regear policy migrations and read paths', () => {
   it('routes manual start adapters through the shared event-start application command', () => {
     expect(adminEventAction).toContain('executeEventStartApplicationCommand')
     expect(discordCommerceAdmin).toContain('prepareEventStartApplicationCommand')
-    expect(imminentCron).toContain('startEventWithEffectiveRegearPolicies')
+    expect(automaticStart).toContain('startEventWithEffectiveRegearPolicies')
+  })
+
+  it('validates guest slot exclusions with the same rules used by the application', () => {
+    expect(guestStartValidationSql).toMatch(
+      /guest\.discord_id is not null[\s\S]*v_guest_regear_enabled[\s\S]*left join public\.event_guest_profiles/i,
+    )
+    expect(guestStartValidationSql).toMatch(
+      /coalesce\(slot\.auto_regear_excluded, false\)[\s\S]*guest\.discord_id is not null as auto_excluded/i,
+    )
+  })
+
+  it('closes interrupted cron runs when a lease expires', () => {
+    expect(staleCronSql).toMatch(
+      /create or replace function public\.expire_stale_cron_runs[\s\S]*status = 'failed'[\s\S]*error = 'lease-expired'/i,
+    )
+    expect(staleCronSql).toMatch(
+      /v_previous_run_id[\s\S]*update public\.cron_runs[\s\S]*error = 'lease-expired'/i,
+    )
   })
 
   it('includes the frozen policy identity in the cached member event tree', () => {

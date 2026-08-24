@@ -6,13 +6,11 @@ import {
   type DiscordDmLocaleRow,
 } from '@/lib/discord-dm-localized'
 import { getAppSetting } from '@/lib/app-settings'
-import { listActiveTenants } from '@/lib/tenant'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import { isValidTenantTimezone } from '@/lib/timezone'
 import { log } from '@/lib/log'
 import { withCronRun } from '@/lib/cron-run'
 import type { EventCategory } from '@/types'
-import { startEventWithEffectiveRegearPolicies } from '@/lib/regear-effective-policy-server'
 
 // 이벤트 집결 시간이 다가오면 파티에 편성된 멤버들에게 Discord DM 을 보낸다.
 //
@@ -28,10 +26,6 @@ import { startEventWithEffectiveRegearPolicies } from '@/lib/regear-effective-po
 //      들어오면 발송 대상.
 //   4. event_dm_sent (event_id, discord_id) 에 행이 없는 경우만 실제 발송 후
 //      바로 insert (중복 방지). PK 충돌은 무시.
-//
-// 운영 시작은 알림 lead time 과 무관한 published-event 불변식이다.
-// gather_at 이 지난 이벤트의 legacy battle_started_at 을 gather_at 으로
-// 기록한다. 이 값은 실제 Albion 전투 시작을 주장하지 않는다.
 //
 // imminent_notified_at 컬럼은 더 이상 새 로직에서 사용하지 않는다 (legacy 데이터
 // 호환을 위해 남겨둠). 새 dedupe 는 event_dm_sent 만으로 처리.
@@ -75,56 +69,9 @@ function effectiveLead(override: number | null | undefined, guildDefault: number
 export async function GET(request: Request) {
   return withCronRun(request, { jobName: 'event-imminent', leaseSeconds: 300 }, async ({ db }) => {
   const now = new Date()
-  const tenants = await listActiveTenants()
-
-  // Mandatory operational start: all newly published events are eligible.
-  // `published_at IS NOT NULL` deliberately excludes old historical rows that
-  // migration 329 preserved without retroactively starting them.
-  const autoStartResults: Array<{ event_id: string; battle_started_at: string }> = []
-  for (const tenant of tenants) {
-    const { data: pending, error: pendingError } = await db
-      .from('events')
-      .select('id, gather_at')
-      .eq('guild_id', tenant.id)
-      .is('battle_started_at', null)
-      .not('published_at', 'is', null)
-      .not('gather_at', 'is', null)
-      // draft 이벤트는 운영 시작 대상이 아니다.
-      .eq('status', 'published')
-      .lte('gather_at', now.toISOString())
-    if (pendingError) {
-      log.error('[cron/event-imminent] auto-start scan failed', pendingError, {
-        tenant_id: tenant.id,
-      })
-      continue
-    }
-    for (const row of pending ?? []) {
-      const gatherAt = row.gather_at as string
-      try {
-        await startEventWithEffectiveRegearPolicies({
-          db,
-          guildId: tenant.id,
-          eventId: row.id,
-          startedAt: gatherAt,
-        })
-      } catch (error) {
-        log.error('[cron/event-imminent] auto-start update failed', error, {
-          tenant_id: tenant.id,
-          event_id: row.id,
-        })
-        continue
-      }
-      log.info('[cron/event-imminent] auto-started event', {
-        tenant_id: tenant.id,
-        event_id: row.id,
-        gather_at: gatherAt,
-      })
-      autoStartResults.push({ event_id: row.id, battle_started_at: gatherAt })
-    }
-  }
 
   if (!isDiscordDmConfigured()) {
-    return NextResponse.json({ skipped: 'discord-dm-not-configured', auto_started: autoStartResults })
+    return NextResponse.json({ skipped: 'discord-dm-not-configured' })
   }
 
   // 가장 큰 lead 까지 미리 스캔 — 24h 전부터 발송 대상이 될 수 있다.
@@ -146,7 +93,7 @@ export async function GET(request: Request) {
   }
 
   if (!events || events.length === 0) {
-    return NextResponse.json({ notified: 0, scanned: 0, auto_started: autoStartResults })
+    return NextResponse.json({ notified: 0, scanned: 0 })
   }
 
   const results: Array<{ event_id: string; attempted: number; succeeded: number }> = []
@@ -323,6 +270,6 @@ export async function GET(request: Request) {
     })
   }
 
-  return NextResponse.json({ scanned: events.length, results, auto_started: autoStartResults })
+  return NextResponse.json({ scanned: events.length, results })
   })
 }

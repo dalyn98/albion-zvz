@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   cleanupResolvedRegearScreenshots: vi.fn(),
   expireOverdueCraftTasks: vi.fn(),
   expireMemberTradeOrders: vi.fn(),
+  expireStaleCronRuns: vi.fn(),
   pruneCronRunHistory: vi.fn(),
 }))
 
@@ -17,6 +18,7 @@ vi.mock('@/lib/craft-tasks', () => ({
 }))
 vi.mock('@/lib/cron-maintenance', () => ({
   expireMemberTradeOrders: mocks.expireMemberTradeOrders,
+  expireStaleCronRuns: mocks.expireStaleCronRuns,
   pruneCronRunHistory: mocks.pruneCronRunHistory,
 }))
 
@@ -34,6 +36,7 @@ describe('GET /api/cron/daily-maintenance', () => {
     mocks.cleanupResolvedRegearScreenshots.mockResolvedValue({ deleted: 2 })
     mocks.expireOverdueCraftTasks.mockResolvedValue(3)
     mocks.expireMemberTradeOrders.mockResolvedValue({ expired: 4 })
+    mocks.expireStaleCronRuns.mockResolvedValue({ expired: 6 })
     mocks.pruneCronRunHistory.mockResolvedValue({ deleted: 5 })
   })
 
@@ -49,6 +52,7 @@ describe('GET /api/cron/daily-maintenance', () => {
         screenshots: { status: 'succeeded', result: { deleted: 2 } },
         craft: { status: 'succeeded', result: 3 },
         memberTrades: { status: 'succeeded', result: { expired: 4 } },
+        staleCronRuns: { status: 'succeeded', result: { expired: 6 } },
         cronRuns: { status: 'succeeded', result: { deleted: 5 } },
       },
     })
@@ -63,6 +67,7 @@ describe('GET /api/cron/daily-maintenance', () => {
 
     expect(response.status).toBe(500)
     expect(mocks.expireMemberTradeOrders).toHaveBeenCalledOnce()
+    expect(mocks.expireStaleCronRuns).toHaveBeenCalledOnce()
     expect(mocks.pruneCronRunHistory).toHaveBeenCalledOnce()
     await expect(response.json()).resolves.toMatchObject({
       ok: false,

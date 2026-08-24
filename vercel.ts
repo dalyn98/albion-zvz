@@ -11,6 +11,7 @@ export const config: VercelConfig = {
     { path: '/api/cron/battle-tracker', schedule: '*/5 * * * *' },
     { path: '/api/cron/killboard-sync', schedule: '1-59/5 * * * *' },
     { path: '/api/cron/auto-regear', schedule: '2-59/10 * * * *' },
+    { path: '/api/cron/event-auto-start', schedule: '* * * * *' },
     { path: '/api/cron/event-imminent', schedule: '3-59/5 * * * *' },
     { path: '/api/cron/killbot-feed', schedule: '4-59/5 * * * *' },
     {

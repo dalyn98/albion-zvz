@@ -113,6 +113,7 @@ import {
 } from './regear-admin-types'
 import { isRegearIntakeEnabled } from '@/lib/regear-support-server'
 import { consumeEventGuestRequestBudget } from '@/lib/event-guest-security'
+import { startDuePublishedEvents } from '@/lib/event-auto-start'
 import {
   isRegearParticipantConfirmationStatus,
   type RegearParticipantConfirmationStatus,
@@ -468,6 +469,18 @@ async function requestRegearInner(
     : await resolveStableMemberOwnership(db, guildId, session.discordId)
   if (ownership.error) {
     return { error: await publicActionError(new Error(ownership.error), 'actions/regear') }
+  }
+
+  // A member request is the final safety net for a missed cron tick. Starting
+  // is still constrained to this tenant, this published event, and gather_at
+  // <= now; failures fall through to the existing battleNotStarted response.
+  try {
+    await startDuePublishedEvents({ db, guildId, eventIds: [eventId] })
+  } catch (error) {
+    log.error('[requestRegear] due event start fallback failed', error, {
+      tenant_id: guildId,
+      event_id: eventId,
+    })
   }
 
   // 1) Resolve the event first so FF/ganking can use the event-local regear
@@ -1221,6 +1234,34 @@ export async function listMyRegearEligibleEvents(): Promise<{
     eventIds = eventIds.filter((eventId) => eventId === session.eventScope)
   }
   if (eventIds.length === 0) return { events: [] }
+
+  // Make due events visible immediately even if Vercel skipped a cron tick.
+  // The helper revalidates tenant, publication status, and gather_at server-side.
+  try {
+    const recovered = await startDuePublishedEvents({ db, guildId, eventIds })
+    const recoveredEventIds = recovered.started.map((event) => event.event_id)
+    if (recoveredEventIds.length > 0) {
+      let recoveredPolicyQuery = db
+        .from('event_regear_policy_snapshots')
+        .select('event_id, manual_policy_snapshot')
+        .eq('guild_id', guildId)
+        .in('event_id', recoveredEventIds)
+      recoveredPolicyQuery = ownership.guildMemberId
+        ? recoveredPolicyQuery.eq('guild_member_id', ownership.guildMemberId)
+        : recoveredPolicyQuery.eq('discord_id', session.discordId)
+      const { data: recoveredPolicies, error: recoveredPolicyError } =
+        await recoveredPolicyQuery
+      if (recoveredPolicyError) throw new Error(recoveredPolicyError.message)
+      for (const row of recoveredPolicies ?? []) {
+        const snapshot = parseRegearPolicySnapshot(row.manual_policy_snapshot)
+        if (snapshot) allFrozenPolicyByEvent.set(row.event_id as string, snapshot)
+      }
+    }
+  } catch (error) {
+    log.error('[listMyRegearEligibleEvents] due event start fallback failed', error, {
+      tenant_id: guildId,
+    })
+  }
 
   const { data: events, error: eventsError } = await db
     .from('events')

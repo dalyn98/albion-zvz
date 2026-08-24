@@ -30,6 +30,14 @@ export async function expireMemberTradeOrders(
   return data ?? null
 }
 
+export async function expireStaleCronRuns(
+  db: SupabaseAdminClient,
+): Promise<{ expired: number }> {
+  const { data, error } = await db.rpc('expire_stale_cron_runs')
+  if (error) throw new Error(error.message)
+  return { expired: typeof data === 'number' ? data : Number(data ?? 0) }
+}
+
 export async function pruneCronRunHistory(
   db: SupabaseAdminClient,
   now = new Date(),

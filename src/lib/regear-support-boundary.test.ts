@@ -67,7 +67,7 @@ describe('regear support cross-surface boundary', () => {
   it('uses the same disabled event policy boundary for web, Discord, and automatic starts', () => {
     const policyServer = source('src/lib/regear-effective-policy-server.ts')
     const webAndDiscordStart = source('src/lib/event-start-application-command.ts')
-    const automaticStart = source('src/app/api/cron/event-imminent/route.ts')
+    const automaticStart = source('src/lib/event-auto-start.ts')
 
     expect(policyServer).toContain('isRegearSupported(input.guildId)')
     expect(policyServer).toContain("regear_policy: 'disabled'")

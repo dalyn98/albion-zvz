@@ -660,6 +660,38 @@ describeIntegration('shop_inventory tenant scope (mig 130/200)', () => {
     await client.from('cron_runs').delete().eq('job_name', jobName)
   })
 
+  it('marks an interrupted cron run failed after its lease expires', async () => {
+    const client = getTestServiceClient()
+    const jobName = `test-stale-cron-${crypto.randomUUID()}`
+    const { data: started, error: startError } = await client.rpc('try_start_cron_run', {
+      p_job_name: jobName,
+      p_lease_seconds: 60,
+      p_lock_name: jobName,
+    })
+    expect(startError).toBeNull()
+    expect(started?.[0]?.started).toBe(true)
+
+    const future = new Date(Date.now() + 61_000).toISOString()
+    const { data: expired, error: expireError } = await client.rpc(
+      'expire_stale_cron_runs',
+      { p_now: future, p_limit: 10 },
+    )
+    expect(expireError).toBeNull()
+    expect(expired).toBe(1)
+
+    const { data: run, error: runError } = await client
+      .from('cron_runs')
+      .select('status, error, completed_at')
+      .eq('id', started![0].run_id)
+      .single()
+    expect(runError).toBeNull()
+    expect(run).toMatchObject({ status: 'failed', error: 'lease-expired' })
+    expect(run?.completed_at).toBeTruthy()
+
+    await client.from('cron_locks').delete().eq('job_name', jobName)
+    await client.from('cron_runs').delete().eq('job_name', jobName)
+  })
+
   it('serializes distinct cron jobs through a shared lock name', async () => {
     const client = getTestServiceClient()
     const lockName = `test-shared-cron-${crypto.randomUUID()}`

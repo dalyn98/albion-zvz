@@ -162,6 +162,48 @@ describeIntegration('effective regear policy snapshot invariants (migs 298-300)'
     await tenant?.cleanup()
   })
 
+  it('starts a combat event with a guest slot when guest regear is disabled', async () => {
+    const client = getTestServiceClient()
+    const fixture = await createEventPolicyFixture(tenant)
+    const guestId = `guest-${crypto.randomUUID()}`
+    const { error: guestError } = await client.from('guests').insert({
+      guild_id: tenant.guildId,
+      discord_id: guestId,
+      username: 'Guest Fighter',
+      preferred_language: 'ko',
+    })
+    expect(guestError).toBeNull()
+    const { error: profileError } = await client.from('event_guest_profiles').insert({
+      guild_id: tenant.guildId,
+      event_id: fixture.eventId,
+      discord_id: guestId,
+      display_name: 'Guest Fighter',
+      preferred_language: 'ko',
+      albion_server: 'west',
+      albion_character_name: 'GuestFighter',
+      character_verified: false,
+    })
+    expect(profileError).toBeNull()
+    const { error: slotError } = await client
+      .from('slots')
+      .update({ assigned_discord_id: guestId, assigned_username: 'Guest Fighter' })
+      .eq('guild_id', tenant.guildId)
+      .eq('id', fixture.slotId!)
+    expect(slotError).toBeNull()
+
+    const participant = {
+      ...fixture.participant,
+      discordId: guestId,
+      username: 'Guest Fighter',
+      manualExcluded: true,
+      autoExcluded: true,
+    }
+    const { data, error } = await startFixture(tenant, fixture, [participant])
+
+    expect(error).toBeNull()
+    expect(data).toMatchObject({ participant_snapshot_count: 1 })
+  })
+
   it('atomically snapshots policy inputs while leaving the live roster editable', async () => {
     const client = getTestServiceClient()
     const fixture = await createEventPolicyFixture(tenant)
