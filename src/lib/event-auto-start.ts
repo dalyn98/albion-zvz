@@ -125,8 +125,10 @@ export async function startDuePublishedEvents(input: {
   const now = input.now ?? new Date()
   let query = input.db
     .from('events')
-    .select('id, guild_id, gather_at, tenants!inner(status)')
-    .eq('tenants.status', 'active')
+    .select(
+      'id, guild_id, gather_at, tenant:tenants!events_guild_id_fkey(status)',
+    )
+    .eq('tenant.status', 'active')
     .is('battle_started_at', null)
     .not('published_at', 'is', null)
     .not('gather_at', 'is', null)
