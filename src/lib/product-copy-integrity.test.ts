@@ -18,21 +18,22 @@ function messages(locale: Locale): Messages {
 }
 
 describe('product copy integrity', () => {
-  it('describes tenant battle collection with the deployed five-minute cadence', () => {
+  it('describes automatic tenant battle collection as paused', () => {
     const vercelConfig = readFileSync(join(process.cwd(), 'vercel.ts'), 'utf8')
-    expect(vercelConfig).toContain(
-      "{ path: '/api/cron/battle-tracker', schedule: '*/5 * * * *' }",
-    )
+    expect(vercelConfig).not.toContain("path: '/api/cron/battle-tracker'")
 
-    const hourlyPattern = /매시간|hourly|every hour|毎時|每小时/i
+    const activeCadencePattern =
+      /5분마다|5-minute|every 5 minutes|5分ごと|每 ?5 ?分钟|toutes les 5 minutes|alle 5 Minuten|cada 5 minutos|co 5 minut|каждые 5 минут|ogni 5 minuti|setiap 5 menit|كل 5 دقائق|her 5 dakikada/i
+    const pausedPattern =
+      /중지|停止|paused|已暂停|已暫停|suspendue|pausiert|pausada|wstrzym|приостановлен|sospesa|dijeda|متوقف|duraklatıldı/i
     for (const locale of LOCALES) {
       const doc = messages(locale)
-      expect(doc.adminGuide.battles.body, locale).not.toMatch(hourlyPattern)
-      expect(doc.demo.battles.notice, locale).not.toMatch(hourlyPattern)
-      expect(doc.demo.battles.ctaDescription, locale).not.toMatch(hourlyPattern)
-      expect(doc.adminGuide.battles.body, locale).toContain('5')
-      expect(doc.demo.battles.notice, locale).toContain('5')
-      expect(doc.demo.battles.ctaDescription, locale).toContain('5')
+      expect(doc.adminGuide.battles.body, locale).not.toMatch(activeCadencePattern)
+      expect(doc.demo.battles.notice, locale).not.toMatch(activeCadencePattern)
+      expect(doc.demo.battles.ctaDescription, locale).not.toMatch(activeCadencePattern)
+      expect(doc.adminGuide.battles.body, locale).toMatch(pausedPattern)
+      expect(doc.demo.battles.notice, locale).toMatch(pausedPattern)
+      expect(doc.demo.battles.ctaDescription, locale).toMatch(pausedPattern)
     }
   })
 

@@ -1584,7 +1584,7 @@
     "battles": {
       "title": "Record di battaglia (aggregati automaticamente)",
       "cta": "Record di battaglia aperti",
-      "body": "Le battaglie della gilda vengono estratte dall'API Albion ogni 5 minuti, quindi gli eventi diretti K/D vengono interpretati come impegni reali. Fino a quando la fonte e gli eventi non sono stabili, il sistema mostra la raccolta, la segmentazione richiesta o prove insufficienti invece di inventare un risultato. Le regole complete sono sotto \"Mostra regole di classificazione\" nella pagina dei registri di battaglia.",
+      "body": "Le battaglie della gilda raccolte in precedenza e le relative classificazioni restano disponibili. La raccolta automatica tramite l'API Albion è sospesa in modalità manutenzione, quindi le nuove battaglie non vengono aggiunte automaticamente. Le regole esistenti restano in «Mostra regole di classificazione».",
       "bullet1": "Anche all'interno di una battaglia Albion, un combattimento che si ferma e poi si riavvia diventa un impegno separato. Gli spazi fino a 2 minuti rimangono insieme, gli intervalli di 8 minuti o più si dividono e l'intervallo tra di loro richiede una revisione della segmentazione.",
       "bullet2": "Un risultato ufficiale richiede almeno 20 giocatori dalla nostra parte e almeno 20 giocatori combinati tra avversari non di intervento. Gli avversari Under-20 rimangono separati 1:N matchup quando la loro dimensione combinata si qualifica.",
       "bullet3": "Un vantaggio o uno svantaggio richiede almeno 5 eventi diretti idonei, con K/D e fama da uccisione che conducono nella stessa direzione di almeno il 20%. Tutto il resto è vicino o in sospeso.",
@@ -9362,9 +9362,9 @@
       "ctaDescription": "Rivedi il tema, l'introduzione, lo stato di reclutamento e le sezioni visibili, quindi pubblica esplicitamente. Banner, galleria e schede statistiche sono ancora con un clic."
     },
     "battles": {
-      "notice": "Modalità demo: le battaglie mostrate sono dati campione fabbricati. Una volta che il bot viene invitato, l'API Albion estrae i veri combattimenti ZvZ della tua gilda ogni 5 minuti e riempie automaticamente questa pagina.",
+      "notice": "Modalità demo: le battaglie mostrate sono dati fittizi. La raccolta automatica tramite l'API Albion è sospesa in modalità manutenzione, quindi le nuove battaglie ZvZ non vengono aggiunte automaticamente.",
       "ctaTitle": "Battaglie tracciate automaticamente — nessuna registrazione manuale",
-      "ctaDescription": "5 minuti Albion API estrae → segmentazione del coinvolgimento dal diretto K/D → K/D e kill-fame cross-check → raccolta e motivi in sospeso su una schermata."
+      "ctaDescription": "La raccolta automatica è sospesa. Segmentazione, controlli K/D e kill-fame e motivi di raccolta o attesa restano disponibili per le battaglie esistenti."
     },
     "guide": {
       "notice": "Modalità demo: questa guida è identica alla guida amministrativa effettiva su /admin/dashboard/guide. Dopo aver invitato il bot, il link \"Guida\" nel piè di pagina della barra laterale dell'amministratore ti riporta proprio qui.",

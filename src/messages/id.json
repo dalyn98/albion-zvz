@@ -1584,7 +1584,7 @@
     "battles": {
       "title": "Catatan pertempuran (dikumpulkan secara otomatis)",
       "cta": "Buka catatan pertempuran",
-      "body": "Pertempuran guild ditarik dari API Albion setiap 5 menit, kemudian acara langsung K/D ditafsirkan sebagai keterlibatan yang sebenarnya. Sampai sumber dan peristiwa stabil, sistem menunjukkan pengumpulan, segmentasi diperlukan, atau bukti yang tidak mencukupi alih-alih menciptakan hasil. Aturan lengkapnya ada di bawah 'Tampilkan aturan klasifikasi' di halaman catatan pertempuran.",
+      "body": "Pertempuran guild yang telah dikumpulkan beserta klasifikasinya tetap tersedia. Pengumpulan otomatis melalui API Albion dijeda dalam mode pemeliharaan, sehingga pertempuran baru tidak ditambahkan secara otomatis. Aturan yang ada tetap tersedia di 'Tampilkan aturan klasifikasi'.",
       "bullet1": "Bahkan dalam satu pertempuran Albion, pertarungan yang berhenti dan kemudian dimulai kembali menjadi keterlibatan terpisah. Celah hingga 2 menit tetap bersama, celah 8 menit atau lebih terbelah, dan interval di antara keduanya memerlukan tinjauan segmentasi.",
       "bullet2": "Hasil resmi membutuhkan setidaknya 20 pemain di pihak kami dan setidaknya 20 pemain gabungan di lawan non-intervensi. Lawan di bawah 20 tetap terpisah 1:N pertandingan ketika ukuran gabungan mereka memenuhi syarat.",
       "bullet3": "Keuntungan atau kerugian membutuhkan setidaknya 5 acara langsung yang memenuhi syarat, dengan K/D dan Kill Fame memimpin ke arah yang sama setidaknya 20%. Semua yang lain sudah dekat atau tertunda.",
@@ -9362,9 +9362,9 @@
       "ctaDescription": "Tinjau tema, intro, status rekrutmen, dan bagian yang terlihat, lalu publikasikan secara eksplisit. Spanduk, galeri, dan kartu statistik masih dalam satu klik."
     },
     "battles": {
-      "notice": "Mode demo — pertempuran yang ditampilkan adalah data sampel yang dibuat-buat. Setelah bot diundang, Albion API menarik ZvZ asli guild Anda bertarung setiap 5 menit dan mengisi halaman ini secara otomatis.",
+      "notice": "Mode demo — pertempuran yang ditampilkan adalah data contoh. Pengumpulan otomatis melalui API Albion dijeda dalam mode pemeliharaan, sehingga pertempuran ZvZ baru tidak ditambahkan secara otomatis.",
       "ctaTitle": "Pertempuran yang dilacak secara otomatis — tidak ada pencatatan manual",
-      "ctaDescription": "5 menit Albion API menarik → segmentasi keterlibatan dari langsung K/D → K/D dan pemeriksaan silang kill-fame → pengumpulan dan alasan yang tertunda pada satu layar."
+      "ctaDescription": "Pengumpulan otomatis dijeda. Segmentasi, pemeriksaan K/D dan kill-fame, serta alasan pengumpulan atau penundaan tetap tersedia untuk pertempuran yang sudah ada."
     },
     "guide": {
       "notice": "Mode demo — panduan ini identik dengan panduan admin yang sebenarnya di /admin/dashboard/guide. Setelah mengundang bot, tautan \"Panduan\" di footer bilah sisi admin membawa Anda kembali ke sini.",

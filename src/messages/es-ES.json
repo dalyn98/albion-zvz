@@ -1584,7 +1584,7 @@
     "battles": {
       "title": "Registros de batalla (agregados automáticamente)",
       "cta": "Abrir registros de batalla",
-      "body": "Las batallas de gremios se extraen de la API Albion cada 5 minutos, luego los eventos directos K/D se interpretan como compromisos reales. Hasta que la fuente y los eventos sean estables, el sistema muestra la recopilación, la segmentación requerida o evidencia insuficiente en lugar de inventar un resultado. Las reglas completas están en \"Mostrar reglas de clasificación\" en la página de registros de batalla.",
+      "body": "Las batallas de gremio recopiladas anteriormente y sus clasificaciones siguen disponibles. La recopilación automática mediante la API de Albion está pausada en modo de mantenimiento, por lo que no se añaden nuevas batallas automáticamente. Las reglas existentes siguen en «Mostrar reglas de clasificación».",
       "bullet1": "Incluso dentro de una batalla Albion, una pelea que se detiene y luego se reinicia se convierte en un compromiso separado. Las brechas de hasta 2 minutos se quedan juntas, las brechas de 8 minutos o más se dividen, y el intervalo entre ellos requiere una revisión de la segmentación.",
       "bullet2": "Un resultado oficial requiere al menos 20 jugadores de nuestro lado y al menos 20 jugadores combinados entre oponentes sin intervención. Los oponentes sub-20 siguen siendo enfrentamientos separados 1:N cuando su tamaño combinado califica.",
       "bullet3": "Una ventaja o desventaja requiere al menos 5 eventos directos elegibles, con K/D y fama de asesinato liderando en la misma dirección en al menos un 20%. Todo lo demás está cerrado o pendiente.",
@@ -9362,9 +9362,9 @@
       "ctaDescription": "Revise el tema, la introducción, el estado de reclutamiento y las secciones visibles, luego publique explícitamente. El banner, la galería y las tarjetas estadísticas siguen siendo un clic."
     },
     "battles": {
-      "notice": "Modo de demostración: las batallas que se muestran son datos de muestra fabricados. Una vez que se invita al bot, la API Albion saca las peleas reales ZvZ de tu gremio cada 5 minutos y llena esta página automáticamente.",
+      "notice": "Modo de demostración: las batallas mostradas son datos ficticios. La recopilación automática mediante la API de Albion está pausada en modo de mantenimiento, por lo que no se añaden nuevas batallas ZvZ automáticamente.",
       "ctaTitle": "Batallas con seguimiento automático - sin registro manual",
-      "ctaDescription": "5 minutos Albion API extrae → segmentación de compromiso desde directo K/D → K/D y verificación cruzada de muerte → recopilación y razones pendientes en una pantalla."
+      "ctaDescription": "La recopilación automática está pausada. La segmentación, las comprobaciones de K/D y fama de bajas, y los motivos de recopilación o espera siguen disponibles para las batallas existentes."
     },
     "guide": {
       "notice": "Modo de demostración: esta guía es idéntica a la guía de administración real en /admin/dashboard/guide. Después de invitar al bot, el enlace \"Guía\" en el pie de página de la barra lateral del administrador te lleva de vuelta aquí.",

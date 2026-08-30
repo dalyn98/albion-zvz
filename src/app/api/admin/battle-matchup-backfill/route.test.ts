@@ -59,6 +59,7 @@ function createEmptyBackfillDb() {
 describe('GET /api/admin/battle-matchup-backfill', () => {
   beforeEach(() => {
     vi.unstubAllEnvs()
+    vi.stubEnv('CRON_JOBS_ENABLED', '1')
     mocks.getAdminClient.mockReset()
     mocks.buildLegacyBackfillRows.mockReset()
     mocks.areBattlelogFeaturesPaused.mockReset()
