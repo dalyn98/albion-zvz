@@ -1584,7 +1584,7 @@
     "battles": {
       "title": "Savaş kayıtları (otomatik olarak toplanmış)",
       "cta": "Açık savaş kayıtları",
-      "body": "Daha önce toplanan lonca savaşları ve sınıflandırmaları kullanılabilir durumda kalır. Albion API üzerinden otomatik toplama bakım modunda duraklatıldı, bu nedenle yeni savaşlar otomatik olarak eklenmez. Mevcut kurallar 'Sınıflandırma kurallarını göster' altında kalır.",
+      "body": "Lonca savaşları her 5 dakikada bir Albion API'sinden çekilir, ardından doğrudan K/D olayları gerçek etkileşimler olarak yorumlanır. Kaynak ve olaylar sabit olana kadar, sistem bir sonuç icat etmek yerine toplama, segmentasyon gerekli veya yetersiz kanıt gösterir. Kuralların tamamı savaş kayıtları sayfasında 'Sınıflandırma kurallarını göster' altındadır.",
       "bullet1": "Bir Albion savaşta bile, duran ve daha sonra yeniden başlayan bir kavga ayrı bir çatışma haline gelir. 2 dakikaya kadar olan boşluklar bir arada kalır, 8 dakika veya daha fazla boşluklar bölünür ve aralarındaki aralık segmentasyon incelemesi gerektirir.",
       "bullet2": "Resmi bir sonuç, tarafımızda en az 20 oyuncu ve müdahale dışı rakipler arasında en az 20 birleşik oyuncu gerektirir. 20'nin altı rakipler, birleşik boyutları uygun olduğunda ayrı 1:N eşleşmeleri olarak kalır.",
       "bullet3": "Bir avantaj veya dezavantaj, hem K/D hem de öldürme şöhreti aynı yönde en az %20 önde olan en az 5 uygun doğrudan olay gerektirir. Diğer her şey yakın veya beklemede.",
@@ -9362,9 +9362,9 @@
       "ctaDescription": "Temayı, girişi, işe alım durumunu ve görünür bölümleri gözden geçirin, ardından açıkça yayınlayın. Afiş, galeri ve istatistik kartları hala tek tıkla."
     },
     "battles": {
-      "notice": "Demo modu — gösterilen savaşlar örnek verilerdir. Albion API üzerinden otomatik toplama bakım modunda duraklatıldı, bu nedenle yeni ZvZ savaşları otomatik olarak eklenmez.",
+      "notice": "Demo modu — gösterilen savaşlar fabrikasyon örnek verilerdir. Bot davet edildiğinde, Albion API, loncanızın her 5 dakikada bir gerçek ZvZ dövüşlerini çeker ve bu sayfayı otomatik olarak doldurur.",
       "ctaTitle": "Otomatik izlenen savaşlar - manuel kayıt yok",
-      "ctaDescription": "Otomatik toplama duraklatıldı. Bölümleme, K/D ve kill-fame kontrolleri ile toplama veya bekleme nedenleri mevcut savaşlar için kullanılabilir durumda kalır."
+      "ctaDescription": "5 dakikalık Albion API, doğrudan K/D → K/D'den katılım segmentasyonu ve kill-fame çapraz kontrolü → toplama ve bekleyen nedenleri tek bir ekranda çeker."
     },
     "guide": {
       "notice": "Demo modu — bu kılavuz, /admin/dashboard/guide adresindeki gerçek yönetici kılavuzuyla aynıdır. Botu davet ettikten sonra, yönetici kenar çubuğu altbilgisindeki \"Rehber\" bağlantısı sizi buraya geri getiriyor.",

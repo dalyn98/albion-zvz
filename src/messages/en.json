@@ -1584,7 +1584,7 @@
     "battles": {
       "title": "Battle records (auto-aggregated)",
       "cta": "Open battle records",
-      "body": "Previously collected guild battles and their classifications remain available. Automatic Albion API collection is paused in maintenance mode, so new battles are not added automatically. Existing classification rules remain under 'Show classification rules' on the battle records page.",
+      "body": "Guild battles are pulled from the Albion API every 5 minutes, then direct K/D events are interpreted as actual engagements. Until the source and events are stable, the system shows collecting, segmentation required, or insufficient evidence instead of inventing a result. The full rules are under 'Show classification rules' on the battle records page.",
       "bullet1": "Even within one Albion battle, a fight that stops and later restarts becomes a separate engagement. Gaps up to 2 minutes stay together, gaps of 8 minutes or more split, and the interval between them requires segmentation review.",
       "bullet2": "An official result requires at least 20 players on our side and at least 20 combined players across non-intervention opponents. Sub-20 opponents remain separate 1:N matchups when their combined size qualifies.",
       "bullet3": "An advantage or disadvantage requires at least 5 eligible direct events, with both K/D and kill fame leading in the same direction by at least 20%. Everything else is close or pending.",
@@ -9376,9 +9376,9 @@
       "ctaDescription": "Review the theme, intro, recruitment status, and visible sections, then publish explicitly. Banner, gallery, and stat cards are still one click."
     },
     "battles": {
-      "notice": "Demo mode — the battles shown are fabricated sample data. Automatic Albion API collection is paused in maintenance mode, so new ZvZ battles are not added automatically.",
+      "notice": "Demo mode — the battles shown are fabricated sample data. Once the bot is invited, the Albion API pulls your guild's real ZvZ fights every 5 minutes and fills this page automatically.",
       "ctaTitle": "Auto-tracked battles — no manual logging",
-      "ctaDescription": "Automatic collection is paused. Engagement segmentation, K/D and kill-fame cross-checks, and collection or pending reasons remain available for existing battles."
+      "ctaDescription": "5-minute Albion API pulls → engagement segmentation from direct K/D → K/D and kill-fame cross-check → collection and pending reasons on one screen."
     },
     "guide": {
       "notice": "Demo mode — this guide is identical to the actual admin guide at /admin/dashboard/guide. After inviting the bot, the \"Guide\" link in the admin sidebar footer brings you right back here.",

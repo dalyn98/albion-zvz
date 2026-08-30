@@ -2,6 +2,8 @@ name: production-verify
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '17 21 * * *'
 
 permissions:
   contents: read

@@ -1584,7 +1584,7 @@
     "battles": {
       "title": "Enregistrements de bataille (auto-agrégés)",
       "cta": "Enregistrements de bataille ouverts",
-      "body": "Les batailles de guilde déjà collectées et leurs classifications restent disponibles. La collecte automatique via l'API Albion est suspendue en mode maintenance, donc aucune nouvelle bataille n'est ajoutée automatiquement. Les règles existantes restent accessibles sous « Afficher les règles de classification ».",
+      "body": "Les batailles de guilde sont tirées de l'API Albion toutes les 5 minutes, puis les événements directs K/D sont interprétés comme des engagements réels. Jusqu'à ce que la source et les événements soient stables, le système montre la collecte, la segmentation requise ou les preuves insuffisantes au lieu d'inventer un résultat. Les règles complètes se sont sous \"Afficher les règles de classification\" sur la page des dossiers de bataille.",
       "bullet1": "Même dans une bataille Albion, un combat qui s'arrête et redémarre plus tard devient un engagement distinct. Les écarts jusqu'à 2 minutes restent ensemble, les écarts de 8 minutes ou plus se divisent, et l'intervalle entre eux nécessite un examen de la segmentation.",
       "bullet2": "Un résultat officiel nécessite au moins 20 joueurs de notre côté et au moins 20 joueurs combinés parmi des adversaires non intervenants. Les adversaires de moins de 20 ans restent des matchs 1:N séparés lorsque leur taille combinée est qualifiée.",
       "bullet3": "Un avantage ou un inconvénient nécessite au moins 5 événements directs éligibles, avec K/D et Kill Fame menant dans la même direction d'au moins 20 %. Tout le reste est proche ou en attente.",
@@ -9362,9 +9362,9 @@
       "ctaDescription": "Passez en revue le thème, l'introduction, le statut de recrutement et les sections visibles, puis publiez explicitement. La bannière, la galerie et les cartes de statistiques sont toujours en un clic."
     },
     "battles": {
-      "notice": "Mode démo — les batailles affichées sont des données fictives. La collecte automatique via l'API Albion est suspendue en mode maintenance, donc aucun nouveau combat ZvZ n'est ajouté automatiquement.",
+      "notice": "Mode démo - les batailles montrées sont des exemples de données fabriquées. Une fois le bot invité, l'API Albion tire les vrais combats ZvZ de votre guilde toutes les 5 minutes et remplit automatiquement cette page.",
       "ctaTitle": "Batailles suivies automatiquement - pas de journalisation manuelle",
-      "ctaDescription": "La collecte automatique est suspendue. La segmentation, les vérifications K/D et kill-fame, ainsi que les motifs de collecte ou d'attente restent disponibles pour les batailles existantes."
+      "ctaDescription": "L'API Albion de 5 minutes tire → la segmentation de l'engagement à partir de K/D direct → K/D et la vérification croisée de la renommée de la mort → de la collecte et des raisons en attente sur un seul écran."
     },
     "guide": {
       "notice": "Mode démo - ce guide est identique au guide d'administration réel à /admin/dashboard/guide. Après avoir invité le bot, le lien \"Guide\" dans le pied de page de la barre latérale de l'administrateur vous ramène ici.",

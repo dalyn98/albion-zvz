@@ -1584,7 +1584,7 @@
     "battles": {
       "title": "Registros de batalha (agregados automaticamente)",
       "cta": "Registros de batalha abertos",
-      "body": "As batalhas de guilda recolhidas anteriormente e as respetivas classificações continuam disponíveis. A recolha automática pela API do Albion está pausada no modo de manutenção, pelo que novas batalhas não são adicionadas automaticamente. As regras existentes continuam em 'Mostrar regras de classificação'.",
+      "body": "As batalhas de guilda são retiradas da API Albion a cada 5 minutos, então os eventos diretos de K/D são interpretados como engajamentos reais. Até que a fonte e os eventos estejam estáveis, o sistema mostra coleta, segmentação necessária ou evidências insuficientes em vez de inventar um resultado. As regras completas estão em 'Mostrar regras de classificação' na página de registros de batalha.",
       "bullet1": "Mesmo dentro de uma batalha Albion, uma luta que para e depois reinicia se torna um engajamento separado. Lacunas de até 2 minutos permanecem juntas, lacunas de 8 minutos ou mais se dividem e o intervalo entre elas requer revisão de segmentação.",
       "bullet2": "Um resultado oficial requer pelo menos 20 jogadores do nosso lado e pelo menos 20 jogadores combinados em oponentes sem intervenção. Os oponentes sub-20 permanecem separados 1:N quando seu tamanho combinado se qualifica.",
       "bullet3": "Uma vantagem ou desvantagem requer pelo menos 5 eventos diretos elegíveis, com K/D e fama de abate liderando na mesma direção em pelo menos 20%. Todo o resto está fechado ou pendente.",
@@ -9362,9 +9362,9 @@
       "ctaDescription": "Revise o tema, a introdução, o status do recrutamento e as seções visíveis e, em seguida, publique explicitamente. Banner, galeria e cartões de estatísticas ainda são um clique."
     },
     "battles": {
-      "notice": "Modo de demonstração — as batalhas apresentadas são dados fictícios. A recolha automática pela API do Albion está pausada no modo de manutenção, pelo que novas batalhas ZvZ não são adicionadas automaticamente.",
+      "notice": "Modo de demonstração — as batalhas mostradas são dados de amostra fabricados. Uma vez que o bot é convidado, a API Albion puxa as verdadeiras lutas ZvZ da sua guilda a cada 5 minutos e preenche esta página automaticamente.",
       "ctaTitle": "Batalhas rastreadas automaticamente — sem registro manual",
-      "ctaDescription": "A recolha automática está pausada. A segmentação, as verificações de K/D e fama de abate e os motivos de recolha ou espera continuam disponíveis para batalhas existentes."
+      "ctaDescription": "5 minutos Albion API puxa → segmentação de engajamento direto K/D → K/D e kill-fame cross-check → coleta e razões pendentes em uma tela."
     },
     "guide": {
       "notice": "Modo de demonstração — este guia é idêntico ao guia do administrador real em /admin/dashboard/guide. Depois de convidar o bot, o link \"Guia\" no rodapé da barra lateral do administrador leva você de volta aqui.",

@@ -1584,7 +1584,7 @@
     "battles": {
       "title": "Kampfaufzeichnungen (automatisch aggregiert)",
       "cta": "Offene Kampfaufzeichnungen",
-      "body": "Bereits erfasste Gildenkämpfe und ihre Bewertungen bleiben verfügbar. Die automatische Erfassung über die Albion API ist im Wartungsmodus pausiert, daher werden keine neuen Kämpfe automatisch hinzugefügt. Die bestehenden Regeln bleiben unter „Klassifizierungsregeln anzeigen“ verfügbar.",
+      "body": "Gildenkämpfe werden alle 5 Minuten aus der Albion API gezogen, dann werden direkte K/D Ereignisse als tatsächliche Engagements interpretiert. Bis die Quelle und die Ereignisse stabil sind, zeigt das System Sammlung, erforderliche Segmentierung oder unzureichende Beweise an, anstatt ein Ergebnis zu erfinden. Die vollständigen Regeln finden Sie unter \"Klassifizierungsregeln anzeigen\" auf der Seite mit den Kampfaufzeichnungen.",
       "bullet1": "Selbst innerhalb eines Albion Kampfes wird ein Kampf, der aufhört und später wieder beginnt, zu einem separaten Engagement. Lücken von bis zu 2 Minuten bleiben zusammen, Lücken von 8 Minuten oder mehr teilen sich auf, und das Intervall zwischen ihnen erfordert eine Segmentierungsüberprüfung.",
       "bullet2": "Ein offizielles Ergebnis erfordert mindestens 20 Spieler auf unserer Seite und mindestens 20 kombinierte Spieler für Nicht-Interventionsgegner. Gegner unter 20 bleiben separate 1:N-Matchups, wenn sich ihre kombinierte Größe qualifiziert.",
       "bullet3": "Ein Vorteil oder Nachteil erfordert mindestens 5 förderfähige direkte Ereignisse, wobei sowohl K/D als auch Kill Fame um mindestens 20 % in die gleiche Richtung gehen. Alles andere ist ausgeglichen oder noch nicht bewertet.",
@@ -9362,9 +9362,9 @@
       "ctaDescription": "Überprüfen Sie das Thema, das Intro, den Rekrutierungsstatus und die sichtbaren Abschnitte und veröffentlichen Sie sie dann explizit. Banner, Galerie und Statistikkarten sind immer noch ein Klick."
     },
     "battles": {
-      "notice": "Demo-Modus — die gezeigten Kämpfe sind Beispieldaten. Die automatische Erfassung über die Albion API ist im Wartungsmodus pausiert, daher werden keine neuen ZvZ-Kämpfe automatisch hinzugefügt.",
+      "notice": "Demo-Modus - die gezeigten Schlachten sind fabrizierte Beispieldaten. Sobald der Bot eingeladen wird, zieht die Albion API alle 5 Minuten die echten ZvZ Kämpfe deiner Gilde und füllt diese Seite automatisch aus.",
       "ctaTitle": "Automatisch verfolgte Schlachten - keine manuelle Protokollierung",
-      "ctaDescription": "Die automatische Erfassung ist pausiert. Segmentierung, K/D- und Kill-Fame-Prüfungen sowie Erfassungs- und Wartegründe bleiben für bestehende Kämpfe verfügbar."
+      "ctaDescription": "5-minütige Albion API zieht → Engagement-Segmentierung aus direkten K/D → K/D und Kill-Fame-Cross-Check → Sammlung und ausstehende Gründe auf einem Bildschirm."
     },
     "guide": {
       "notice": "Demo-Modus: Dieser Leitfaden ist identisch mit dem tatsächlichen Admin-Leitfaden unter /admin/dashboard/guide. Nachdem Sie den Bot eingeladen haben, bringt Sie der Link \"Guide\" in der Fußzeile der Admin-Seitenleiste direkt hierher zurück.",

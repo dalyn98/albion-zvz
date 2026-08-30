@@ -1584,7 +1584,7 @@
     "battles": {
       "title": "Zapisy bitewne (automatycznie agregowane)",
       "cta": "Otwarte rekordy bitwy",
-      "body": "Wcześniej zebrane bitwy gildii i ich klasyfikacje pozostają dostępne. Automatyczne pobieranie z API Albion jest wstrzymane w trybie konserwacji, więc nowe bitwy nie są dodawane automatycznie. Dotychczasowe zasady pozostają w sekcji „Pokaż zasady klasyfikacji”.",
+      "body": "Bitwy gildii są pobierane z API Albion co 5 minut, a następnie bezpośrednie wydarzenia K/D są interpretowane jako rzeczywiste zaangażowanie. Dopóki źródło i zdarzenia nie są stabilne, system pokazuje zbieranie, wymaganą segmentację lub niewystarczające dowody zamiast wymyślać wynik. Pełne zasady znajdują się w sekcji „Pokaż zasady klasyfikacji” na stronie zapisów bitwy.",
       "bullet1": "Nawet w ciągu jednej bitwy Albion, walka, która się zatrzymuje, a później się restartuje, staje się osobnym zaangażowaniem. Przerwy do 2 minut pozostają razem, przerwy 8 minut lub więcej są podzielone, a odstęp między nimi wymaga przeglądu segmentacji.",
       "bullet2": "Oficjalny wynik wymaga co najmniej 20 graczy po naszej stronie i co najmniej 20 połączonych graczy wśród przeciwników nieinterwencyjnych. Przeciwnicy pod 20 pozostają oddzielnymi pojedynkami 1:N, gdy ich łączny rozmiar się kwalifikuje.",
       "bullet3": "Przewaga lub wada wymaga co najmniej 5 kwalifikujących się bezpośrednich wydarzeń, przy czym zarówno K/D, jak i sława za zabójstwo prowadzą w tym samym kierunku o co najmniej 20%. Wszystko inne jest zamknięte lub w toku.",
@@ -9362,9 +9362,9 @@
       "ctaDescription": "Przejrzyj temat, wstęp, status rekrutacji i widoczne sekcje, a następnie opublikuj wyraźnie. Baner, galeria i karty statystyk są nadal jednym kliknięciem."
     },
     "battles": {
-      "notice": "Tryb demo — pokazane bitwy są danymi przykładowymi. Automatyczne pobieranie z API Albion jest wstrzymane w trybie konserwacji, więc nowe bitwy ZvZ nie są dodawane automatycznie.",
+      "notice": "Tryb demo - pokazane bitwy są sfabrykowanymi przykładowymi danymi. Po zaproszeniu bota, Albion API pobiera prawdziwe walki twojej gildii ZvZ co 5 minut i automatycznie wypełnia tę stronę.",
       "ctaTitle": "Automatycznie śledzone bitwy - brak ręcznego logowania",
-      "ctaDescription": "Automatyczne pobieranie jest wstrzymane. Segmentacja, porównania K/D i kill-fame oraz powody zbierania lub oczekiwania pozostają dostępne dla istniejących bitew."
+      "ctaDescription": "5-minutowy Albion API pobiera → segmentację zaangażowania z bezpośredniego K/D → K/D i kill-fame cross-check → zbiór i oczekujące powody na jednym ekranie."
     },
     "guide": {
       "notice": "Tryb demonstracyjny - ten przewodnik jest identyczny z rzeczywistym przewodnikiem administracyjnym w /admin/dashboard/guide. Po zaproszeniu bota, link \"Przewodnik\" w stopce paska bocznego administratora przeniesie Cię z powrotem tutaj.",

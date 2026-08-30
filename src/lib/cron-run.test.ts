@@ -53,25 +53,8 @@ function cronRouteFiles(dir = join(process.cwd(), 'src', 'app', 'api', 'cron')):
 describe('withCronRun', () => {
   beforeEach(() => {
     vi.unstubAllEnvs()
-    vi.stubEnv('CRON_JOBS_ENABLED', '1')
     mocks.getAdminClient.mockReset()
     mocks.logError.mockReset()
-  })
-
-  it('blocks every background job by default before touching Supabase', async () => {
-    vi.stubEnv('CRON_JOBS_ENABLED', '')
-    vi.stubEnv('CRON_SECRET', '1234567890123456')
-
-    const response = await withCronRun(
-      request('1234567890123456'),
-      { jobName: 'test-job' },
-      async () => ({}),
-    )
-
-    expect(response.status).toBe(503)
-    expect(response.headers.get('cache-control')).toBe('no-store, max-age=0')
-    await expect(response.json()).resolves.toEqual({ error: 'Background jobs disabled' })
-    expect(mocks.getAdminClient).not.toHaveBeenCalled()
   })
 
   it('fails closed when CRON_SECRET is not configured', async () => {

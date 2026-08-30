@@ -1,6 +1,7 @@
 'use client'
 
-import { useSyncExternalStore } from 'react'
+import * as Sentry from '@sentry/nextjs'
+import { useEffect, useSyncExternalStore } from 'react'
 import { GLOBAL_ERROR_COPY, type GlobalErrorLocale } from '@/lib/global-error-copy'
 import {
   getIntlLocale,
@@ -51,6 +52,10 @@ export default function GlobalError({
     getClientLocaleSnapshot,
     getServerLocaleSnapshot,
   )
+
+  useEffect(() => {
+    Sentry.captureException(error)
+  }, [error])
 
   const copy = GLOBAL_ERROR_COPY[locale]
 
