@@ -5,44 +5,42 @@ import { describe, expect, it } from 'vitest'
 const root = process.cwd()
 
 describe('performance platform configuration', () => {
-  it('runs Vercel functions through the verified Seoul dependency path and preserves every cron', () => {
+  it('runs only the automatic regear pipeline through the verified Seoul dependency path', () => {
     const config = readFileSync(join(root, 'vercel.ts'), 'utf8')
 
     expect(config).toContain("regions: ['icn1']")
-    expect(config.match(/path:\s*'\/api\/cron\//g)).toHaveLength(20)
+    expect(config.match(/path:\s*'\/api\/cron\//g)).toHaveLength(6)
     expect(config).toContain(
       "{ path: '/api/cron/event-auto-start', schedule: '* * * * *' }",
     )
     expect(config).toContain(
       "path: '/api/cron/event-participation-notifications'",
     )
-    expect(config).toContain("path: '/api/cron/support-tickets'")
-    expect(config).toContain("path: '/api/cron/support-ai'")
-    expect(config).toContain(
-      "{ path: '/api/cron/public-battlelog', schedule: '3-59/5 * * * *' }",
-    )
-    expect(config).toContain(
-      "{ path: '/api/cron/public-battlelog-recovery', schedule: '17 * * * *' }",
-    )
-    expect(config).toContain(
-      "{ path: '/api/cron/public-battlelog-rollups', schedule: '19 */6 * * *' }",
-    )
-    expect(config).toContain(
-      "{ path: '/api/cron/daily-maintenance', schedule: '0 18 * * *' }",
-    )
     expect(config).toContain(
       "{ path: '/api/cron/auto-regear', schedule: '2-59/10 * * * *' }",
     )
     expect(config).toContain("schedule: '6-59/10 * * * *'")
     expect(config).toContain(
-      "{ path: '/api/cron/support-ai', schedule: '7-59/15 * * * *' }",
+      "{ path: '/api/cron/account-albion-sync', schedule: '30 19 * * *' }",
     )
-    expect(config).not.toContain("path: '/api/cron/cleanup-screenshots'")
-    expect(config).not.toContain("path: '/api/cron/craft-expire'")
-    expect(config).not.toContain("path: '/api/cron/member-trade-expire'")
-    expect(config).toContain(
-      "{ path: '/api/cron/tenant-lifecycle', schedule: '20 18 * * *' }",
-    )
+    for (const disabledJob of [
+      'admin-notification-digest',
+      'albion-roster-sync',
+      'daily-maintenance',
+      'event-imminent',
+      'killbot-feed',
+      'member-sync',
+      'public-battlelog',
+      'public-battlelog-recovery',
+      'public-battlelog-rollups',
+      'search-console-sync',
+      'shop-price-sync',
+      'support-ai',
+      'support-tickets',
+      'tenant-lifecycle',
+    ]) {
+      expect(config).not.toContain(`path: '/api/cron/${disabledJob}'`)
+    }
   })
 
   it('uses one typed Vercel configuration source', () => {

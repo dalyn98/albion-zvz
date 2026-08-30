@@ -6,6 +6,8 @@ import * as Sentry from '@sentry/nextjs'
 import { resolveSentryTraceSampleRate } from '@/lib/sentry-sampling'
 
 Sentry.init({
+  // 유지보수 종료 후 별도 Sentry 수집 비용이 발생하지 않도록 전송을 중단한다.
+  enabled: false,
   dsn: process.env.SENTRY_DSN,
   environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV,
   tracesSampleRate: resolveSentryTraceSampleRate(

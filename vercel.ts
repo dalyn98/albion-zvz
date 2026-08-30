@@ -7,29 +7,19 @@ export const config: VercelConfig = {
   // cron handlers share the verified healthy path. The added DB latency is a
   // deliberate availability trade-off; static assets still use Vercel's CDN.
   regions: ['icn1'],
+  // 유지보수 종료 후에는 자동 리기어의 end-to-end 체인만 실행한다.
+  // 이벤트 시작/참가 확정, 전투·킬보드 수집, 홈 길드 자격 갱신은 자동
+  // 리기어의 정확성·안전성에 직접 필요하므로 유지한다. 그 외 주기 작업은
+  // 불필요한 Vercel Function/외부 API/AI 사용량을 막기 위해 등록하지 않는다.
   crons: [
     { path: '/api/cron/battle-tracker', schedule: '*/5 * * * *' },
     { path: '/api/cron/killboard-sync', schedule: '1-59/5 * * * *' },
     { path: '/api/cron/auto-regear', schedule: '2-59/10 * * * *' },
     { path: '/api/cron/event-auto-start', schedule: '* * * * *' },
-    { path: '/api/cron/event-imminent', schedule: '3-59/5 * * * *' },
-    { path: '/api/cron/killbot-feed', schedule: '4-59/5 * * * *' },
     {
       path: '/api/cron/event-participation-notifications',
       schedule: '6-59/10 * * * *',
     },
-    { path: '/api/cron/admin-notification-digest', schedule: '5-59/15 * * * *' },
-    { path: '/api/cron/support-tickets', schedule: '10-59/15 * * * *' },
-    { path: '/api/cron/support-ai', schedule: '7-59/15 * * * *' },
-    { path: '/api/cron/albion-roster-sync', schedule: '0 */6 * * *' },
     { path: '/api/cron/account-albion-sync', schedule: '30 19 * * *' },
-    { path: '/api/cron/member-sync', schedule: '0 19 * * *' },
-    { path: '/api/cron/search-console-sync', schedule: '20 20 * * *' },
-    { path: '/api/cron/daily-maintenance', schedule: '0 18 * * *' },
-    { path: '/api/cron/tenant-lifecycle', schedule: '20 18 * * *' },
-    { path: '/api/cron/shop-price-sync', schedule: '0 * * * *' },
-    { path: '/api/cron/public-battlelog', schedule: '3-59/5 * * * *' },
-    { path: '/api/cron/public-battlelog-recovery', schedule: '17 * * * *' },
-    { path: '/api/cron/public-battlelog-rollups', schedule: '19 */6 * * *' },
   ],
 }

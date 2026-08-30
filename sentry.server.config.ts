@@ -8,6 +8,9 @@ import * as Sentry from '@sentry/nextjs'
 import { resolveSentryTraceSampleRate } from '@/lib/sentry-sampling'
 
 Sentry.init({
+  // 유지보수 종료 후 별도 Sentry 수집 비용이 발생하지 않도록 전송을 중단한다.
+  // 운영 오류는 Vercel 기본 런타임 로그로만 남긴다.
+  enabled: false,
   dsn: process.env.SENTRY_DSN,
   environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV,
   // 트랜잭션 샘플링: prod 에서 모든 RSC/route 호출을 트레이스로 보내면 비용 폭증.
