@@ -7,10 +7,16 @@ const root = process.cwd()
 describe('performance platform configuration', () => {
   it('keeps the website in Seoul without registering background cron work', () => {
     const config = readFileSync(join(root, 'vercel.ts'), 'utf8')
+    const productionVerify = readFileSync(
+      join(root, '.github/workflows/production-verify.yml'),
+      'utf8',
+    )
 
     expect(config).toContain("regions: ['icn1']")
     expect(config).not.toContain('crons:')
     expect(config).not.toContain("path: '/api/cron/")
+    expect(productionVerify).not.toContain('schedule:')
+    expect(productionVerify).not.toContain('cron:')
   })
 
   it('uses one typed Vercel configuration source', () => {

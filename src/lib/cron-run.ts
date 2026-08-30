@@ -36,6 +36,13 @@ function isValidCronAuthorization(authHeader: string | null, secret: string): bo
 }
 
 export function validateCronRequest(request: Request): NextResponse | null {
+  // 유지보수 모드: 수동 리기어 신청/승인은 cron 을 사용하지 않는다.
+  // 명시적으로 다시 활성화하기 전에는 등록 누락이나 외부 직접 호출이 있어도
+  // 모든 백그라운드 작업을 비용 발생 전에 차단한다.
+  if (process.env.CRON_JOBS_ENABLED !== '1') {
+    return withNoStore(NextResponse.json({ error: 'Background jobs disabled' }, { status: 503 }))
+  }
+
   const secret = process.env.CRON_SECRET
   if (!secret) {
     return withNoStore(NextResponse.json({ error: 'CRON_SECRET not configured' }, { status: 500 }))
