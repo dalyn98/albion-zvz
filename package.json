@@ -24,7 +24,8 @@
     "verify:production": "node scripts/verify-production.mjs",
     "update:albion-data": "AO_DATA_REFRESH=1 node scripts/build-items.mjs && AO_DATA_REFRESH=1 node scripts/build-item-spells.mjs && AO_DATA_REFRESH=1 node scripts/build-spell-cooldowns.mjs",
     "check:migrations:remote": "scripts/check-supabase-migration-drift.sh",
-    "register:discord-support": "node --env-file=.env.local scripts/register-discord-support-commands.mjs"
+    "register:discord-support": "node --env-file=.env.local scripts/register-discord-support-commands.mjs",
+    "worker:codex": "node --env-file-if-exists=.env.codex-worker scripts/codex-ticket-worker.mjs --watch"
   },
   "engines": {
     "node": ">=24 <25",
@@ -33,7 +34,8 @@
   "dependencies": {
     "@mdx-js/loader": "^3.1.1",
     "@mdx-js/react": "^3.1.1",
-    "@next/mdx": "^16.2.12",
+    "@next/mdx": "16.3.4",
+    "@openai/codex-sdk": "0.154.0",
     "@sentry/nextjs": "^10.68.0",
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.110.8",
@@ -42,12 +44,12 @@
     "@vercel/speed-insights": "^2.0.0",
     "ai": "^7.0.50",
     "lucide-react": "^1.16.0",
-    "next": "16.2.12",
+    "next": "16.3.4",
     "next-intl": "^4.13.4",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-easy-crop": "^5.5.7",
-    "sharp": "^0.35.3",
+    "sharp": "0.35.4",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -59,7 +61,7 @@
     "@vercel/config": "^0.5.5",
     "@vitest/coverage-v8": "^4.1.6",
     "eslint": "^9.39.5",
-    "eslint-config-next": "16.2.12",
+    "eslint-config-next": "16.3.4",
     "playwright": "^1.60.0",
     "tailwindcss": "^4",
     "typescript": "^5",
@@ -72,6 +74,6 @@
       "path-to-regexp": "6.3.0"
     },
     "postcss": "^8.5.23",
-    "sharp": "^0.35.3"
+    "sharp": "0.35.4"
   }
 }

@@ -17,6 +17,7 @@ import {
 } from '@/lib/official-support-resources'
 import { loadSupportTicketSettings } from '@/lib/discord-support-ticket-service'
 import { getAdminClient } from '@/lib/supabase-admin'
+import { SUPPORT_CODEX_OPERATOR_DISCORD_ID } from '@/lib/support-codex-control-core'
 
 export interface SupportHealthCheck {
   name: string
@@ -99,6 +100,17 @@ export async function inspectSupportHealth(supportGuildId: string): Promise<Supp
       ? 'Production support guild is allow-listed.'
       : 'DISCORD_SUPPORT_GUILD_ID does not match this server.',
   })
+  const codexEnabled = process.env.SUPPORT_CODEX_ENABLED?.trim().toLowerCase() !== 'false'
+  const workerSecretReady = (process.env.CODEX_WORKER_SECRET?.trim().length ?? 0) >= 32
+  checks.push({
+    name: 'codex-worker-config',
+    ok: codexEnabled && workerSecretReady,
+    message: !codexEnabled
+      ? 'Codex ticket dispatch is disabled by SUPPORT_CODEX_ENABLED.'
+      : workerSecretReady
+        ? 'The signed Codex worker endpoint is enabled and configured.'
+        : 'CODEX_WORKER_SECRET must be configured with at least 32 characters.',
+  })
 
   const settings = await loadSupportTicketSettings(supportGuildId)
   checks.push({
@@ -151,6 +163,7 @@ export async function inspectSupportHealth(supportGuildId: string): Promise<Supp
     ['security-alerts', settings.security_alert_channel_id],
     ['service-status', settings.status_channel_id],
     ['known-issues', settings.known_issues_channel_id],
+    ['codex-control', settings.codex_channel_id],
   ] as const
   const channelResults = await Promise.all(channelEntries.map(async ([name, id]) => ({
     name,
@@ -179,9 +192,12 @@ export async function inspectSupportHealth(supportGuildId: string): Promise<Supp
   })
 
   const botId = process.env.DISCORD_CLIENT_ID?.trim() ?? ''
-  const member = isDiscordId(botId)
-    ? await getDiscordSupportMemberSnapshot(supportGuildId, botId)
-    : null
+  const [member, codexOwner] = await Promise.all([
+    isDiscordId(botId)
+      ? getDiscordSupportMemberSnapshot(supportGuildId, botId)
+      : Promise.resolve(null),
+    getDiscordSupportMemberSnapshot(supportGuildId, SUPPORT_CODEX_OPERATOR_DISCORD_ID),
+  ])
   const parent = channelResults.find((entry) => entry.name === 'ticket-hub')?.channel ?? null
   const missingPermissions = member && parent
     ? missingParentPermissions({ guild, member, channel: parent, botId })
@@ -194,6 +210,27 @@ export async function inspectSupportHealth(supportGuildId: string): Promise<Supp
       : `Missing: ${missingPermissions.join(', ')}`,
   })
 
+  const codexChannel = channelResults.find((entry) => entry.name === 'codex-control')?.channel ?? null
+  const viewMask = 1n << 10n
+  const everyoneOverwrite = codexChannel?.permission_overwrites.find(
+    (entry) => entry.type === 0 && entry.id === supportGuildId,
+  )
+  const ownerOverwrite = codexChannel?.permission_overwrites.find(
+    (entry) => entry.type === 1 && entry.id === SUPPORT_CODEX_OPERATOR_DISCORD_ID,
+  )
+  const codexPrivate = Boolean(
+    codexOwner &&
+    everyoneOverwrite && (BigInt(everyoneOverwrite.deny) & viewMask) !== 0n &&
+    ownerOverwrite && (BigInt(ownerOverwrite.allow) & viewMask) !== 0n,
+  )
+  checks.push({
+    name: 'codex-owner-boundary',
+    ok: codexPrivate,
+    message: codexPrivate
+      ? 'Codex control is visible to the configured owner and hidden from everyone else.'
+      : 'Codex owner membership or channel permission boundary is invalid.',
+  })
+
   const panelExists = settings.panel_message_id
     ? await discordSupportMessageExists(settings.parent_channel_id, settings.panel_message_id)
     : false
@@ -202,9 +239,19 @@ export async function inspectSupportHealth(supportGuildId: string): Promise<Supp
     ok: panelExists,
     message: panelExists ? 'The ticket panel message is reachable.' : 'The ticket panel must be synchronized.',
   })
+  const codexPanelExists = settings.codex_channel_id && settings.codex_panel_message_id
+    ? await discordSupportMessageExists(settings.codex_channel_id, settings.codex_panel_message_id)
+    : false
+  checks.push({
+    name: 'codex-panel',
+    ok: codexPanelExists,
+    message: codexPanelExists
+      ? 'The owner-only Codex control panel is reachable.'
+      : 'The Codex control panel must be synchronized.',
+  })
 
   const db = getAdminClient()
-  const [ticketResult, cronResult, aiResult] = await Promise.all([
+  const [ticketResult, cronResult, aiResult, workerResult] = await Promise.all([
     db.from('support_tickets').select('created_at').eq('support_guild_id', supportGuildId)
       .order('created_at', { ascending: false }).limit(1).maybeSingle(),
     db.from('cron_runs').select('job_name, status, started_at')
@@ -212,6 +259,8 @@ export async function inspectSupportHealth(supportGuildId: string): Promise<Supp
       .order('started_at', { ascending: false }).limit(2),
     db.from('support_ticket_ai_analyses').select('created_at')
       .order('created_at', { ascending: false }).limit(1).maybeSingle(),
+    db.from('support_codex_workers').select('worker_id, last_seen_at, current_job_id')
+      .order('last_seen_at', { ascending: false }).limit(1).maybeSingle(),
   ])
   checks.push({
     name: 'ticket-intake',
@@ -231,6 +280,22 @@ export async function inspectSupportHealth(supportGuildId: string): Promise<Supp
       : cronFailed
         ? 'A recent support cron run failed.'
         : 'Recent support cron state is healthy.',
+  })
+  const workerLastSeen = workerResult.data?.last_seen_at
+    ? new Date(workerResult.data.last_seen_at).getTime()
+    : Number.NaN
+  const workerOnline = !workerResult.error && Number.isFinite(workerLastSeen) &&
+    Date.now() - workerLastSeen <= 90_000
+  checks.push({
+    name: 'codex-worker-liveness',
+    ok: workerOnline,
+    message: workerResult.error
+      ? 'Codex worker liveness state could not be read.'
+      : workerOnline
+        ? `Codex worker ${workerResult.data?.worker_id} checked in recently.`
+        : workerResult.data
+          ? `Codex worker was last seen at ${workerResult.data.last_seen_at}.`
+          : 'No Codex worker has checked in yet.',
   })
   const gatewayAuthPresent = Boolean(
     process.env.VERCEL_OIDC_TOKEN || process.env.AI_GATEWAY_API_KEY || process.env.VERCEL,

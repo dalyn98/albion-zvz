@@ -49,6 +49,9 @@ npm run lint
 | `SUPABASE_SERVICE_ROLE_KEY` | 서버 액션·cron 의 관리자 권한 접근 |
 | `DISCORD_CLIENT_ID` / `DISCORD_CLIENT_SECRET` / `DISCORD_BOT_TOKEN` / `DISCORD_PUBLIC_KEY` | OAuth 로그인 + 봇 동작 + slash command 서명 검증 |
 | `DISCORD_SUPPORT_GUILD_ID` | 선택. 공식 지원 서버 한 곳에서만 `/support` 티켓 기능과 멱등형 서버 구성을 활성화 |
+| `SUPPORT_CODEX_ENABLED` / `CODEX_WORKER_SECRET` | 공식 지원 티켓의 owner-only Codex dispatch 활성 여부와 Vercel↔로컬 워커 HMAC secret. secret은 32자 이상 별도 값 사용 |
+| `CODEX_WORKER_BASE_URL` / `CODEX_WORKER_REPO_PATH` | 로컬 Codex 워커가 호출할 배포 URL과 저장소 절대 경로. URL은 로컬 외 환경에서 HTTPS 필수 |
+| `CODEX_WORKER_WORKTREE_ROOT` / `CODEX_WORKER_TIMEOUT_MS` / `CODEX_WORKER_ID` | 선택. 격리 worktree 위치, 1~60분 실행 제한, 워커 식별자 |
 | `SUPPORT_AI_MODEL` | 선택. 직원용 티켓 분류 모델. 기본값은 Vercel AI Gateway의 `openai/gpt-5.4-nano` |
 | `COOKIE_SECRET` | 세션 쿠키 서명용 32자 랜덤 문자열 |
 | `COOKIE_SECURE` | 프로덕션에서 `true`, 로컬 HTTP 에서 `false` |
@@ -69,6 +72,31 @@ npm run lint
 `Manage Threads` 권한이 필요합니다. 일상적인 상담은 사람이 수행하며 AI는 초기 티켓의
 직원용 분류·요약·위험 신호만 생성합니다. AI 장애나 예산 초과는 티켓 생성과 상태 변경을
 막지 않습니다. 운영 진단은 `/support health`, 패널 복구는 `/support sync`를 사용합니다.
+
+### Discord Codex 티켓 컨트롤
+
+`support-tickets` cron은 공식 지원 서버의 비공개 `🧠・codex-control` 채널과
+버튼 패널도 멱등하게 구성합니다. 이 채널과 모든 interaction은 Discord ID
+`490294888605155339`만 허용합니다. 패널에서 티켓과 조사/구현 모드를 고르고
+요청을 입력한 뒤 `실행 승인`을 눌러야 작업이 큐에 들어갑니다.
+
+Codex는 Vercel 함수 안에서 실행하지 않습니다. 저장소와 Codex 로그인이 준비된
+로컬 머신의 **전용 OS 계정**에서 다음 워커를 실행합니다. 이 계정에는 운영 `.env`,
+SSH 키, 배포 자격 증명, 다른 저장소 읽기 권한을 주지 않습니다. 티켓 본문은 secret
+패턴과 URL query를 제거한 뒤 전달되지만, 사용자 입력이므로 별도 계정 경계가 필요합니다.
+
+```bash
+cp .env.codex-worker.example .env.codex-worker
+# 배포 URL과 저장소 경로를 입력. macOS에서는 HMAC secret을 Keychain에서 읽습니다.
+npm run worker:codex
+```
+
+워커는 승인된 작업만 HMAC 인증으로 가져오며 모든 모드를 별도 git worktree에서
+실행합니다. 조사 모드는 read-only, 구현 모드는 workspace-write입니다. 어느 모드도
+commit, push, 배포, 운영 마이그레이션 적용 또는 사용자 자동 답변을 허용하지 않습니다.
+조사 worktree는 종료 후 자동 제거하고, 구현 worktree는 검토를 위해 보존합니다.
+기본 보존 경로는 저장소와 같은 부모 디렉터리의 `.<저장소명>-codex-worktrees`입니다.
+`/support health`에서 secret 구성, 전용 채널, 패널, 최근 워커 heartbeat를 함께 확인합니다.
 
 ## 데이터베이스 마이그레이션
 

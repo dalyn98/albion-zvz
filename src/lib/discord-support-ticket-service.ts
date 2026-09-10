@@ -59,6 +59,8 @@ const SUPPORT_TICKET_SETTINGS_COLUMNS = [
   'security_alert_channel_id',
   'status_channel_id',
   'known_issues_channel_id',
+  'codex_channel_id',
+  'codex_panel_message_id',
   'panel_message_id',
   'panel_version',
   'resource_channel_ids',

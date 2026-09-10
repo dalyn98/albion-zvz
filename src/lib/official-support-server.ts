@@ -15,6 +15,7 @@ import {
   ensureDiscordMentionSpamRule,
   getDiscordSupportGuildSnapshot,
   getDiscordSupportChannelSnapshot,
+  getDiscordSupportMemberSnapshot,
   listDiscordSupportChannels,
   updateDiscordSupportChannel,
   updateDiscordSupportGuildBranding,
@@ -41,6 +42,10 @@ import { loadDiscordSupportMessages } from '@/lib/discord-support-ticket-message
 import { publishSupportTicketPanel } from '@/lib/discord-support-ticket-service'
 import { log } from '@/lib/log'
 import { getAdminClient } from '@/lib/supabase-admin'
+import {
+  buildSupportCodexPanelPayload,
+  SUPPORT_CODEX_OPERATOR_DISCORD_ID,
+} from '@/lib/support-codex-control-core'
 
 const bit = (position: bigint) => 1n << position
 const VIEW = bit(10n)
@@ -118,6 +123,18 @@ function privateStaffPermissions(
   return [
     overwrite(guildId, 0, 0n, VIEW),
     ...staffRoleIds.map((id) => overwrite(id, 0, STAFF_ALLOW)),
+    overwrite(botId, 1, BOT_ALLOW),
+  ]
+}
+
+export function buildPrivateCodexOwnerPermissions(
+  guildId: string,
+  botId: string,
+  ownerDiscordId: string,
+): DiscordSupportPermissionOverwrite[] {
+  return [
+    overwrite(guildId, 0, 0n, VIEW),
+    overwrite(ownerDiscordId, 1, VIEW | SEND | EMBED | READ_HISTORY | USE_COMMANDS),
     overwrite(botId, 1, BOT_ALLOW),
   ]
 }
@@ -372,6 +389,8 @@ export async function ensureOfficialSupportServer(): Promise<{
   automod: boolean
   commandRegistered: boolean
   panelMessageId: string
+  codexChannelId: string
+  codexPanelMessageId: string
   removedSupersededMessages: number
 }> {
   const guildId = process.env.DISCORD_SUPPORT_GUILD_ID?.trim() ?? ''
@@ -381,7 +400,7 @@ export async function ensureOfficialSupportServer(): Promise<{
   }
   const db = getAdminClient()
   const settingsQuery = await db.from('support_ticket_settings')
-    .select('updated_by_discord_id, staff_role_ids, resource_channel_ids, resource_message_ids, resources_version')
+    .select('updated_by_discord_id, staff_role_ids, resource_channel_ids, resource_message_ids, resources_version, codex_channel_id, codex_panel_message_id')
     .eq('support_guild_id', guildId)
     .maybeSingle()
   if (settingsQuery.error) throw new Error(settingsQuery.error.message)
@@ -391,6 +410,13 @@ export async function ensureOfficialSupportServer(): Promise<{
     listDiscordSupportChannels(guildId),
   ])
   if (!guild) throw new Error('Official support Discord server is unavailable')
+  const codexOwner = await getDiscordSupportMemberSnapshot(
+    guildId,
+    SUPPORT_CODEX_OPERATOR_DISCORD_ID,
+  )
+  if (!codexOwner) {
+    throw new Error('The configured Codex operator is not a member of the official support server')
+  }
   const originalRoleNames = new Set(guild.roles.map((role) => role.name))
   let staffRoles: DiscordSupportRoleSnapshot[]
   try {
@@ -434,6 +460,11 @@ export async function ensureOfficialSupportServer(): Promise<{
   const feedbackPermissions = publicFeedbackPermissions(guildId, botId, staffRoleIds)
   const staffPermissions = privateStaffPermissions(guildId, botId, staffRoleIds)
   const ticketPermissions = ticketHubPermissions(guildId, botId, staffRoleIds)
+  const codexPermissions = buildPrivateCodexOwnerPermissions(
+    guildId,
+    botId,
+    SUPPORT_CODEX_OPERATOR_DISCORD_ID,
+  )
   const createdChannels: string[] = []
   const deletedChannels: string[] = []
   for (const category of [welcome, product, support, staff]) {
@@ -500,12 +531,41 @@ export async function ensureOfficialSupportServer(): Promise<{
     guildId, channels, name: '💬・staff-chat', aliases: ['staff-chat'], type: 0, parentId: staff.channel.id,
     position: 4, permissions: staffPermissions, topic: 'Private coordination for human support staff.',
   })
-  for (const entry of [queue, aiReview, securityAlerts, logs, staffChat]) {
+  const codexControl = await ensureChannel({
+    guildId, channels, name: '🧠・codex-control', aliases: ['codex-control'], type: 0,
+    parentId: staff.channel.id, position: 5, permissions: codexPermissions,
+    topic: 'Owner-only control plane for explicitly approved Codex ticket work.',
+  })
+  for (const entry of [queue, aiReview, securityAlerts, logs, staffChat, codexControl]) {
     if (entry.created) createdChannels.push(entry.channel.name)
   }
   if (queue.created) await seedChannel(queue.channel.id, '**Support queue ready**\nTicket activity is posted here. Assign and prioritize tickets only after human review.')
   if (aiReview.created) await seedChannel(aiReview.channel.id, '**AI review boundary**\nThis channel is staff-only. AI output is advisory and must never be copied to a requester as an automated answer.')
   if (securityAlerts.created) await seedChannel(securityAlerts.channel.id, '**Security alerts ready**\nReview every alert manually. Do not paste exposed credentials into staff chat or logs.')
+
+  const codexPanelPayload = buildSupportCodexPanelPayload()
+  let codexPanelMessageId = isDiscordId(settingsQuery.data?.codex_panel_message_id)
+    && settingsQuery.data?.codex_channel_id === codexControl.channel.id
+    ? settingsQuery.data.codex_panel_message_id
+    : null
+  if (codexPanelMessageId) {
+    try {
+      await updateDiscordSupportMessage(
+        codexControl.channel.id,
+        codexPanelMessageId,
+        codexPanelPayload,
+      )
+    } catch (error) {
+      if (!(error instanceof DiscordSupportRestError && error.status === 404)) throw error
+      codexPanelMessageId = null
+    }
+  }
+  if (!codexPanelMessageId) {
+    codexPanelMessageId = await createDiscordSupportMessage(
+      codexControl.channel.id,
+      codexPanelPayload,
+    )
+  }
 
   const previousChannelIds = discordIdMap(settingsQuery.data?.resource_channel_ids)
   const previousMessageIds = discordIdMap(settingsQuery.data?.resource_message_ids)
@@ -524,6 +584,8 @@ export async function ensureOfficialSupportServer(): Promise<{
     security_alert_channel_id: securityAlerts.channel.id,
     status_channel_id: serviceStatus.channel.id,
     known_issues_channel_id: knownIssues.channel.id,
+    codex_channel_id: codexControl.channel.id,
+    codex_panel_message_id: codexPanelMessageId,
     staff_role_ids: staffRoleIds,
     support_hours: 'Monday-Friday, 01:00-10:00 UTC',
     ai_enabled: true,
@@ -698,6 +760,8 @@ export async function ensureOfficialSupportServer(): Promise<{
     automod,
     commandRegistered: true,
     panelMessageId,
+    codexChannelId: codexControl.channel.id,
+    codexPanelMessageId,
     removedSupersededMessages,
   }
 }

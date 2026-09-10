@@ -67,6 +67,11 @@ import {
   isDiscordSupportInteraction,
   shouldDeferDiscordSupportInteraction,
 } from '@/lib/discord-support-ticket-interactions'
+import {
+  handleDiscordSupportCodexInteraction,
+  isDiscordSupportCodexInteraction,
+  shouldDeferDiscordSupportCodexInteraction,
+} from '@/lib/discord-support-codex-interactions'
 import { log } from '@/lib/log'
 
 // Discord 는 3 초 안에 응답이 오지 않으면 endpoint 가 죽었다고 판단해
@@ -185,6 +190,36 @@ export async function POST(request: Request) {
       payload.type === INTERACTION_TYPE_MESSAGE_COMPONENT ||
       payload.type === INTERACTION_TYPE_MODAL_SUBMIT
     ) {
+      if (isDiscordSupportCodexInteraction(payload)) {
+        if (!shouldDeferDiscordSupportCodexInteraction(payload)) {
+          return NextResponse.json(await handleDiscordSupportCodexInteraction(payload))
+        }
+        const deferredResponse = deferredEphemeralReply()
+        after(async () => {
+          try {
+            const response = await handleDiscordSupportCodexInteraction(payload)
+            await editOriginalInteractionResponse(payload, response)
+          } catch (error) {
+            log.error('[discord/interactions] deferred Codex control handler failed', error, {
+              interaction_type: payload.type,
+              guild_id: payload.guild_id,
+              channel_id: payload.channel_id,
+            })
+            try {
+              await editOriginalInteractionResponse(payload, {
+                type: INTERACTION_RESPONSE_TYPE_CHANNEL_MESSAGE,
+                data: { content: 'Codex 요청 처리 중 오류가 발생했습니다. 잠시 후 다시 시도하세요.', flags: 1 << 6 },
+              })
+            } catch (followupError) {
+              log.error('[discord/interactions] Codex control failure response failed', followupError, {
+                guild_id: payload.guild_id,
+              })
+            }
+          }
+        })
+        return NextResponse.json(deferredResponse)
+      }
+
       if (isDiscordSupportInteraction(payload)) {
         if (!shouldDeferDiscordSupportInteraction(payload)) {
           return NextResponse.json(await handleDiscordSupportInteraction(payload))

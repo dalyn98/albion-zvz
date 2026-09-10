@@ -80,6 +80,8 @@ export interface SupportTicketSettingsRow {
   security_alert_channel_id: string | null
   status_channel_id: string | null
   known_issues_channel_id: string | null
+  codex_channel_id: string | null
+  codex_panel_message_id: string | null
   panel_message_id: string | null
   panel_version: string | null
   resource_channel_ids: Record<string, unknown>
