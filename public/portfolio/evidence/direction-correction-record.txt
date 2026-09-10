@@ -1,0 +1,30 @@
+Albion Guild Manager — Direction correction record
+====================================================
+
+Provenance
+----------
+Codex task: 019f8c56-2dec-7b83-855a-d3bd23ef2272
+Artifact type: product-direction rejection record
+Deployment claim: none
+
+Recorded user corrections
+-------------------------
+1. "너무 조잡하지 않아?"
+2. "그것도 그렇게 디자인적으로 조잡해보여"
+3. "이건 단순히 화면의 나열일 뿐인것 같은데"
+4. "흠....................................... 그건 그냥 랜딩페이지나 다른거 없는거 아니야? 데모 투어 페이지"
+5. "맞아. 그렇다면 사용자가 한눈에 봤을때 사용하고 싶어해야 하잖아. 근데 지금 너가 만들고 있는 부분들은 그런 부분이 부족해"
+
+Decisions evidenced by the record
+----------------------------------
+- Decorative fantasy/SaaS-card styling was rejected as a direction problem, not polished further.
+- A screenshot-switching tour was rejected because it displayed screens without causality.
+- A separate tour page was rejected because its role overlapped with the landing page and demo.
+- The evaluation criterion changed from feature comprehension to creating desire for a guild
+  operations outcome.
+- The prototype was not counted as a production result in the portfolio.
+
+Disclosure
+----------
+This record demonstrates user steering and rejection of AI proposals. It is intentionally not
+presented as a shipped feature, performance improvement, or business outcome.

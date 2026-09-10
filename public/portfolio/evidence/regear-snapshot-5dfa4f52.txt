@@ -1,0 +1,65 @@
+Albion Guild Manager — Evidence excerpt
+=========================================
+
+Provenance
+----------
+Codex task: 01a00092-ffae-7730-85c5-273997be8705
+User record: "몇몇 인원에게 이벤트 종료후 개설되는 리기어 신청이 생성되지 않고있어 몇몇 인원만 .이슈 확인하고 개선방안 설계해봐"
+Commit: 5dfa4f52000df103742d338cad6aeb404bf14d5e
+Date: 2026-08-15T20:07:22+09:00
+Message: fix(regear): preserve late roster policy snapshots
+Diff stat: 7 files changed, 964 insertions(+), 33 deletions(-)
+
+Observed operational evidence
+-----------------------------
+- Confirmed-form battles checked after 2026-07-30: 21
+- Events with included/snapshot mismatch: 13
+- Included rows without a policy snapshot: 30
+- Distinct affected members: 13
+
+Only aggregate values are reproduced here. No member identifiers or production rows are included.
+
+Repository artifacts
+--------------------
+- supabase/migrations/413_started_event_regear_snapshot_continuity.sql
+- src/lib/started-event-admin-roster-migration.test.ts
+- src/lib/regear-effective-policy.integration.test.ts
+- src/app/actions/bomb-squad.ts
+- src/app/actions/regear.ts
+
+Regression contract excerpt
+---------------------------
+it('blocks a frozen-event assignment unless the participant snapshot exists', () => {
+  expect(snapshotContinuitySql).toMatch(
+    /new\.assigned_discord_id[\s\S]*event_regear_policy_snapshots[\s\S]*event_regear_policy_snapshot_required/i,
+  )
+  expect(snapshotContinuitySql).toMatch(
+    /before insert or update of assigned_discord_id[\s\S]*on public\.slots/i,
+  )
+})
+
+Database guard excerpt
+----------------------
+if not exists (
+  select 1
+  from public.event_regear_policy_snapshots as snapshot
+  where snapshot.guild_id = new.guild_id
+    and snapshot.event_id = v_event_id
+    and snapshot.policy_version_id = v_policy_version_id
+) then
+  raise exception 'event_regear_policy_snapshot_required';
+end if;
+
+Recorded verification at completion
+-----------------------------------
+- Unit tests: 3,747 passed in that task
+- DB integration tests passed
+- Typecheck, lint, and production build passed
+- Migration 413 applied after a 688MB pre-deployment backup
+- Production health and dependency checks returned 200
+
+Disclosure
+----------
+The source repository is private. This portable excerpt contains the real commit hash,
+task identifier, aggregate investigation result, and selected non-sensitive test/SQL
+contracts. The original repository and task record can be demonstrated in an interview.

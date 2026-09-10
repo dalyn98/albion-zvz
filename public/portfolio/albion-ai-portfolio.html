@@ -1,0 +1,1155 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Discord에 흩어진 이벤트·리기어·길드 경제·전투 통계를 하나의 멀티테넌트 SaaS로 연결한 Product Engineer 현우의 실전 포트폴리오">
+  <meta name="theme-color" content="#10151c">
+  <meta name="author" content="현우">
+  <link rel="canonical" href="https://albion-guildmanager.com/portfolio/albion-ai-portfolio.html">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://albion-guildmanager.com/portfolio/albion-ai-portfolio.html">
+  <meta property="og:title" content="현우 — Product Engineer Portfolio">
+  <meta property="og:description" content="복잡한 길드 운영을 하나의 제품으로 연결한 Albion Guild Manager case study">
+  <meta property="og:image" content="https://albion-guildmanager.com/portfolio/og-portfolio.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="현우 — Product Engineer Portfolio">
+  <meta name="twitter:description" content="복잡한 길드 운영을 하나의 제품으로 연결한 Albion Guild Manager case study">
+  <meta name="twitter:image" content="https://albion-guildmanager.com/portfolio/og-portfolio.png">
+  <link rel="icon" href="../favicon.ico">
+  <title>현우 — Product Engineer Portfolio</title>
+  <style>
+    :root {
+      --ink: #17202a;
+      --muted: #637080;
+      --paper: #f4f0e8;
+      --paper-2: #ebe5da;
+      --night: #10151c;
+      --night-2: #171e27;
+      --line: rgba(23, 32, 42, 0.14);
+      --line-dark: rgba(255, 255, 255, 0.13);
+      --lime: #c9f66b;
+      --lime-dark: #83a83e;
+      --sky: #8dd8f8;
+      --coral: #ff8f6b;
+      --max: 1180px;
+      --radius: 24px;
+      --shadow: 0 24px 70px rgba(18, 25, 33, 0.12);
+    }
+
+    * { box-sizing: border-box; }
+    html {
+      scroll-behavior: smooth;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--paper);
+      font-family: Pretendard, "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+      font-size: 16px;
+      line-height: 1.7;
+      word-break: keep-all;
+      overflow-wrap: break-word;
+    }
+    a { color: inherit; }
+    button { font: inherit; }
+    img {
+      display: block;
+      max-width: 100%;
+      outline: 1px solid rgba(0,0,0,.1);
+      outline-offset: -1px;
+    }
+    h1, h2, h3 { text-wrap: balance; }
+    p, li, figcaption { text-wrap: pretty; }
+    ::selection { color: var(--night); background: var(--lime); }
+    [id] { scroll-margin-top: 84px; }
+
+    .skip-link {
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      z-index: 100;
+      padding: 10px 14px;
+      color: white;
+      background: var(--night);
+      border-radius: 10px;
+      transform: translateY(-160%);
+    }
+    .skip-link:focus { transform: translateY(0); }
+
+    .shell {
+      width: min(calc(100% - 40px), var(--max));
+      margin-inline: auto;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+      background: rgba(16, 21, 28, .9);
+      backdrop-filter: blur(16px);
+    }
+    .nav {
+      min-height: 68px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      color: white;
+      text-decoration: none;
+      font-weight: 760;
+      letter-spacing: -.02em;
+    }
+    .brand-mark {
+      display: grid;
+      width: 32px;
+      aspect-ratio: 1;
+      place-items: center;
+      color: var(--night);
+      background: var(--lime);
+      border-radius: 9px;
+      font-size: 13px;
+      font-weight: 900;
+    }
+    .nav-links { display: flex; align-items: center; gap: 24px; }
+    .nav-links a {
+      display: inline-flex;
+      min-height: 40px;
+      align-items: center;
+      color: #c7d0da;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 650;
+      transition: color 150ms ease-out;
+    }
+    .nav-links a:hover, .nav-links a:focus-visible { color: var(--lime); }
+    .print-button {
+      min-height: 40px;
+      padding: 9px 13px;
+      border: 1px solid rgba(255,255,255,.2);
+      border-radius: 999px;
+      color: white;
+      background: transparent;
+      cursor: pointer;
+      transition: transform 150ms ease-out, border-color 150ms ease-out, color 150ms ease-out;
+    }
+    .print-button:hover { border-color: var(--lime); color: var(--lime); }
+    .print-button:active { transform: scale(.96); }
+    .nav-toggle { display: none; }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      color: white;
+      background:
+        radial-gradient(circle at 82% 18%, rgba(141,216,248,.17), transparent 25%),
+        radial-gradient(circle at 15% 75%, rgba(201,246,107,.12), transparent 28%),
+        var(--night);
+      isolation: isolate;
+    }
+    .hero::after {
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      content: "";
+      opacity: .11;
+      background-image:
+        linear-gradient(rgba(255,255,255,.2) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.2) 1px, transparent 1px);
+      background-size: 62px 62px;
+      mask-image: linear-gradient(to bottom, black, transparent 92%);
+    }
+    .hero-grid {
+      min-height: 750px;
+      padding: 110px 0 84px;
+      display: grid;
+      grid-template-columns: minmax(0, 1.45fr) minmax(300px, .55fr);
+      align-items: end;
+      gap: 70px;
+    }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      margin-bottom: 26px;
+      color: var(--lime);
+      font-size: 13px;
+      font-weight: 820;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+    .eyebrow::before {
+      width: 8px;
+      aspect-ratio: 1;
+      content: "";
+      border-radius: 50%;
+      background: currentColor;
+      box-shadow: 0 0 0 6px rgba(201,246,107,.1);
+    }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 {
+      max-width: 850px;
+      margin-bottom: 30px;
+      font-size: clamp(50px, 7.4vw, 96px);
+      line-height: .97;
+      letter-spacing: -.065em;
+      font-weight: 820;
+    }
+    .hero-lead {
+      max-width: 720px;
+      margin-bottom: 34px;
+      color: #c8d0da;
+      font-size: clamp(18px, 2vw, 23px);
+      line-height: 1.6;
+      letter-spacing: -.025em;
+    }
+    .hero-lead strong { color: white; font-weight: 720; }
+    .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+    .button {
+      display: inline-flex;
+      min-height: 48px;
+      padding: 0 19px;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      border: 1px solid transparent;
+      border-radius: 999px;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 760;
+      transition: transform 150ms ease-out, background-color 150ms ease-out, border-color 150ms ease-out, color 150ms ease-out;
+    }
+    .button-primary { color: var(--night); background: var(--lime); }
+    .button-secondary { color: white; border-color: rgba(255,255,255,.23); }
+    .button:hover { transform: translateY(-2px); }
+    .button:active { transform: translateY(0) scale(.96); }
+    .section-actions { margin-top: 28px; }
+    .hero-meta {
+      padding-left: 25px;
+      border-left: 1px solid rgba(255,255,255,.16);
+    }
+    .meta-row { padding: 17px 0; border-bottom: 1px solid rgba(255,255,255,.1); }
+    .meta-row:first-child { padding-top: 0; }
+    .meta-label {
+      display: block;
+      margin-bottom: 3px;
+      color: #7f8b98;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+    .meta-value { color: #eef3f7; font-size: 15px; font-weight: 650; }
+
+    .metrics { margin-top: -1px; padding: 0; color: white; background: var(--night); }
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      border-top: 1px solid var(--line-dark);
+    }
+    .metric { padding: 32px 22px; border-right: 1px solid var(--line-dark); }
+    .metric:last-child { border-right: 0; }
+    .metric strong {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--lime);
+      font-size: clamp(30px, 4vw, 48px);
+      line-height: 1;
+      letter-spacing: -.055em;
+      font-variant-numeric: tabular-nums;
+    }
+    .metric span { color: #95a1ad; font-size: 13px; }
+
+    section { padding: 110px 0; }
+    .section-kicker {
+      display: block;
+      margin-bottom: 16px;
+      color: var(--lime-dark);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: .15em;
+      text-transform: uppercase;
+    }
+    .section-title {
+      max-width: 850px;
+      margin-bottom: 22px;
+      font-size: clamp(38px, 5.2vw, 68px);
+      line-height: 1.08;
+      letter-spacing: -.055em;
+    }
+    .section-lead {
+      max-width: 760px;
+      margin-bottom: 58px;
+      color: var(--muted);
+      font-size: 19px;
+      line-height: 1.75;
+    }
+
+    .thesis-grid { display: grid; grid-template-columns: .8fr 1.2fr; gap: 80px; align-items: start; }
+    .thesis-quote {
+      position: sticky;
+      top: 110px;
+      padding: 32px;
+      border-top: 5px solid var(--ink);
+      background: #fffaf1;
+      box-shadow: var(--shadow);
+    }
+    .thesis-quote p {
+      margin-bottom: 24px;
+      font-size: 26px;
+      line-height: 1.45;
+      letter-spacing: -.035em;
+      font-weight: 680;
+    }
+    .thesis-quote small { color: var(--muted); }
+    .role-list { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); }
+    .role-item { padding: 27px 30px; background: var(--paper); }
+    .role-item b { display: block; margin-bottom: 6px; font-size: 18px; }
+    .role-item p { margin-bottom: 0; color: var(--muted); }
+
+    .dark-section { color: white; background: var(--night); }
+    .dark-section .section-kicker { color: var(--lime); }
+    .dark-section .section-lead { color: #aeb8c3; }
+    .prompt-flow {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 12px;
+      counter-reset: prompt-step;
+    }
+    .flow-card {
+      min-height: 270px;
+      padding: 24px;
+      border: 1px solid var(--line-dark);
+      border-radius: 18px;
+      background: var(--night-2);
+      counter-increment: prompt-step;
+      box-shadow: 0 0 0 1px rgba(255,255,255,.03), 0 12px 30px rgba(0,0,0,.13);
+      transition: transform 180ms ease-out, box-shadow 180ms ease-out;
+    }
+    .flow-card:hover { transform: translateY(-2px); box-shadow: 0 0 0 1px rgba(201,246,107,.22), 0 18px 36px rgba(0,0,0,.2); }
+    .flow-card::before {
+      display: block;
+      margin-bottom: 54px;
+      color: var(--lime);
+      content: "0" counter(prompt-step);
+      font: 800 13px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    .flow-card h3 { margin-bottom: 10px; font-size: 19px; letter-spacing: -.02em; }
+    .flow-card p { margin: 0; color: #9ba7b4; font-size: 14px; }
+    .pattern-library {
+      margin-top: 44px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+    .pattern-card {
+      min-height: 310px;
+      padding: 26px;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid var(--line-dark);
+      border-radius: 18px;
+      background: var(--night-2);
+    }
+    .pattern-number {
+      margin-bottom: 30px;
+      color: var(--lime);
+      font: 800 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      letter-spacing: .08em;
+    }
+    .pattern-card h3 { margin-bottom: 10px; font-size: 20px; }
+    .pattern-card p { margin-bottom: 20px; color: #9ba7b4; font-size: 14px; }
+    .pattern-template {
+      margin-top: auto;
+      padding: 13px;
+      border-radius: 10px;
+      color: #dce5eb;
+      background: #0c1218;
+      font: 12px/1.7 ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    .pattern-template b { color: var(--lime); font-weight: 750; }
+
+    .comparison {
+      margin-top: 46px;
+      overflow: hidden;
+      border: 1px solid var(--line-dark);
+      border-radius: var(--radius);
+    }
+    .comparison-header,
+    .comparison-row {
+      display: grid;
+      grid-template-columns: .65fr 1fr 1.35fr;
+    }
+    .comparison-header { background: #0a0f14; }
+    .comparison-row { border-top: 1px solid var(--line-dark); background: #141b24; }
+    .comparison-header > *, .comparison-row > * { padding: 17px 20px; border-right: 1px solid var(--line-dark); }
+    .comparison-header > *:last-child, .comparison-row > *:last-child { border-right: 0; }
+    .comparison-header b { color: #7f8b98; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; }
+    .comparison-row strong { color: white; font-size: 13px; }
+    .comparison-row span { color: #9ba7b4; font-size: 13px; }
+    .comparison-row .better { color: #dfe9ef; }
+    .comparison-row .better::before { margin-right: 7px; color: var(--lime); content: "✓"; font-weight: 900; }
+    .comparison-note { margin: 14px 0 0; color: #8794a1; font-size: 12px; }
+
+    .failure-ledger { background: #e9e2d6; }
+    .failure-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .failure-card {
+      min-height: 330px;
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: var(--paper);
+    }
+    .failure-type {
+      display: inline-flex;
+      align-self: flex-start;
+      margin-bottom: 28px;
+      padding: 6px 9px;
+      border: 1px solid var(--ink);
+      border-radius: 999px;
+      font: 800 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      text-transform: uppercase;
+    }
+    .failure-card h3 { margin-bottom: 12px; font-size: 24px; line-height: 1.3; letter-spacing: -.035em; }
+    .failure-card p { color: var(--muted); }
+    .failure-proof {
+      margin-top: auto;
+      padding-top: 20px;
+      border-top: 1px solid var(--line);
+      color: var(--ink);
+      font: 650 12px/1.65 ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+
+    .evidence-panel {
+      margin-top: 54px;
+      display: grid;
+      grid-template-columns: .9fr 1.1fr;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: white;
+      box-shadow: var(--shadow);
+    }
+    .evidence-copy { padding: 34px; }
+    .evidence-copy h3 { margin-bottom: 13px; font-size: 28px; letter-spacing: -.04em; }
+    .evidence-copy p { color: var(--muted); }
+    .evidence-list { display: grid; gap: 10px; margin-top: 24px; }
+    .evidence-item { padding: 13px 14px; border-left: 3px solid var(--lime-dark); background: var(--paper); }
+    .evidence-item b { display: block; font-size: 13px; }
+    .evidence-item span { color: var(--muted); font-size: 12px; }
+    .evidence-code {
+      margin: 0;
+      padding: 34px;
+      overflow: auto;
+      color: #dfe8ee;
+      background: #0b1117;
+      font: 13px/1.85 ui-monospace, SFMono-Regular, Menlo, monospace;
+      white-space: pre-wrap;
+    }
+    .evidence-code .green { color: var(--lime); }
+    .evidence-code .blue { color: var(--sky); }
+
+    .numbers-context {
+      margin-top: 18px;
+      padding: 22px 24px;
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 22px;
+      align-items: center;
+      border: 1px solid var(--line-dark);
+      border-radius: 16px;
+      background: rgba(255,255,255,.035);
+    }
+    .numbers-context strong { color: var(--lime); font-size: 34px; letter-spacing: -.045em; }
+    .numbers-context p { margin: 0; color: #aeb8c3; font-size: 14px; }
+
+    .cases { display: grid; gap: 20px; }
+    .case {
+      display: grid;
+      grid-template-columns: 88px minmax(0, 1.05fr) minmax(280px, .95fr);
+      gap: 28px;
+      padding: 34px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255,255,255,.42);
+    }
+    .case-index {
+      color: var(--lime-dark);
+      font: 850 48px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      letter-spacing: -.08em;
+    }
+    .case h3 { margin-bottom: 12px; font-size: 28px; line-height: 1.25; letter-spacing: -.035em; }
+    .case p { margin-bottom: 0; color: var(--muted); }
+    .case-details { display: grid; gap: 12px; }
+    .detail {
+      padding: 16px 18px;
+      border-left: 3px solid var(--line);
+      background: rgba(255,255,255,.62);
+    }
+    .detail b { display: block; margin-bottom: 3px; font-size: 13px; }
+    .detail span { color: var(--muted); font-size: 14px; }
+
+    .architecture { background: var(--paper-2); }
+    .architecture-grid { display: grid; grid-template-columns: 1fr .9fr; gap: 52px; align-items: start; }
+    .stack-map {
+      padding: 26px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255,255,255,.5);
+    }
+    .stack-layer {
+      position: relative;
+      padding: 19px 21px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--paper);
+    }
+    .stack-layer + .stack-layer { margin-top: 29px; }
+    .stack-layer + .stack-layer::before {
+      position: absolute;
+      left: 50%;
+      top: -30px;
+      width: 1px;
+      height: 29px;
+      content: "";
+      background: var(--ink);
+    }
+    .stack-layer small { display: block; color: var(--muted); }
+    .stack-layer strong { font-size: 17px; }
+    .architecture-copy h3 { margin-bottom: 18px; font-size: 30px; letter-spacing: -.04em; }
+    .principles { display: grid; gap: 14px; }
+    .principle { display: grid; grid-template-columns: 38px 1fr; gap: 13px; }
+    .principle-mark {
+      display: grid;
+      width: 32px;
+      height: 32px;
+      place-items: center;
+      color: var(--night);
+      background: var(--lime);
+      border-radius: 50%;
+      font-weight: 900;
+    }
+    .principle p { margin-bottom: 0; color: var(--muted); }
+
+    .quality-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+    .quality-card {
+      min-height: 250px;
+      padding: 28px;
+      border: 1px solid var(--line-dark);
+      border-radius: 20px;
+      background: var(--night-2);
+    }
+    .quality-card .number {
+      display: block;
+      margin-bottom: 28px;
+      color: var(--lime);
+      font-size: 44px;
+      line-height: 1;
+      font-weight: 820;
+      letter-spacing: -.055em;
+    }
+    .quality-card h3 { margin-bottom: 8px; font-size: 22px; }
+    .quality-card p { margin-bottom: 0; color: #aab5c0; }
+
+    .perf-strip {
+      margin-top: 18px;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 24px;
+      padding: 30px;
+      color: var(--ink);
+      background: var(--lime);
+      border-radius: 20px;
+    }
+    .perf-value strong { display: block; font-size: 45px; line-height: 1; letter-spacing: -.05em; }
+    .perf-value span { font-size: 13px; font-weight: 680; }
+    .perf-arrow { font-size: 28px; }
+    .perf-note { grid-column: 1 / -1; margin: 0; padding-top: 18px; border-top: 1px solid rgba(16,21,28,.18); font-size: 14px; }
+
+    .gallery { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; }
+    .shot {
+      position: relative;
+      margin: 0;
+      overflow: hidden;
+      border-radius: 18px;
+      background: #d8d2c7;
+      box-shadow: 0 12px 34px rgba(18,25,33,.1);
+    }
+    .shot:nth-child(1) { grid-column: span 7; }
+    .shot:nth-child(2) { grid-column: span 5; }
+    .shot:nth-child(3), .shot:nth-child(4), .shot:nth-child(5) { grid-column: span 4; }
+    .shot button {
+      width: 100%;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      cursor: zoom-in;
+    }
+    .shot img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; object-position: top; outline-color: rgba(255,255,255,.1); transition: transform .4s ease; }
+    .shot:hover img { transform: scale(1.025); }
+    .shot button:active img { transform: scale(.99); }
+    .shot figcaption {
+      position: absolute;
+      left: 12px;
+      bottom: 12px;
+      padding: 8px 11px;
+      color: white;
+      background: rgba(10,15,20,.83);
+      border-radius: 9px;
+      font-size: 12px;
+      font-weight: 700;
+      pointer-events: none;
+    }
+
+    dialog {
+      width: min(94vw, 1500px);
+      max-height: 92vh;
+      padding: 0;
+      border: 0;
+      border-radius: 18px;
+      background: var(--night);
+      box-shadow: 0 30px 100px rgba(0,0,0,.55);
+    }
+    dialog::backdrop { background: rgba(7,10,14,.82); backdrop-filter: blur(6px); }
+    dialog img { width: 100%; max-height: 84vh; object-fit: contain; }
+    .dialog-close {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      width: 44px;
+      height: 44px;
+      border: 1px solid rgba(255,255,255,.25);
+      border-radius: 50%;
+      color: white;
+      background: rgba(10,15,20,.8);
+      cursor: pointer;
+      transition: transform 150ms ease-out, background-color 150ms ease-out;
+    }
+    .dialog-close:active { transform: scale(.96); }
+
+    .closing { padding-bottom: 120px; }
+    .closing-grid { display: grid; grid-template-columns: 1.2fr .8fr; gap: 50px; }
+    .decision-card {
+      padding: 36px;
+      color: white;
+      background: var(--night);
+      border-radius: var(--radius);
+    }
+    .decision-card h3 { font-size: 28px; letter-spacing: -.035em; }
+    .decision-card p { color: #adb7c1; }
+    .decision-card p:last-child { margin-bottom: 0; }
+    .lessons { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); }
+    .lesson { padding: 25px; background: var(--paper); }
+    .lesson b { display: block; margin-bottom: 5px; }
+    .lesson p { margin: 0; color: var(--muted); font-size: 14px; }
+
+    .limits {
+      margin-top: 18px;
+      padding: 28px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fffaf1;
+    }
+    .limits h3 { margin-bottom: 18px; font-size: 22px; }
+    .limits-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); }
+    .limit { padding: 18px; background: #fffaf1; }
+    .limit b { display: block; margin-bottom: 6px; }
+    .limit p { margin: 0; color: var(--muted); font-size: 13px; }
+
+    .dev-environment { padding: 19px 0; border-top: 1px solid var(--line); background: var(--paper-2); }
+    .dev-environment-inner { display: flex; align-items: baseline; gap: 18px; }
+    .dev-environment-label { flex: 0 0 auto; color: var(--lime-dark); font-size: 10px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }
+    .dev-environment p { margin: 0; color: var(--muted); font: 11px/1.7 ui-monospace,SFMono-Regular,Menlo,monospace; }
+
+    footer { padding: 42px 0; border-top: 1px solid var(--line); }
+    .footer-grid { display: flex; justify-content: space-between; gap: 24px; color: var(--muted); font-size: 13px; }
+    .footer-grid p { margin: 0; }
+    .footer-grid a { font-weight: 750; text-decoration: none; }
+
+    .reveal { opacity: 0; transform: translateY(18px); transition: opacity .65s ease var(--reveal-delay,0ms), transform .65s ease var(--reveal-delay,0ms); }
+    .reveal.visible { opacity: 1; transform: none; }
+
+    @media (max-width: 900px) {
+      .hero-grid, .thesis-grid, .architecture-grid, .closing-grid { grid-template-columns: 1fr; }
+      .hero-grid { min-height: auto; padding: 90px 0 70px; }
+      .hero-meta { padding-left: 0; border-left: 0; }
+      .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+      .metric { border-bottom: 1px solid var(--line-dark); }
+      .prompt-flow { grid-template-columns: repeat(2, 1fr); }
+      .flow-card { min-height: 225px; }
+      .flow-card::before { margin-bottom: 34px; }
+      .case { grid-template-columns: 64px 1fr; }
+      .case-details { grid-column: 2; }
+      .thesis-quote { position: static; }
+      .shot:nth-child(n) { grid-column: span 6; }
+      .failure-grid, .pattern-library { grid-template-columns: 1fr 1fr; }
+      .failure-card { min-height: auto; }
+      .evidence-panel { grid-template-columns: 1fr; }
+      .limits-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 680px) {
+      .shell { width: min(calc(100% - 28px), var(--max)); }
+      section { padding: 78px 0; }
+      .nav-toggle {
+        display: block;
+        width: 44px;
+        height: 44px;
+        border: 1px solid rgba(255,255,255,.2);
+        border-radius: 10px;
+        color: white;
+        background: transparent;
+        transition: transform 150ms ease-out, border-color 150ms ease-out;
+      }
+      .nav-toggle:active { transform: scale(.96); }
+      .nav-links {
+        position: absolute;
+        top: 68px;
+        left: 0;
+        right: 0;
+        display: none;
+        padding: 20px;
+        flex-direction: column;
+        align-items: stretch;
+        background: var(--night);
+        border-top: 1px solid var(--line-dark);
+      }
+      .nav-links.open { display: flex; }
+      .nav-links a, .print-button { min-height: 44px; }
+      .print-button { text-align: left; }
+      h1 { font-size: 49px; }
+      .hero-grid { gap: 44px; }
+      .metrics-grid { grid-template-columns: 1fr 1fr; }
+      .metric { padding: 25px 15px; }
+      .metric strong { font-size: 34px; }
+      .prompt-flow, .quality-grid, .pattern-library { grid-template-columns: 1fr; }
+      .case { grid-template-columns: 1fr; padding: 25px; }
+      .case-index { font-size: 30px; }
+      .case-details { grid-column: auto; }
+      .perf-strip { grid-template-columns: 1fr; gap: 12px; }
+      .numbers-context { grid-template-columns: 1fr; }
+      .comparison { overflow-x: auto; }
+      .comparison-header, .comparison-row { min-width: 660px; }
+      .perf-arrow { transform: rotate(90deg); }
+      .shot:nth-child(n) { grid-column: 1 / -1; }
+      .dev-environment-inner { align-items: flex-start; flex-direction: column; gap: 7px; }
+      .footer-grid { flex-direction: column; }
+    }
+
+    @media (max-width: 480px) {
+      h1 { font-size: clamp(40px, 13vw, 52px); }
+      .hero-actions, .hero-actions .button, .section-actions .button { width: 100%; }
+      .brand span:last-child { max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .comparison-header, .comparison-row { min-width: 600px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+      .reveal { opacity: 1; transform: none; }
+    }
+
+    @media print {
+      :root { --paper: white; --paper-2: #f4f4f4; }
+      .topbar, .hero-actions, dialog { display: none !important; }
+      .hero, .dark-section { color: #111; background: white; }
+      .hero::after { display: none; }
+      .hero-grid { min-height: auto; padding: 50px 0; grid-template-columns: 1fr; }
+      .hero-lead, .dark-section .section-lead, .quality-card p, .prompt-copy p { color: #444; }
+      .metrics { color: #111; background: white; border-block: 1px solid #bbb; }
+      .metric strong, .section-kicker, .eyebrow { color: #46621d; }
+      .metric { border-color: #bbb; }
+      section { padding: 52px 0; break-inside: avoid; }
+      .flow-card, .quality-card, .prompt-copy, .prompt-code { color: #111; background: #f6f6f6; border-color: #bbb; }
+      .case, .shot, .decision-card { break-inside: avoid; box-shadow: none; }
+      .decision-card { color: #111; background: #f3f3f3; }
+      .decision-card p { color: #444; }
+      .reveal { opacity: 1; transform: none; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main">본문으로 이동</a>
+
+  <header class="topbar">
+    <nav class="nav shell" aria-label="포트폴리오 탐색">
+      <a class="brand" href="#top"><span class="brand-mark">HW</span><span>현우 · Product Engineer</span></a>
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links" aria-label="메뉴 열기">☰</button>
+      <div class="nav-links" id="nav-links">
+        <a href="#approach">제품 접근</a>
+        <a href="#cases">사례</a>
+        <a href="albion-features.html">기능 구현 ↗</a>
+        <a href="albion-evidence.html">작업 근거 ↗</a>
+        <a href="mailto:dalyn8690@gmail.com">연락하기 ↗</a>
+        <button class="print-button" type="button" onclick="window.print()">PDF로 저장</button>
+      </div>
+    </nav>
+  </header>
+
+  <main id="main">
+    <section class="hero" id="top">
+      <div class="hero-grid shell">
+        <div>
+          <span class="eyebrow">Production case study · Product Engineer</span>
+          <h1>Discord에 흩어진 길드 운영을<br>하나의 제품으로 연결했습니다.</h1>
+          <p class="hero-lead">
+            이벤트 모집, 파티 편성, 리기어 승인, 길드 상점, 전투 통계를 수작업으로 이어 붙이던 문제를
+            <strong>Albion Guild Manager</strong>라는 멀티테넌트 SaaS로 통합했습니다.
+            제품 설계부터 풀스택 구현, 데이터베이스 진화, 운영 검증까지 4개월간 단독으로 책임졌습니다.
+          </p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="#cases">핵심 문제 해결 보기 <span aria-hidden="true">↓</span></a>
+            <a class="button button-secondary" href="albion-features.html">기능 구현 보기 <span aria-hidden="true">→</span></a>
+            <a class="button button-secondary" href="https://albion-guildmanager.com" target="_blank" rel="noreferrer">운영 제품 보기 <span aria-hidden="true">↗</span></a>
+          </div>
+        </div>
+        <aside class="hero-meta" aria-label="프로젝트 개요">
+          <div class="meta-row"><span class="meta-label">Project</span><span class="meta-value">Albion Guild Manager</span></div>
+          <div class="meta-row"><span class="meta-label">Period</span><span class="meta-value">2026.04 — 2026.08</span></div>
+          <div class="meta-row"><span class="meta-label">Role</span><span class="meta-value">Product · Full-stack · Data · QA</span></div>
+          <div class="meta-row"><span class="meta-label">Stack</span><span class="meta-value">Next.js 16 · TypeScript · Supabase · Discord · Vercel</span></div>
+          <div class="meta-row"><span class="meta-label">Status</span><span class="meta-value">운영 제품 · 2026.08 case study</span></div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="metrics" aria-label="프로젝트 기록 수치">
+      <div class="metrics-grid shell">
+        <div class="metric"><strong>4개월</strong><span>기획부터 운영까지 단독 수행</span></div>
+        <div class="metric"><strong>8</strong><span>연결한 핵심 업무 영역</span></div>
+        <div class="metric"><strong>4개</strong><span>동등 지원 언어</span></div>
+        <div class="metric"><strong>56</strong><span>DB 통합 테스트 파일</span></div>
+        <div class="metric"><strong>491→249ms</strong><span>/shop median TTFB</span></div>
+      </div>
+    </section>
+
+    <section id="approach" aria-labelledby="thesis-title">
+      <div class="shell thesis-grid">
+        <aside class="thesis-quote reveal" aria-label="프로젝트 핵심 관점">
+          <p>“길드 운영자는 이벤트·리기어·상점·통계를 Discord와 수작업으로 이어 붙이고 있었습니다.”</p>
+          <small>제품이 해결하려고 한 핵심 문제</small>
+        </aside>
+        <div>
+          <span class="section-kicker">Problem &amp; ownership</span>
+          <h2 class="section-title" id="thesis-title">화면을 모은 것이 아니라,<br>운영 전체를 하나의 데이터 흐름으로 설계했습니다.</h2>
+          <p class="section-lead">
+            모집에서 편성, 출석, 보상, 길드 경제, 전투 분석까지 같은 회원·이벤트·정책 데이터를 사용하게 만들었습니다.
+            자동화 속도보다 오지급, 데이터 혼합, 중복 실행을 막는 경계를 먼저 설계했습니다.
+          </p>
+          <div class="role-list reveal">
+            <article class="role-item"><b>문제 정의</b><p>Discord 공지, 파티표, 스프레드시트 보상 기록으로 분절된 운영을 하나의 업무 흐름으로 재정의했습니다.</p></article>
+            <article class="role-item"><b>제품 설계</b><p>길드별 데이터 소유권, 이벤트 상태, 지급 승인, 원본 전투와 통계 projection의 경계를 결정했습니다.</p></article>
+            <article class="role-item"><b>엔지니어링</b><p>Next.js, Supabase, Discord, 외부 게임 API를 연결하고 마이그레이션·테스트·배포까지 직접 수행했습니다.</p></article>
+            <article class="role-item"><b>운영 검증</b><p>실패·재시도·중복 cron을 정상 조건으로 다루고 실제 운영 응답과 데이터 불변식을 완료 기준으로 삼았습니다.</p></article>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="dark-section" id="patterns" aria-labelledby="patterns-title">
+      <div class="shell">
+        <span class="section-kicker">AI-assisted delivery system</span>
+        <h2 class="section-title" id="patterns-title">AI는 실행 속도를 높였고,<br>제품 판단과 검증 책임은 제가 가졌습니다.</h2>
+        <p class="section-lead">
+          반복되는 제품 규칙은 저장소 문서와 테스트에 고정하고, AI에는 그 경계 안의 탐색과 반복 구현을 맡겼습니다.
+          생성된 코드의 채택 여부와 운영 배포는 제가 직접 판단했습니다.
+        </p>
+
+        <div class="prompt-flow reveal">
+          <article class="flow-card"><h3>제가 정의</h3><p>사용자 문제, 허용·금지 행동, 데이터 소유권과 완료 기준을 결정합니다.</p></article>
+          <article class="flow-card"><h3>저장소가 기억</h3><p>AGENTS, 도메인 문서, ADR, 테스트가 반복되는 규칙을 다음 작업에도 전달합니다.</p></article>
+          <article class="flow-card"><h3>AI가 가속</h3><p>관련 흐름 탐색, 반복 구현, 영향 파일 확인과 테스트 초안을 빠르게 수행합니다.</p></article>
+          <article class="flow-card"><h3>제가 검증</h3><p>코드 리뷰, 반례, DB 불변식, 타입·빌드·사용자 흐름으로 채택 여부를 판단합니다.</p></article>
+          <article class="flow-card"><h3>제품에 축적</h3><p>발견한 실패 조건을 테스트와 규칙으로 남겨 이후 작업의 안전성을 높입니다.</p></article>
+        </div>
+
+        <div class="pattern-library reveal">
+          <article class="pattern-card"><span class="pattern-number">PRODUCT</span><h3>문제와 경계는 직접 결정</h3><p>상태 이름보다 사용자가 할 수 있는 행동을 정의하고, 자동화가 넘지 말아야 할 지급·데이터 경계를 고정했습니다.</p><div class="pattern-template"><b>대표 판단</b><br>시작 후 신청은 허용<br>취소만 금지</div></article>
+          <article class="pattern-card"><span class="pattern-number">EXECUTION</span><h3>탐색과 반복은 AI로 가속</h3><p>UI 한 곳이 아니라 action, RPC, Discord, i18n, 테스트까지 연결된 변경 범위를 빠르게 추적했습니다.</p><div class="pattern-template"><b>확장 범위</b><br>UI → API → DB → 알림<br>→ 회귀 테스트</div></article>
+          <article class="pattern-card"><span class="pattern-number">ACCOUNTABILITY</span><h3>완료 판정은 운영 결과로</h3><p>패치 생성에서 멈추지 않고 실패 반례, DB 백업, migration drift, 실제 배포 상태까지 확인했습니다.</p><div class="pattern-template"><b>완료 계약</b><br>test → type → build<br>→ migration → production</div></article>
+        </div>
+        <div class="hero-actions section-actions"><a class="button button-primary" href="albion-evidence.html">실제 작업 기록 확인하기 <span aria-hidden="true">→</span></a></div>
+      </div>
+    </section>
+
+    <section id="cases" aria-labelledby="cases-title">
+      <div class="shell">
+        <span class="section-kicker">Selected case studies</span>
+        <h2 class="section-title" id="cases-title">복잡한 운영 문제를<br>제품 규칙으로 바꾼 네 가지 사례.</h2>
+        <p class="section-lead">문제, 판단, 구현 범위, 검증 결과 순서로 제가 내린 기술·제품 결정을 설명합니다.</p>
+
+        <div class="cases">
+          <article class="case reveal">
+            <div class="case-index">01</div>
+            <div>
+              <h3>로그인 계정과 업무 주체를 분리한 신원 모델</h3>
+              <p>한 사용자가 여러 길드에 접근할 수 있어도 길드별 운영 기록과 캐릭터 이력은 섞이면 안 됩니다. 로그인 제공자인 Discord ID와 영속적인 회원 UUID를 분리해 계정 연결이나 길드 이동에도 과거 기록이 유지되게 했습니다.</p>
+            </div>
+            <div class="case-details">
+              <div class="detail"><b>문제</b><span>한 Discord 계정의 다중 길드 접근과 길드별 업무 이력을 동시에 보호해야 했습니다.</span></div>
+              <div class="detail"><b>판단</b><span>로그인 제공자와 영속 업무 주체를 분리하고 회원 UUID를 기록의 소유자로 정했습니다.</span></div>
+              <div class="detail"><b>구현</b><span>기간형 캐릭터 재적 · 단일 활성 연결 · 모호한 backfill 차단</span></div>
+              <div class="detail"><b>검증</b><span>ADR 0001 · migrations 315→321 · tenant 격리 통합 테스트</span></div>
+            </div>
+          </article>
+
+          <article class="case reveal">
+            <div class="case-index">02</div>
+            <div>
+              <h3>이벤트 시작 후 신청과 취소의 의미를 분리</h3>
+              <p>이벤트 시작은 편성을 보호해야 하지만 늦은 참가자까지 막아서는 안 됩니다. 신청은 허용하고 자기 취소만 잠그는 행동별 규칙을 정의해 회원·게스트·DB RPC·리기어 snapshot의 의미를 통일했습니다.</p>
+            </div>
+            <div class="case-details">
+              <div class="detail"><b>문제</b><span>이벤트 시작 상태가 신청과 취소를 모두 막아 늦은 참가자를 받을 수 없었습니다.</span></div>
+              <div class="detail"><b>판단</b><span>상태명이 아니라 신청 허용·자기 취소 금지라는 행동별 규칙으로 분리했습니다.</span></div>
+              <div class="detail"><b>구현</b><span>회원·게스트 UI, action, 원자적 RPC, 리기어 정책 snapshot을 함께 수정했습니다.</span></div>
+              <div class="detail"><b>검증</b><span>migration 414 · commit 19f3fd7e · late-signup regression</span></div>
+            </div>
+          </article>
+
+          <article class="case reveal">
+            <div class="case-index">03</div>
+            <div>
+              <h3>“아이템이 빠진다”를 데이터 파이프라인 문제로 추적</h3>
+              <p>일부 킬 카드의 장비만 빠지는 증상을 수집과 렌더링 단계로 나눠 추적했습니다. 그 결과 51개 첫 페이지만 읽는 수집 문제와 일시적인 아이콘 실패가 빈 슬롯으로 고정되는 캐시 문제를 별개의 원인으로 분리했습니다.</p>
+            </div>
+            <div class="case-details">
+              <div class="detail"><b>문제</b><span>일부 킬 이벤트에서 장비 아이템만 간헐적으로 누락됐습니다.</span></div>
+              <div class="detail"><b>진단</b><span>수집 페이지 제한과 일시적인 이미지 요청 실패를 서로 다른 원인으로 분리했습니다.</span></div>
+              <div class="detail"><b>구현</b><span>수집 시간창 보강 · 실패 캐시 분리 · 재시도 가능한 렌더링</span></div>
+              <div class="detail"><b>검증</b><span>commits 331c7e61 · 428eeefd · pagination/503 회귀 테스트</span></div>
+            </div>
+          </article>
+
+          <article class="case reveal">
+            <div class="case-index">04</div>
+            <div>
+              <h3>측정 없이 “빨라졌다”고 말하지 않는 성능 개선</h3>
+              <p>공개·인증 라우트 셸을 분리하고 상점 조회를 서버 페이지네이션으로 전환했습니다. 같은 운영 URL을 7회 반복 측정해 체감이 아니라 median TTFB와 route bundle 변화로 결과를 확인했습니다.</p>
+            </div>
+            <div class="case-details">
+              <div class="detail"><b>문제</b><span>인증 셸과 대량 상품 조회가 상점의 초기 응답을 지연시켰습니다.</span></div>
+              <div class="detail"><b>판단</b><span>체감 대신 동일 운영 URL의 TTFB·Total·cache를 분리 측정했습니다.</span></div>
+              <div class="detail"><b>구현</b><span>공개·인증 셸 분리 · 서버 페이지네이션 · route bundle 축소</span></div>
+              <div class="detail"><b>결과</b><span>/shop median TTFB 491→249ms · /market route JS -45.6%</span></div>
+            </div>
+          </article>
+        </div>
+
+        <div class="evidence-panel reveal">
+          <div class="evidence-copy">
+            <span class="section-kicker">Traceable evidence</span>
+            <h3>질문 → 결정 → 스키마 → 테스트</h3>
+            <p>경계 탐색형 지시에서 정의한 “접근은 허용하되 기록은 합치지 않는다”는 조건을 한 세션의 답으로 끝내지 않았습니다. 영속 업무 주체를 길드 회원 UUID로 고정하고, 설계 문서·스키마·반례 테스트를 같은 언어로 맞췄습니다.</p>
+            <div class="evidence-list">
+              <div class="evidence-item"><b>Decision</b><span>ADR 0001 · 로그인 제공자와 업무 이력 주체 분리</span></div>
+              <div class="evidence-item"><b>Schema</b><span>migration 315 · 기간형 캐릭터 재적과 단일 활성 연결</span></div>
+              <div class="evidence-item"><b>Verification</b><span>tenant 격리, 재가입, 계정 병합, 모호한 backfill 반례</span></div>
+            </div>
+          </div>
+          <pre class="evidence-code"><span class="green">create unique index</span>
+  guild_character_memberships_one_active_guild
+on guild_character_memberships
+  (albion_server, albion_player_id)
+<span class="blue">where ended_at is null</span>;
+
+it(<span class="green">'isolates records by tenant while allowing
+one Discord user in multiple guilds'</span>, ...)
+
+it(<span class="green">'blocks simultaneous active guild links
+for one official character'</span>, ...)
+
+it(<span class="green">'attaches Discord to a local account
+without replacing its stable history subject'</span>, ...)</pre>
+        </div>
+      </div>
+    </section>
+
+    <section class="architecture" aria-labelledby="architecture-title">
+      <div class="shell architecture-grid">
+        <div>
+          <span class="section-kicker">System design</span>
+          <h2 class="section-title" id="architecture-title">복잡성을 숨기지 않고<br>경계로 관리했습니다.</h2>
+          <p class="section-lead">웹, Discord, 게임 API, 데이터베이스가 같은 업무를 서로 다른 속도로 갱신합니다. 각 계층의 책임과 실패 방식을 분리했습니다.</p>
+          <div class="stack-map reveal" role="img" aria-label="시스템 아키텍처 계층도">
+            <div class="stack-layer"><small>Experience</small><strong>Next.js App Router · 관리자/회원/공개 UI · 4개 언어</strong></div>
+            <div class="stack-layer"><small>Application</small><strong>Server Actions · API Routes · Discord Commands · Cron</strong></div>
+            <div class="stack-layer"><small>Domain</small><strong>Event · Regear · Shop · Battle · Member Identity</strong></div>
+            <div class="stack-layer"><small>Data &amp; Policy</small><strong>Postgres · RPC · RLS · Audit Log · Storage</strong></div>
+            <div class="stack-layer"><small>External</small><strong>Albion API · AODP · Discord · Vercel</strong></div>
+          </div>
+        </div>
+        <div class="architecture-copy reveal">
+          <h3>설계 원칙</h3>
+          <div class="principles">
+            <div class="principle"><span class="principle-mark">1</span><div><b>DB가 마지막 방어선</b><p>UI에서 숨기는 것과 서버·DB에서 막는 것을 분리하고, 중요한 불변식은 RPC와 제약조건으로 다시 확인했습니다.</p></div></div>
+            <div class="principle"><span class="principle-mark">2</span><div><b>원본과 해석을 분리</b><p>킬 로그와 전투 원본은 보존하고, 업무 판정과 화면 projection은 언제든 재계산할 수 있게 했습니다.</p></div></div>
+            <div class="principle"><span class="principle-mark">3</span><div><b>테넌트 경계를 타입처럼 취급</b><p>모든 주요 쿼리와 mutation에서 guild_id를 명시하고, 다른 길드의 행이 섞이는 반례를 통합 테스트했습니다.</p></div></div>
+            <div class="principle"><span class="principle-mark">4</span><div><b>배포 순서도 설계의 일부</b><p>호환 가능한 스키마를 먼저 추가하고 코드 전환 뒤에 레거시를 정리하는 expand/contract 방식을 사용했습니다.</p></div></div>
+            <div class="principle"><span class="principle-mark">5</span><div><b>운영 예외를 정상 흐름으로</b><p>API 지연, Discord 실패, 중복 cron, 재시도를 “특수 상황”이 아니라 기본 설계 조건으로 다뤘습니다.</p></div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="dark-section" id="quality" aria-labelledby="quality-title">
+      <div class="shell">
+        <span class="section-kicker">Verification system</span>
+        <h2 class="section-title" id="quality-title">AI 협업의 속도에 맞춰<br>검증 시스템도 확장했습니다.</h2>
+        <p class="section-lead">생성 속도가 빨라질수록 리뷰와 회귀 방지의 병목이 커집니다. 테스트를 사후 장식이 아니라 AI 작업의 완료 조건으로 사용했습니다.</p>
+
+        <div class="quality-grid reveal">
+          <article class="quality-card"><span class="number">637</span><h3>단위 테스트 파일</h3><p>도메인 계산, 상태 전이, 권한 guard, API route, 마이그레이션 정적 계약을 빠르게 검증합니다.</p></article>
+          <article class="quality-card"><span class="number">56</span><h3>통합 테스트 파일</h3><p>실제 Postgres에서 RLS, RPC, FK, ON CONFLICT, 멀티테넌트 격리를 확인합니다.</p></article>
+          <article class="quality-card"><span class="number">4-way</span><h3>다국어 parity</h3><p>ko·ja·en·zh 키와 placeholder 동등성을 자동 검사해 AI가 한 언어만 수정하는 회귀를 막았습니다.</p></article>
+          <article class="quality-card"><span class="number">E2E</span><h3>브라우저·운영 검증</h3><p>로컬 테스트만으로 끝내지 않고 공개/데모 흐름, 캐시 헤더, 실제 운영 응답까지 점검했습니다.</p></article>
+        </div>
+
+        <div class="perf-strip reveal" role="group" aria-label="상점 성능 개선 수치">
+          <div class="perf-value"><strong>491ms</strong><span>BEFORE · /shop median TTFB</span></div>
+          <div class="perf-arrow" aria-hidden="true">→</div>
+          <div class="perf-value"><strong>249ms</strong><span>AFTER · 49.3% 감소</span></div>
+          <p class="perf-note">운영 URL 7회 샘플의 median 기준. 같은 측정에서 Total time이 악화된 경로도 함께 남겨 선택적 보고를 피했습니다.</p>
+        </div>
+
+        <div class="numbers-context reveal">
+          <strong>421 migrations</strong>
+          <p>이 저장소는 운영 이력을 덮어쓰지 않는 append-only 정책을 사용했고, backfill·롤아웃·복구 단계를 작은 단위로 누적했습니다. 저는 새 migration마다 영향받는 DB invariant의 통합 테스트와 원격 drift 검사를 요구했습니다. 숫자보다 중요한 것은 AI가 만든 변경도 같은 배포 계약을 통과하게 한 방식입니다.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="evidence" aria-labelledby="evidence-title">
+      <div class="shell">
+        <span class="section-kicker">Product evidence</span>
+        <h2 class="section-title" id="evidence-title">문서에 머물지 않은<br>실제 제품 결과물.</h2>
+        <p class="section-lead">이벤트 운영, 보상, 상점, 통계를 하나의 멀티테넌트 SaaS로 연결했습니다. 아래 이미지는 저장소에 보존된 실제 데모 화면입니다.</p>
+
+        <div class="gallery reveal">
+          <figure class="shot"><button type="button" data-image="../screenshots/events-demo.png" aria-label="이벤트 운영 화면 크게 보기"><img src="../screenshots/events-demo.png" alt="파티와 슬롯을 관리하는 이벤트 운영 화면" loading="lazy"></button><figcaption>이벤트 운영 · 슬롯 배정</figcaption></figure>
+          <figure class="shot"><button type="button" data-image="../screenshots/member-regear-guide.png" aria-label="리기어 신청 화면 크게 보기"><img src="../screenshots/member-regear-guide.png" alt="자동 리기어와 수동 청구를 선택하는 회원 화면" loading="lazy"></button><figcaption>리기어 · 자동 청구와 수동 보완</figcaption></figure>
+          <figure class="shot"><button type="button" data-image="../screenshots/shop-demo.png" aria-label="길드 상점 화면 크게 보기"><img src="../screenshots/shop-demo.png" alt="아이템 재고와 가격이 표시된 길드 상점 화면" loading="lazy"></button><figcaption>길드 상점 · 재고/가격</figcaption></figure>
+          <figure class="shot"><button type="button" data-image="../screenshots/stats-demo.png" aria-label="전투 통계 화면 크게 보기"><img src="../screenshots/stats-demo.png" alt="길드원 전투 활동과 무기 통계를 보여주는 화면" loading="lazy"></button><figcaption>전투 통계 · 성과 분석</figcaption></figure>
+          <figure class="shot"><button type="button" data-image="../screenshots/builds-demo.png" aria-label="빌드 템플릿 화면 크게 보기"><img src="../screenshots/builds-demo.png" alt="장비 빌드 템플릿을 구성하는 관리자 화면" loading="lazy"></button><figcaption>빌드 템플릿 · 운영 표준화</figcaption></figure>
+        </div>
+        <div class="hero-actions section-actions">
+          <a class="button button-primary" href="albion-features.html">기능별 구현과 설계 판단 보기 <span aria-hidden="true">→</span></a>
+          <a class="button button-secondary" href="albion-evidence.html">세션·커밋·테스트 근거 보기 <span aria-hidden="true">→</span></a>
+        </div>
+      </div>
+    </section>
+
+    <section class="closing" aria-labelledby="closing-title">
+      <div class="shell">
+        <span class="section-kicker">Retrospective</span>
+        <h2 class="section-title" id="closing-title">기술적 완성과 시장 검증을<br>같은 말로 포장하지 않았습니다.</h2>
+        <p class="section-lead">운영 가능한 제품을 완성했지만, 이 프로젝트만으로 팀 협업이나 product-market fit까지 증명했다고 주장하지 않습니다.</p>
+
+        <div class="closing-grid">
+          <article class="decision-card reveal">
+            <h3>제품 회고</h3>
+            <p>4개월 동안 길드 운영의 넓은 범위를 빠르게 제품화하면서 기술적 실행력과 운영 안전성은 검증했습니다. 동시에 시장 검증보다 기능 범위가 먼저 커졌다는 한계도 확인했습니다.</p>
+            <p>현재 제품과 기록은 유지하되, 다음 제품에서는 핵심 고객 문제 하나와 사용 지표를 먼저 검증한 뒤 범위를 확장하겠습니다.</p>
+          </article>
+          <div class="lessons reveal">
+            <article class="lesson"><b>잘한 것</b><p>모호한 운영 요구를 도메인 불변식과 데이터 경계로 변환했습니다.</p></article>
+            <article class="lesson"><b>배운 것</b><p>AI 시대의 병목은 코드 작성보다 문제 선택, 검증, 맥락 유지에 있습니다.</p></article>
+            <article class="lesson"><b>다시 한다면</b><p>시장 검증을 더 앞당기고 핵심 가치 하나에 제품 범위를 강하게 제한합니다.</p></article>
+            <article class="lesson"><b>가져가는 역량</b><p>AI 에이전트 오케스트레이션, 풀스택 구현, 안전한 DB 진화, 운영 기반 QA입니다.</p></article>
+          </div>
+        </div>
+
+        <aside class="limits reveal" aria-label="이 사례의 적용 범위">
+          <h3>이 사례에서 확인할 수 있는 역량과 범위</h3>
+          <div class="limits-grid">
+            <div class="limit"><b>검증한 역량</b><p>모호한 운영 요구를 데이터 경계와 행동 규칙으로 바꾸고, 저장소 맥락과 완료 기준으로 AI 협업 품질을 관리했습니다.</p></div>
+            <div class="limit"><b>검증한 실행 범위</b><p>개인 프로젝트에서 제품 설계부터 풀스택 구현, DB 진화, QA, 운영 측정까지 연결했습니다.</p></div>
+            <div class="limit"><b>주장하지 않는 것</b><p>팀 협업과 product-market fit의 증거는 아닙니다. 다음 제품에서는 시장 검증을 기능 확장보다 앞에 둡니다.</p></div>
+          </div>
+        </aside>
+        <div class="hero-actions section-actions">
+          <a class="button button-primary" href="mailto:dalyn8690@gmail.com">이메일로 연락하기 <span aria-hidden="true">↗</span></a>
+          <a class="button button-secondary" href="https://github.com/dalyn98" target="_blank" rel="noreferrer">GitHub 보기 <span aria-hidden="true">↗</span></a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <aside class="dev-environment" aria-label="프로젝트 개발 환경">
+    <div class="dev-environment-inner shell">
+      <span class="dev-environment-label">Development environment</span>
+      <p>Node.js 24 · npm 11 · Next.js 16.2 (App Router) · React 19.2 · TypeScript 5 · Supabase PostgreSQL / RPC / RLS · Vitest 4 · Playwright 1.60 · Docker · Vercel Fluid Compute</p>
+    </div>
+  </aside>
+
+  <footer>
+    <div class="footer-grid shell">
+      <p>현우 · Product Engineer Portfolio</p>
+      <p>근거: Git history, repository artifacts, AI session log · 2026-09-10 snapshot</p>
+      <p><a href="mailto:dalyn8690@gmail.com">연락하기</a> · <a href="#top">맨 위로 ↑</a></p>
+    </div>
+  </footer>
+
+  <dialog id="lightbox" aria-label="제품 화면 크게 보기">
+    <button class="dialog-close" type="button" aria-label="닫기">×</button>
+    <img src="../screenshots/events-demo.png" alt="선택한 제품 화면 확대 이미지">
+  </dialog>
+
+  <script>
+    const navToggle = document.querySelector('.nav-toggle');
+    const navLinks = document.querySelector('#nav-links');
+
+    navToggle?.addEventListener('click', () => {
+      const isOpen = navLinks.classList.toggle('open');
+      navToggle.setAttribute('aria-expanded', String(isOpen));
+      navToggle.setAttribute('aria-label', isOpen ? '메뉴 닫기' : '메뉴 열기');
+    });
+
+    navLinks?.querySelectorAll('a').forEach((link) => {
+      link.addEventListener('click', () => {
+        navLinks.classList.remove('open');
+        navToggle?.setAttribute('aria-expanded', 'false');
+        navToggle?.setAttribute('aria-label', '메뉴 열기');
+      });
+    });
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.08 });
+    document.querySelectorAll('.reveal').forEach((element, index) => {
+      element.style.setProperty('--reveal-delay', `${Math.min(index % 4, 3) * 70}ms`);
+      observer.observe(element);
+    });
+
+    const lightbox = document.querySelector('#lightbox');
+    const lightboxImage = lightbox.querySelector('img');
+    document.querySelectorAll('[data-image]').forEach((button) => {
+      button.addEventListener('click', () => {
+        lightboxImage.src = button.dataset.image;
+        lightboxImage.alt = button.querySelector('img')?.alt ?? '선택한 제품 화면 확대 이미지';
+        lightbox.showModal();
+      });
+    });
+    lightbox.querySelector('.dialog-close').addEventListener('click', () => lightbox.close());
+    lightbox.addEventListener('click', (event) => {
+      if (event.target === lightbox) lightbox.close();
+    });
+  </script>
+</body>
+</html>

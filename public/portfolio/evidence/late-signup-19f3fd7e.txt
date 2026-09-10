@@ -1,0 +1,76 @@
+Albion Guild Manager — Evidence excerpt
+=========================================
+
+Provenance
+----------
+Codex task: 01a01018-1a19-77e2-b417-f88320c3f598
+User record: "이벤트 시작이 됬다고 해서 참가신청이 안되고 있는 상태인것 같은데. 이벤트 시작이 되면 취소가 불가능한거지. 참가는 그대로 가능해야해. 개선후 배포해"
+Commit: 19f3fd7e75002d410f23001fc0c7b4209e8da000
+Date: 2026-08-17T23:39:18+09:00
+Message: fix: allow signups after event start
+Diff stat: 8 files changed, 638 insertions(+), 18 deletions(-)
+
+Repository artifacts
+--------------------
+- supabase/migrations/414_started_event_late_signups.sql
+- src/lib/started-event-late-signup-migration.test.ts
+- src/lib/regear-effective-policy.integration.test.ts
+- src/app/actions/member.test.ts
+- src/app/actions/event-guest-profile.test.ts
+
+Regression contract excerpt
+---------------------------
+it('pairs a late slot signup with its frozen policy snapshot atomically', () => {
+  expect(migration).toMatch(
+    /assign_event_slot_with_regear_snapshot[\s\S]*insert_event_regear_slot_participant_snapshot[\s\S]*public\.assign_slot/i,
+  )
+})
+
+it('keeps guest recruitment open after start while retaining the cancel lock', () => {
+  expect(guestAssignBody).not.toContain('GUEST_RECRUITMENT_CLOSED')
+  expect(migration).not.toContain(
+    'create or replace function public.cancel_guest_event_application',
+  )
+})
+
+Atomic RPC excerpt
+------------------
+create or replace function public.assign_event_slot_with_regear_snapshot(...)
+returns void
+language plpgsql
+security invoker
+as $$
+begin
+  perform public.insert_event_regear_slot_participant_snapshot(..., 'target');
+  perform public.assign_slot(p_slot_id, p_discord_id, p_username, p_picks);
+end;
+$$;
+
+Integration counterexample excerpt
+----------------------------------
+expect(lateSlot).toEqual({ assigned_discord_id: 'late-signup-member' })
+expect(lateSnapshot).toEqual({
+  policy_version_id: fixture.policyVersionId,
+  discord_id: 'late-signup-member',
+  role_name: 'Healer',
+})
+const { error: lateCancelError } = await client.rpc('cancel_slot', {
+  p_slot_id: lateSignupSlotId,
+  p_discord_id: 'late-signup-member',
+})
+expect(lateCancelError?.message).toContain('EVENT_PARTICIPANT_SELF_CANCEL_LOCKED')
+
+Recorded verification at completion
+-----------------------------------
+- Full test suite: 3,751 passed in that task
+- Typecheck and production build passed
+- Migration 414 applied after a 737MB pre-deployment backup
+- GitHub webhook outage delayed deployment; the task explicitly reported the app as
+  not yet deployed until the webhook recovered
+- Final production deployment and health check were confirmed afterward
+
+Disclosure
+----------
+The source repository is private. This portable excerpt contains the real commit hash,
+task identifier, and selected non-sensitive test/SQL contracts. The original repository
+and task record can be demonstrated in an interview.
