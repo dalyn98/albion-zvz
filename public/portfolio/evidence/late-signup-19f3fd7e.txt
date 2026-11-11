@@ -71,6 +71,11 @@ Recorded verification at completion
 
 Disclosure
 ----------
-The source repository is private. This portable excerpt contains the real commit hash,
-task identifier, and selected non-sensitive test/SQL contracts. The original repository
-and task record can be demonstrated in an interview.
+The source repository became public on 2026-11-12:
+https://github.com/dalyn98/albion-zvz
+Commit: https://github.com/dalyn98/albion-zvz/commit/19f3fd7e75002d410f23001fc0c7b4209e8da000
+
+This portable excerpt contains the real commit hash, task identifier, and selected
+non-sensitive test/SQL contracts. The full task conversation is not part of the
+public repository. Verification results above describe the historical task;
+they are not a new test run or a claim that the service is still operating.

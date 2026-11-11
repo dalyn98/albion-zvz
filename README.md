@@ -2,10 +2,15 @@
 
 Albion Online ZvZ 길드 운영을 위한 멀티테넌트 SaaS. 이벤트 운영, 리기어 보상, 길드 상점, ZvZ 통계, Discord 자동화를 한 사이트에서 관리합니다.
 
-- 프로덕션: <https://albion-guildmanager.com>
-- 봇 초대 단축 URL: <https://albion-guildmanager.com/invite>
-- 어드민용 사용법 가이드: 사이트 로그인 후 어드민 → 사용법 가이드 (i18n: ko / ja / en / zh)
-- 마케팅·FAQ: `/`, `/pricing`, `/faq`
+> **운영 상태:** 2026년 10월 서비스 운영을 중단했습니다. 이 저장소는 개발 과정과 구현 사례를 보존한 포트폴리오 자료이며, 2026년 11월 12일부터 공개되어 있습니다. 아래의 기능·설정·배포 설명은 개발 및 운영 당시의 구조를 설명합니다.
+
+- [공개 프로젝트 소개](https://hyeonwoo-product-portfolio.dalyn8690.chatgpt.site/projects/albion/)
+- [주요 기능과 화면](https://hyeonwoo-product-portfolio.dalyn8690.chatgpt.site/projects/albion/features)
+- [개발 과정과 검증 근거](https://hyeonwoo-product-portfolio.dalyn8690.chatgpt.site/projects/albion/evidence)
+- [시작 후 참가 허용 개선](https://github.com/dalyn98/albion-zvz/commit/19f3fd7e75002d410f23001fc0c7b4209e8da000)
+- [보상 기준 누락 개선](https://github.com/dalyn98/albion-zvz/commit/5dfa4f52000df103742d338cad6aeb404bf14d5e)
+
+과거 운영 도메인은 `albion-guildmanager.com`입니다. 현재 서비스 이용이나 봇 초대 주소로 안내하지 않습니다. 공개 자료 페이지는 제품과 개발 기록을 소개하며, 운영 중인 SaaS 체험 페이지는 아닙니다.
 
 ## 핵심 기능
 
@@ -106,9 +111,9 @@ commit, push, 배포, 운영 마이그레이션 적용 또는 사용자 자동 �
 ./scripts/safe-db-push.sh <label>
 ```
 
-## 배포
+## 운영 당시의 배포 방식
 
-`main` 브랜치에 push 하면 Vercel 이 자동으로 albion-guildmanager.com 에 프로덕션 배포합니다. PR 별 preview URL 도 자동 생성됩니다. 직접 `vercel deploy` 를 호출하지 않습니다.
+운영 당시에는 `main` 브랜치 push를 Vercel 프로덕션 자동 배포와 연결하고, PR별 preview URL을 사용했습니다. 직접 `vercel deploy`를 호출하지 않는 방식이었습니다. 이 설명은 현재 서비스가 운영 중이라는 뜻이 아닙니다.
 
 ## 디렉터리 개요
 
@@ -126,4 +131,4 @@ public/                    # 정적 자원
 
 ## 문의 / 버그 리포트
 
-운영 중인 길드라면 사이트 어드민 화면 안내를 따라 직접 연락 주세요. 보안 이슈는 비공개 채널로 보고해 주세요.
+서비스 운영은 종료되었습니다. 공개 코드와 문서에 관한 질문은 GitHub Issues에 남길 수 있습니다. 비밀키, 계정 정보 또는 이용자 개인정보는 공개 이슈에 포함하지 마세요.
